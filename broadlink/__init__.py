@@ -25,14 +25,21 @@ class rm2:
     self.cs.bind(('',0)) 
     self.port = self.cs.getsockname()[1]
 
+    timezone = time.timezone/-3600
     packet = bytearray(0x30)
 
     year = datetime.now().year
 
-    packet[0x08] = 0xf9
-    packet[0x09] = 0xff
-    packet[0x0a] = 0xff
-    packet[0x0b] = 0xff
+    if timezone < 0:
+      packet[0x08] = 0xff + timezone - 1
+      packet[0x09] = 0xff
+      packet[0x0a] = 0xff
+      packet[0x0b] = 0xff
+    else:
+      packet[0x08] = timezone
+      packet[0x09] = 0
+      packet[0x0a] = 0
+      packet[0x0b] = 0
     packet[0x0c] = year & 0xff
     packet[0x0d] = year >> 8
     packet[0x0e] = datetime.now().minute
