@@ -126,3 +126,11 @@ Send the following payload with a command byte of 0x006a
 |0x00|0x02|
 |0x01-0x03|0x00|
 |0x04-end|data|
+
+
+Todo
+----
+
+* Support for other devices using the Broadlink protocol (various smart home devices)
+* Verify whether RF learning uses the same information. The first 4 bytes of the response packet may indicate the type of response that was learned, and the first 4 bytes of the payload may provide that back to the Broadlink on sending. Alternatively, this information may be embedded in the response data already.
+* Figure out what the format of the data packets actually is.
