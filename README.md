@@ -1,36 +1,45 @@
 Python control for Broadlink RM2 IR controllers
 ===============================================
 
-A simple Python API for controlling IR controllers from [Broadlink](http://www.ibroadlink.com/rm/). At present, only RM Pro (referred to as RM2 in the codebase) devices are supported and only one device per network will be used. There is currently no support for the cloud API.
+A simple Python API for controlling IR controllers from [Broadlink](http://www.ibroadlink.com/rm/). At present, only RM Pro (referred to as RM2 in the codebase) and A1 sensor platform devices are supported. There is currently no support for the cloud API.
 
 Example use
 -----------
 
-Discover an available device on the local network:
+Discover available devices on the local network:
 ```
 import broadlink
 
-device = broadlink.rm2()
-device.discover()
+devices = broadlink.discover(timeout=5)
 ```
 
 Obtain the authentication key required for further communication:
 ```
-device.auth()
+devices[0].auth()
 ```
 
 Enter learning mode:
 ```
-device.enter_learning()
+devices[0].enter_learning()
 ```
 
 Obtain an IR packet while in learning mode:
 ```
-ir_packet = device.check_data()
+ir_packet = devices[0].check_data()
 ```
 (This will return None if the device does not have a packet to return)
 
 Send an IR packet:
 ```
-device.send_data(ir_packet)
+devices[0].send_data(ir_packet)
+```
+
+Obtain temperature data from an RM2:
+```
+devices[0].check_temperature()
+```
+
+Obtain sensor data from an A1:
+```
+data = devices[0].check_sensors()
 ```
