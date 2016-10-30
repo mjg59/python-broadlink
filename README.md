@@ -23,13 +23,13 @@ Enter learning mode:
 devices[0].enter_learning()
 ```
 
-Obtain an IR packet while in learning mode:
+Obtain an IR or RF packet while in learning mode:
 ```
 ir_packet = devices[0].check_data()
 ```
 (This will return None if the device does not have a packet to return)
 
-Send an IR packet:
+Send an IR or RF packet:
 ```
 devices[0].send_data(ir_packet)
 ```
