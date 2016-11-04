@@ -8,7 +8,7 @@ import socket
 
 def discover(timeout=None):
   s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-  s.connect(('8.8.8.8', 0))  # connecting to a UDP address doesn't send packets
+  s.connect(('8.8.8.8', 53))  # connecting to a UDP address doesn't send packets
   local_ip_address = s.getsockname()[0]
   address = local_ip_address.split('.')
   cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -140,9 +140,9 @@ class device:
     packet[0x07] = 0x55
     packet[0x24] = 0x2a
     packet[0x25] = 0x27
-    packet[0x26] = command 
-    packet[0x28] = self.count & 0xff 
-    packet[0x29] = self.count >> 8 
+    packet[0x26] = command
+    packet[0x28] = self.count & 0xff
+    packet[0x29] = self.count >> 8
     packet[0x2a] = self.mac[0]
     packet[0x2b] = self.mac[1]
     packet[0x2c] = self.mac[2]
@@ -167,7 +167,7 @@ class device:
 
     for i in range(len(payload)):
       packet.append(payload[i])
-    
+
     checksum = 0xbeaf
     for i in range(len(packet)):
       checksum += packet[i]
@@ -182,13 +182,13 @@ class device:
   def send_data(self, data):
     packet = bytearray([0x02, 0x00, 0x00, 0x00])
     packet += data
-    self.send_packet(0x6a, packet) 
+    self.send_packet(0x6a, packet)
 
   def enter_learning(self):
     packet = bytearray(16)
     packet[0] = 3
-    self.send_packet(0x6a, packet) 
-    
+    self.send_packet(0x6a, packet)
+
   def check_sensors(self):
     packet = bytearray(16)
     packet[0] = 1
