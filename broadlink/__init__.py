@@ -129,6 +129,7 @@ class device:
     self.key = payload[0x04:0x14]
 
   def send_packet(self, command, payload):
+    self.count = (self.count + 1) & 0xffff
     packet = bytearray(0x38)
     packet[0x00] = 0x5a
     packet[0x01] = 0xa5
