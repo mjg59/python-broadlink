@@ -43,3 +43,8 @@ Obtain sensor data from an A1:
 ```
 data = devices[0].check_sensors()
 ```
+
+Set power state on an SP2/SP3 (0 for off, 1 for on):
+```
+devices[0].set_power(1)
+```

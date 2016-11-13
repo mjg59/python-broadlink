@@ -180,6 +180,12 @@ class device:
     response = self.cs.recvfrom(1024)
     return response[0]
 
+  def set_power(self, state):
+    packet = bytearray(8)
+    packet[0] = 2
+    packet[4] = state
+    self.send_packet(0x6a, packet)
+
   def send_data(self, data):
     packet = bytearray([0x02, 0x00, 0x00, 0x00])
     packet += data
