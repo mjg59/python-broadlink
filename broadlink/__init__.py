@@ -75,8 +75,48 @@ def discover(timeout=None):
         return devices
       responsepacket = bytearray(response[0])
       host = response[1]
+      devtype = responsepacket[0x34] | responsepacket[0x35] << 8
       mac = responsepacket[0x3a:0x40]
-      devices.append(device(host=host, mac=mac))
+      if devtype == 0: # SP1
+        devices.append(sp1(host=host, mac=mac))
+      if devtype == 0x2711: # SP2
+        devices.append(sp2(host=host, mac=mac))
+      if devtype == 0x2719 or devtype == 0x7919 or devtype == 0x271a or devtype == 0x791a: # Honeywell SP2
+        devices.append(sp2(host=host, mac=mac))
+      if devtype == 0x2720: # SPMini
+        devices.append(sp2(host=host, mac=mac))
+      elif devtype == 0x753e: # SP3
+        devices.append(sp2(host=host, mac=mac))
+      elif devtype == 0x2728: # SPMini2
+        devices.append(sp2(host=host, mac=mac))
+      elif devtype == 0x2733 or devtype == 0x273e: # OEM branded SPMini
+        devices.append(sp2(host=host, mac=mac))
+      elif devtype >= 0x7530 and devtype <= 0x7918: # OEM branded SPMini2
+        devices.append(sp2(host=host, mac=mac))
+      elif devtype == 0x2736: # SPMiniPlus
+        devices.append(sp2(host=host, mac=mac))
+      elif devtype == 0x2712: # RM2
+        devices.append(rm(host=host, mac=mac))
+      elif devtype == 0x2737: # RM Mini
+        devices.append(rm(host=host, mac=mac))
+      elif devtype == 0x273d: # RM Pro Phicomm
+        devices.append(rm(host=host, mac=mac))
+      elif devtype == 0x2783: # RM2 Home Plus
+        devices.append(rm(host=host, mac=mac))
+      elif devtype == 0x277c: # RM2 Home Plus GDT
+        devices.append(rm(host=host, mac=mac))
+      elif devtype == 0x272a: # RM2 Pro Plus
+        devices.append(rm(host=host, mac=mac))
+      elif devtype == 0x2787: # RM2 Pro Plus2
+        devices.append(rm(host=host, mac=mac))
+      elif devtype == 0x278b: # RM2 Pro Plus BL
+        devices.append(rm(host=host, mac=mac))
+      elif devtype == 0x278f: # RM Mini Shate
+        devices.append(rm(host=host, mac=mac))
+      elif devtype == 0x2714: # A1
+        devices.append(a1(host=host, mac=mac))
+      else:
+        devices.append(device(host=host, mac=mac))
 
 class device:
   def __init__(self, host, mac):
@@ -180,21 +220,31 @@ class device:
     response = self.cs.recvfrom(1024)
     return response[0]
 
+
+class sp1(device):
+  def __init__ (self, host, mac):
+    device.__init__(self, host, mac)
+
+  def set_power(self, state):
+    packet = bytearray(4)
+    packet[0] = state
+    self.send_packet(0x66, packet)
+
+
+class sp2(device):
+  def __init__ (self, host, mac):
+    device.__init__(self, host, mac)
+
   def set_power(self, state):
     packet = bytearray(8)
     packet[0] = 2
     packet[4] = state
     self.send_packet(0x6a, packet)
 
-  def send_data(self, data):
-    packet = bytearray([0x02, 0x00, 0x00, 0x00])
-    packet += data
-    self.send_packet(0x6a, packet)
 
-  def enter_learning(self):
-    packet = bytearray(16)
-    packet[0] = 3
-    self.send_packet(0x6a, packet)
+class a1(device):
+  def __init__ (self, host, mac):
+    device.__init__(self, host, mac)
 
   def check_sensors(self):
     packet = bytearray(16)
@@ -240,16 +290,10 @@ class device:
         data['noise'] = 'unknown'
       return data
 
-  def check_temperature(self):
-    packet = bytearray(16)
-    packet[0] = 1
-    response = self.send_packet(0x6a, packet)
-    err = ord(response[0x22]) | (ord(response[0x23]) << 8)
-    if err == 0:
-      aes = AES.new(str(self.key), AES.MODE_CBC, str(self.iv))
-      payload = aes.decrypt(str(response[0x38:]))
-      temp = (ord(payload[0x4]) * 10 + ord(payload[0x5])) / 10.0
-      return temp
+
+class rm(device):
+  def __init__ (self, host, mac):
+    device.__init__(self, host, mac)
 
   def check_data(self):
     packet = bytearray(16)
@@ -261,7 +305,29 @@ class device:
       payload = aes.decrypt(str(response[0x38:]))
       return payload[0x04:]
 
-class rm2(device):
+  def send_data(self, data):
+    packet = bytearray([0x02, 0x00, 0x00, 0x00])
+    packet += data
+    self.send_packet(0x6a, packet)
+
+  def enter_learning(self):
+    packet = bytearray(16)
+    packet[0] = 3
+    self.send_packet(0x6a, packet)
+
+  def check_temperature(self):
+    packet = bytearray(16)
+    packet[0] = 1
+    response = self.send_packet(0x6a, packet)
+    err = ord(response[0x22]) | (ord(response[0x23]) << 8)
+    if err == 0:
+      aes = AES.new(str(self.key), AES.MODE_CBC, str(self.iv))
+      payload = aes.decrypt(str(response[0x38:]))
+      temp = (ord(payload[0x4]) * 10 + ord(payload[0x5])) / 10.0
+      return temp
+
+# For legay compatibility - don't use this
+class rm2(rm):
   def __init__ (self):
     device.__init__(self, None, None)
 
