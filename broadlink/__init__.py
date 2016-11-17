@@ -181,10 +181,22 @@ class device:
     return response[0]
 
   def set_power(self, state):
-    packet = bytearray(8)
+    """Sets the power state of the smart plug."""
+    packet = bytearray(16)
     packet[0] = 2
-    packet[4] = state
+    packet[4] = 1 if state else 0
     self.send_packet(0x6a, packet)
+
+  def check_power(self):
+    """Returns the power state of the smart plug."""
+    packet = bytearray(16)
+    packet[0] = 1
+    response = self.send_packet(0x6a, packet)
+    err = ord(response[0x22]) | (ord(response[0x23]) << 8)
+    if err == 0:
+      aes = AES.new(str(self.key), AES.MODE_CBC, str(self.iv))
+      payload = aes.decrypt(str(response[0x38:]))
+      return bool(ord(payload[0x4]))
 
   def send_data(self, data):
     packet = bytearray([0x02, 0x00, 0x00, 0x00])

@@ -44,7 +44,12 @@ Obtain sensor data from an A1:
 data = devices[0].check_sensors()
 ```
 
-Set power state on an SP2/SP3 (0 for off, 1 for on):
+Set power state on a SmartPlug SP2/SP3:
 ```
-devices[0].set_power(1)
+devices[0].set_power(True)
+```
+
+Check power state on a SmartPlug:
+```
+state = devices[0].check_power()
 ```
