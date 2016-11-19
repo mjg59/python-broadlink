@@ -6,6 +6,48 @@ import time
 import random
 import socket
 
+def gendevice(devtype, host, mac):
+  if devtype == 0: # SP1
+    return sp1(host=host, mac=mac)
+  if devtype == 0x2711: # SP2
+    return sp2(host=host, mac=mac)
+  if devtype == 0x2719 or devtype == 0x7919 or devtype == 0x271a or devtype == 0x791a: # Honeywell SP2
+    return sp2(host=host, mac=mac)
+  if devtype == 0x2720: # SPMini
+    return sp2(host=host, mac=mac)
+  elif devtype == 0x753e: # SP3
+    return sp2(host=host, mac=mac)
+  elif devtype == 0x2728: # SPMini2
+    return sp2(host=host, mac=mac)
+  elif devtype == 0x2733 or devtype == 0x273e: # OEM branded SPMini
+    return sp2(host=host, mac=mac)
+  elif devtype >= 0x7530 and devtype <= 0x7918: # OEM branded SPMini2
+    return sp2(host=host, mac=mac)
+  elif devtype == 0x2736: # SPMiniPlus
+    return sp2(host=host, mac=mac)
+  elif devtype == 0x2712: # RM2
+    return rm(host=host, mac=mac)
+  elif devtype == 0x2737: # RM Mini
+    return rm(host=host, mac=mac)
+  elif devtype == 0x273d: # RM Pro Phicomm
+    return rm(host=host, mac=mac)
+  elif devtype == 0x2783: # RM2 Home Plus
+    return rm(host=host, mac=mac)
+  elif devtype == 0x277c: # RM2 Home Plus GDT
+    return rm(host=host, mac=mac)
+  elif devtype == 0x272a: # RM2 Pro Plus
+    return rm(host=host, mac=mac)
+  elif devtype == 0x2787: # RM2 Pro Plus2
+    return rm(host=host, mac=mac)
+  elif devtype == 0x278b: # RM2 Pro Plus BL
+    return rm(host=host, mac=mac)
+  elif devtype == 0x278f: # RM Mini Shate
+    return rm(host=host, mac=mac)
+  elif devtype == 0x2714: # A1
+    return a1(host=host, mac=mac)
+  else:
+    return device(host=host, mac=mac)
+
 def discover(timeout=None):
   s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
   s.connect(('8.8.8.8', 53))  # connecting to a UDP address doesn't send packets
@@ -65,7 +107,8 @@ def discover(timeout=None):
     responsepacket = bytearray(response[0])
     host = response[1]
     mac = responsepacket[0x3a:0x40]
-    return device(host=host, mac=mac)
+    devtype = responsepacket[0x34] | responsepacket[0x35] << 8
+    return gendevice(devtype, host, mac)
   else:
     while (time.time() - starttime) < timeout:
       cs.settimeout(timeout - (time.time() - starttime))
@@ -77,46 +120,8 @@ def discover(timeout=None):
       host = response[1]
       devtype = responsepacket[0x34] | responsepacket[0x35] << 8
       mac = responsepacket[0x3a:0x40]
-      if devtype == 0: # SP1
-        devices.append(sp1(host=host, mac=mac))
-      if devtype == 0x2711: # SP2
-        devices.append(sp2(host=host, mac=mac))
-      if devtype == 0x2719 or devtype == 0x7919 or devtype == 0x271a or devtype == 0x791a: # Honeywell SP2
-        devices.append(sp2(host=host, mac=mac))
-      if devtype == 0x2720: # SPMini
-        devices.append(sp2(host=host, mac=mac))
-      elif devtype == 0x753e: # SP3
-        devices.append(sp2(host=host, mac=mac))
-      elif devtype == 0x2728: # SPMini2
-        devices.append(sp2(host=host, mac=mac))
-      elif devtype == 0x2733 or devtype == 0x273e: # OEM branded SPMini
-        devices.append(sp2(host=host, mac=mac))
-      elif devtype >= 0x7530 and devtype <= 0x7918: # OEM branded SPMini2
-        devices.append(sp2(host=host, mac=mac))
-      elif devtype == 0x2736: # SPMiniPlus
-        devices.append(sp2(host=host, mac=mac))
-      elif devtype == 0x2712: # RM2
-        devices.append(rm(host=host, mac=mac))
-      elif devtype == 0x2737: # RM Mini
-        devices.append(rm(host=host, mac=mac))
-      elif devtype == 0x273d: # RM Pro Phicomm
-        devices.append(rm(host=host, mac=mac))
-      elif devtype == 0x2783: # RM2 Home Plus
-        devices.append(rm(host=host, mac=mac))
-      elif devtype == 0x277c: # RM2 Home Plus GDT
-        devices.append(rm(host=host, mac=mac))
-      elif devtype == 0x272a: # RM2 Pro Plus
-        devices.append(rm(host=host, mac=mac))
-      elif devtype == 0x2787: # RM2 Pro Plus2
-        devices.append(rm(host=host, mac=mac))
-      elif devtype == 0x278b: # RM2 Pro Plus BL
-        devices.append(rm(host=host, mac=mac))
-      elif devtype == 0x278f: # RM Mini Shate
-        devices.append(rm(host=host, mac=mac))
-      elif devtype == 0x2714: # A1
-        devices.append(a1(host=host, mac=mac))
-      else:
-        devices.append(device(host=host, mac=mac))
+      dev = gendevice(devtype, host, mac)
+      devices.append(dev)
 
 class device:
   def __init__(self, host, mac):
