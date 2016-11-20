@@ -124,9 +124,10 @@ def discover(timeout=None):
       devices.append(dev)
 
 class device:
-  def __init__(self, host, mac):
+  def __init__(self, host, mac, timeout=10):
     self.host = host
     self.mac = mac
+    self.timeout = timeout
     self.count = random.randrange(0xffff)
     self.key = bytearray([0x09, 0x76, 0x28, 0x34, 0x3f, 0xe9, 0x9e, 0x23, 0x76, 0x5c, 0x15, 0x13, 0xac, 0xcf, 0x8b, 0x02])
     self.iv = bytearray([0x56, 0x2e, 0x17, 0x99, 0x6d, 0x09, 0x3d, 0x28, 0xdd, 0xb3, 0xba, 0x69, 0x5a, 0x2e, 0x6f, 0x58])
@@ -221,8 +222,17 @@ class device:
     packet[0x20] = checksum & 0xff
     packet[0x21] = checksum >> 8
 
-    self.cs.sendto(packet, self.host)
-    response = self.cs.recvfrom(1024)
+    starttime = time.time()
+    while True:
+      try:
+        self.cs.sendto(packet, self.host)
+        self.cs.settimeout(1)
+        response = self.cs.recvfrom(1024)
+        break
+      except socket.timeout:
+        if (time.time() - starttime) < self.timeout:
+          pass
+        raise
     return response[0]
 
 
