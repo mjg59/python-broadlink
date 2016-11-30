@@ -1,3 +1,37 @@
+Import from mjg59/python-broadlink
+
+Added support for livolo switch to send livolo signal via broadlink.
+
+Example use(include python broadlink below)
+```
+import livolo
+livolo_send( 6500  , "Off")
+livolo_send( 6500 , "On")
+```
+How to use
+Assume 6500 is your remote id 
+
+You need to set livolo switch to learn mode then send btn1 and hear a beep on the device
+```
+livolo_send( 6500  , "btn1")
+```
+send again your light should toggle
+
+You need to set livolo switch to learn mode then send On and hear a beep on the device
+```
+livolo_send( 6500  , "on")
+```
+send again your switch should turn on if off. Nothing happen if already on
+
+Now you can try turn off the switch by sending
+
+```
+livolo_send( 6500  , "off")
+```
+
+See demo file for sample.
+
+
 Python control for Broadlink RM2 IR controllers
 ===============================================
 
