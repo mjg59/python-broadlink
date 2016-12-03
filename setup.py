@@ -18,7 +18,6 @@ setup(
     url='http://github.com/mjg59/python-broadlink',
     packages=find_packages(),
     scripts=[],
-    license=open('LICENSE').read(),
     description='Python API for controlling Broadlink IR controllers',
     classifiers=[
         'Development Status :: 4 - Beta',
