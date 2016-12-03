@@ -123,6 +123,7 @@ def discover(timeout=None):
       dev = gendevice(devtype, host, mac)
       devices.append(dev)
 
+
 class device:
   def __init__(self, host, mac, timeout=10):
     self.host = host
@@ -136,6 +137,7 @@ class device:
     self.cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     self.cs.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     self.cs.bind(('',0))
+    self.type = "Unknown"
 
   def auth(self):
     payload = bytearray(0x50)
@@ -173,6 +175,9 @@ class device:
 
     self.id = payload[0x00:0x04]
     self.key = payload[0x04:0x14]
+
+  def get_type(self):
+    return self.type
 
   def send_packet(self, command, payload):
     self.count = (self.count + 1) & 0xffff
@@ -239,6 +244,7 @@ class device:
 class sp1(device):
   def __init__ (self, host, mac):
     device.__init__(self, host, mac)
+    self.type = "SP1"
 
   def set_power(self, state):
     packet = bytearray(4)
@@ -249,6 +255,7 @@ class sp1(device):
 class sp2(device):
   def __init__ (self, host, mac):
     device.__init__(self, host, mac)
+    self.type = "SP2"
 
   def set_power(self, state):
     """Sets the power state of the smart plug."""
@@ -271,6 +278,7 @@ class sp2(device):
 class a1(device):
   def __init__ (self, host, mac):
     device.__init__(self, host, mac)
+    self.type = "A1"
 
   def check_sensors(self):
     packet = bytearray(16)
@@ -320,6 +328,7 @@ class a1(device):
 class rm(device):
   def __init__ (self, host, mac):
     device.__init__(self, host, mac)
+    self.type = "RM2"
 
   def check_data(self):
     packet = bytearray(16)
