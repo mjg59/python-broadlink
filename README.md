@@ -53,3 +53,13 @@ Check power state on a SmartPlug:
 ```
 state = devices[0].check_power()
 ```
+
+Set power state for S1 on a SmartPowerStrip MP1:
+```
+devices[0].set_power(1, True)
+```
+
+Check power state on a SmartPowerStrip:
+```
+state = devices[0].check_power()
+```
