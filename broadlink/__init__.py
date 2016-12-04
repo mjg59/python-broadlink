@@ -331,6 +331,29 @@ class a1(device):
         data['noise'] = 'unknown'
       return data
 
+  def check_sensors_raw(self):
+    packet = bytearray(16)
+    packet[0] = 1
+    response = self.send_packet(0x6a, packet)
+    err = response[0x22] | (response[0x23] << 8)
+    if err == 0:
+      data = {}
+      aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
+      payload = aes.decrypt(bytes(response[0x38:]))
+      if type(payload[0x4]) == int:
+        data['temperature'] = (payload[0x4] * 10 + payload[0x5]) / 10.0
+        data['humidity'] = (payload[0x6] * 10 + payload[0x7]) / 10.0
+        data['light'] = payload[0x8]
+        data['air_quality'] = payload[0x0a]
+        data['noise'] = payload[0xc]
+      else:
+        data['temperature'] = (ord(payload[0x4]) * 10 + ord(payload[0x5])) / 10.0
+        data['humidity'] = (ord(payload[0x6]) * 10 + ord(payload[0x7])) / 10.0
+        data['light'] = ord(payload[0x8])
+        data['air_quality'] = ord(payload[0x0a])
+        data['noise'] = ord(payload[0xc])
+      return data
+
 
 class rm(device):
   def __init__ (self, host, mac):
