@@ -240,7 +240,7 @@ class device:
         if (time.time() - starttime) < self.timeout:
           pass
         raise
-    return bytes(response[0])
+    return bytearray(response[0])
 
 
 class mp1(device):
@@ -347,9 +347,18 @@ class a1(device):
       data = {}
       aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
       payload = aes.decrypt(bytes(response[0x38:]))
-      data['temperature'] = (payload[0x4] * 10 + payload[0x5]) / 10.0
-      data['humidity'] = (payload[0x6] * 10 + payload[0x7]) / 10.0
-      light = payload[0x8]
+      if type(payload[0x4]) == int:
+        data['temperature'] = (payload[0x4] * 10 + payload[0x5]) / 10.0
+        data['humidity'] = (payload[0x6] * 10 + payload[0x7]) / 10.0
+        light = payload[0x8]
+        air_quality = payload[0x0a]
+        noise = payload[0xc]
+      else:
+        data['temperature'] = (ord(payload[0x4]) * 10 + ord(payload[0x5])) / 10.0
+        data['humidity'] = (ord(payload[0x6]) * 10 + ord(payload[0x7])) / 10.0
+        light = ord(payload[0x8])
+        air_quality = ord(payload[0x0a])
+        noise = ord(payload[0xc])
       if light == 0:
         data['light'] = 'dark'
       elif light == 1:
@@ -360,7 +369,6 @@ class a1(device):
         data['light'] = 'bright'
       else:
         data['light'] = 'unknown'
-      air_quality = payload[0x0a]
       if air_quality == 0:
         data['air_quality'] = 'excellent'
       elif air_quality == 1:
@@ -371,7 +379,6 @@ class a1(device):
         data['air_quality'] = 'bad'
       else:
         data['air_quality'] = 'unknown'
-      noise = payload[0xc]
       if noise == 0:
         data['noise'] = 'quiet'
       elif noise == 1:
@@ -380,6 +387,29 @@ class a1(device):
         data['noise'] = 'noisy'
       else:
         data['noise'] = 'unknown'
+      return data
+
+  def check_sensors_raw(self):
+    packet = bytearray(16)
+    packet[0] = 1
+    response = self.send_packet(0x6a, packet)
+    err = response[0x22] | (response[0x23] << 8)
+    if err == 0:
+      data = {}
+      aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
+      payload = aes.decrypt(bytes(response[0x38:]))
+      if type(payload[0x4]) == int:
+        data['temperature'] = (payload[0x4] * 10 + payload[0x5]) / 10.0
+        data['humidity'] = (payload[0x6] * 10 + payload[0x7]) / 10.0
+        data['light'] = payload[0x8]
+        data['air_quality'] = payload[0x0a]
+        data['noise'] = payload[0xc]
+      else:
+        data['temperature'] = (ord(payload[0x4]) * 10 + ord(payload[0x5])) / 10.0
+        data['humidity'] = (ord(payload[0x6]) * 10 + ord(payload[0x7])) / 10.0
+        data['light'] = ord(payload[0x8])
+        data['air_quality'] = ord(payload[0x0a])
+        data['noise'] = ord(payload[0xc])
       return data
 
 
@@ -416,7 +446,10 @@ class rm(device):
     if err == 0:
       aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
       payload = aes.decrypt(bytes(response[0x38:]))
-      temp = (payload[0x4] * 10 + payload[0x5]) / 10.0
+      if type(payload[0x4]) == int:
+        temp = (payload[0x4] * 10 + payload[0x5]) / 10.0
+      else:
+        temp = (ord(payload[0x4]) * 10 + ord(payload[0x5])) / 10.0
       return temp
 
 # For legay compatibility - don't use this
