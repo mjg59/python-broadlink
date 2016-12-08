@@ -242,8 +242,8 @@ class device:
 
 
 class sp1(device):
-  def __init__ (self, host, mac):
-    device.__init__(self, host, mac)
+  def __init__ (self, host, mac, timeout=10):
+    device.__init__(self, host, mac, timeout)
     self.type = "SP1"
 
   def set_power(self, state):
@@ -253,8 +253,8 @@ class sp1(device):
 
 
 class sp2(device):
-  def __init__ (self, host, mac):
-    device.__init__(self, host, mac)
+  def __init__ (self, host, mac, timeout=10):
+    device.__init__(self, host, mac, timeout)
     self.type = "SP2"
 
   def set_power(self, state):
@@ -276,8 +276,8 @@ class sp2(device):
       return bool(payload[0x4])
 
 class a1(device):
-  def __init__ (self, host, mac):
-    device.__init__(self, host, mac)
+  def __init__ (self, host, mac, timeout=10):
+    device.__init__(self, host, mac, timeout)
     self.type = "A1"
 
   def check_sensors(self):
@@ -356,8 +356,8 @@ class a1(device):
 
 
 class rm(device):
-  def __init__ (self, host, mac):
-    device.__init__(self, host, mac)
+  def __init__ (self, host, mac, timeout=10):
+    device.__init__(self, host, mac, timeout)
     self.type = "RM2"
 
   def check_data(self):
