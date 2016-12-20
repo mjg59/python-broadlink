@@ -126,6 +126,7 @@ def discover(timeout=None, local_ip_address=None):
       mac = responsepacket[0x3a:0x40]
       dev = gendevice(devtype, host, mac)
       devices.append(dev)
+    return devices
 
 
 class device:
