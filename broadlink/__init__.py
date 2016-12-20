@@ -48,15 +48,16 @@ def gendevice(devtype, host, mac):
   else:
     return device(host=host, mac=mac)
 
-def discover(timeout=None):
-  s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-  s.connect(('8.8.8.8', 53))  # connecting to a UDP address doesn't send packets
-  local_ip_address = s.getsockname()[0]
+def discover(timeout=None, local_ip_address=None):
+  if local_ip_address is None:
+      s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+      s.connect(('8.8.8.8', 53))  # connecting to a UDP address doesn't send packets
+      local_ip_address = s.getsockname()[0]
   address = local_ip_address.split('.')
   cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
   cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
   cs.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-  cs.bind(('',0))
+  cs.bind((local_ip_address,0))
   port = cs.getsockname()[1]
   starttime = time.time()
 
