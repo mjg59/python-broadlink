@@ -173,8 +173,12 @@ class device:
     aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
     payload = aes.decrypt(bytes(enc_payload))
 
-    self.id = payload[0x00:0x04]
-    self.key = payload[0x04:0x14]
+    if payload:
+        self.ip_arr = payload[0x00:0x04]
+        self.key = payload[0x04:0x14]
+        return True
+    else:
+        return False
 
   def get_type(self):
     return self.type
