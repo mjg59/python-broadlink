@@ -172,9 +172,18 @@ class device:
 
     aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
     payload = aes.decrypt(bytes(enc_payload))
+    if not payload:
+      return False
+
+    key = payload[0x04:0x14]
+    try:
+      aes = AES.new(bytes(key), AES.MODE_CBC, bytes(self.iv))
+    except ValueError:
+      return False
 
     self.id = payload[0x00:0x04]
-    self.key = payload[0x04:0x14]
+    self.key = key
+    return True
 
   def get_type(self):
     return self.type
