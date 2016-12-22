@@ -5,6 +5,7 @@ from Crypto.Cipher import AES
 import time
 import random
 import socket
+import threading
 
 def gendevice(devtype, host, mac):
   if devtype == 0: # SP1
@@ -138,6 +139,7 @@ class device:
     self.cs.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     self.cs.bind(('',0))
     self.type = "Unknown"
+    self.lock = threading.Lock()
 
   def auth(self):
     payload = bytearray(0x50)
@@ -228,16 +230,17 @@ class device:
     packet[0x21] = checksum >> 8
 
     starttime = time.time()
-    while True:
-      try:
-        self.cs.sendto(packet, self.host)
-        self.cs.settimeout(1)
-        response = self.cs.recvfrom(1024)
-        break
-      except socket.timeout:
-        if (time.time() - starttime) < self.timeout:
-          pass
-        raise
+    with self.lock:
+      while True:
+        try:
+          self.cs.sendto(packet, self.host)
+          self.cs.settimeout(1)
+          response = self.cs.recvfrom(1024)
+          break
+        except socket.timeout:
+          if (time.time() - starttime) < self.timeout:
+            pass
+          raise
     return bytearray(response[0])
 
 
