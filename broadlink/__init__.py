@@ -290,7 +290,10 @@ class mp1(device):
     if err == 0:
       aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
       payload = aes.decrypt(bytes(response[0x38:]))
-      state = ord(payload[0x0e])
+      if type(payload[0x4]) == int:
+        state = payload[0x0e]
+      else:
+        state = ord(payload[0x0e])
       data = {}
       data['s1'] = bool(state & 0x01)
       data['s2'] = bool(state & 0x02)
