@@ -294,12 +294,17 @@ class mp1(device):
         state = payload[0x0e]
       else:
         state = ord(payload[0x0e])
-      data = {}
-      data['s1'] = bool(state & 0x01)
-      data['s2'] = bool(state & 0x02)
-      data['s3'] = bool(state & 0x04)
-      data['s4'] = bool(state & 0x08)
-      return data
+      return state
+
+  def check_power(self):
+    """Returns the power state of the smart power strip."""
+    state = self.check_power_raw()
+    data = {}
+    data['s1'] = bool(state & 0x01)
+    data['s2'] = bool(state & 0x02)
+    data['s3'] = bool(state & 0x04)
+    data['s4'] = bool(state & 0x08)
+    return data
 
 
 class sp1(device):
