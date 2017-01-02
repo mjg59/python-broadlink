@@ -286,8 +286,8 @@ class mp1(device):
     sid_mask = 0x01 << (sid - 1)
     return self.set_power_mask(sid_mask, state)
 
-  def check_power(self):
-    """Returns the power state of the smart power strip."""
+  def check_power_raw(self):
+    """Returns the power state of the smart power strip in raw format."""
     packet = bytearray(16)
     packet[0x00] = 0x0a
     packet[0x02] = 0xa5
