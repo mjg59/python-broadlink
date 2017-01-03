@@ -286,8 +286,8 @@ class mp1(device):
     sid_mask = 0x01 << (sid - 1)
     return self.set_power_mask(sid_mask, state)
 
-  def check_power(self):
-    """Returns the power state of the smart power strip."""
+  def check_power_raw(self):
+    """Returns the power state of the smart power strip in raw format."""
     packet = bytearray(16)
     packet[0x00] = 0x0a
     packet[0x02] = 0xa5
@@ -307,12 +307,17 @@ class mp1(device):
         state = payload[0x0e]
       else:
         state = ord(payload[0x0e])
-      data = {}
-      data['s1'] = bool(state & 0x01)
-      data['s2'] = bool(state & 0x02)
-      data['s3'] = bool(state & 0x04)
-      data['s4'] = bool(state & 0x08)
-      return data
+      return state
+
+  def check_power(self):
+    """Returns the power state of the smart power strip."""
+    state = self.check_power_raw()
+    data = {}
+    data['s1'] = bool(state & 0x01)
+    data['s2'] = bool(state & 0x02)
+    data['s3'] = bool(state & 0x04)
+    data['s4'] = bool(state & 0x08)
+    return data
 
 
 class sp1(device):
