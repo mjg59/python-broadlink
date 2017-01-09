@@ -6,6 +6,25 @@ Encryption
 
 Packets include AES-based encryption in CBC mode. The initial key is 0x09, 0x76, 0x28, 0x34, 0x3f, 0xe9, 0x9e, 0x23, 0x76, 0x5c, 0x15, 0x13, 0xac, 0xcf, 0x8b, 0x02. The IV is 0x56, 0x2e, 0x17, 0x99, 0x6d, 0x09, 0x3d, 0x28, 0xdd, 0xb3, 0xba, 0x69, 0x5a, 0x2e, 0x6f, 0x58.
 
+New device setup
+----------------
+
+To setup a new Broadlink device while in AP Mode a 136 byte packet needs to be sent to the device as follows:
+
+| Offset  | Contents |
+|---------|----------|
+|0x00-0x19|00|
+|0x20-0x21|Checksum as a little-endian 16 bit integer|
+|0x26|14 (Always 14)|
+|0x44-0x63|SSID Name (zero padding is appended)|
+|0x64-0x83|Password (zero padding is appended)|
+|0x84|Character length of SSID|
+|0x85|Character length of password|
+|0x86|Wireless security mode (00 - none, 01 = WEP, 02 = WPA1, 03 = WPA2, 04 = WPA1/2)|
+|0x87-88|00|
+
+Send this packet as a UDP broadcast to 255.255.255.255 on port 80.
+
 Network discovery
 -----------------
 
@@ -133,3 +152,4 @@ Todo
 
 * Support for other devices using the Broadlink protocol (various smart home devices)
 * Figure out what the format of the data packets actually is.
+* Deal with the response after AP Mode WiFi network setup.
