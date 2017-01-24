@@ -135,8 +135,8 @@ Each value is represented by one byte. If the length exceeds one byte
 then it is stored big endian with a leading 0.
 
 Example: The header for my Optoma projector is 8920 4450
-8920 * 269 / 8192 = 0x124
-4450 * 269 / 8192 = 0x92
+`8920 * 269 / 8192 = 0x124
+4450 * 269 / 8192 = 0x92`
 
 So the data starts with `0x00 0x1 0x24 0x92 ....`
 
