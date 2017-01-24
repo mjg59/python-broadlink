@@ -125,7 +125,20 @@ Send the following payload with a command byte of 0x006a
 |------|--------|
 |0x00|0x02|
 |0x01-0x03|0x00|
-|0x04-end|data|
+|0x04|0x26 = IR, 0xb2 for RF 433Mhz|
+|0x05|repeat count, (0 = no repeat, 1 send twice, .....)|
+|0x06-0x07|Length of the following data in little endian|
+|0x08 ....|Pulse lengths in 32,84ms units (ms * 269 / 8192 works very well)|
+|....|0x0d 0x05 at the end for IR only|
+
+Each value is represented by one byte. If the length exceeds one byte
+then it is stored big endian with a leading 0.
+
+Example: The header for my Optoma projector is 8920 4450
+8920 * 269 / 8192 = 0x124
+4450 * 269 / 8192 = 0x92
+
+So the data starts with `0x00 0x1 0x24 0x92 ....`
 
 
 Todo
