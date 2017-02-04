@@ -38,12 +38,14 @@ To discover Broadlink devices on the local network, send a 48 byte packet with t
 Send this packet as a UDP broadcast to 255.255.255.255 on port 80.
 
 Response (any unicast response):
+
 | Offset  | Contents |
 |---------|----------|
 |0x34-0x35|Device type as a little-endian 16 bit integer (see device type mapping)|
 |0x3a-0x40|MAC address of the target device|
 
 Device type mapping:
+
 | Device type in response packet | Device type | Treat as |
 |---------|----------|----------|
 |0|SP1|SP1|
