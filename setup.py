@@ -18,7 +18,7 @@ setup(
     url='http://github.com/mjg59/python-broadlink',
     packages=find_packages(),
     scripts=[],
-    install_requires=['pycrypto==2.6.1'],
+    install_requires=['pycryptodome==3.4.4'],
     description='Python API for controlling Broadlink IR controllers',
     classifiers=[
         'Development Status :: 4 - Beta',
