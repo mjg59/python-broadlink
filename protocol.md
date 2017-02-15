@@ -125,7 +125,7 @@ Send the following payload with a command byte of 0x006a
 |------|--------|
 |0x00|0x02|
 |0x01-0x03|0x00|
-|0x04|0x26 = IR, 0xb2 for RF 433Mhz, 0xd7 for 315Mhz|
+|0x04|0x26 = IR, 0xb2 for RF 433Mhz, 0xd7 for RF 315Mhz|
 |0x05|repeat count, (0 = no repeat, 1 send twice, .....)|
 |0x06-0x07|Length of the following data in little endian|
 |0x08 ....|Pulse lengths in 32,84ms units (ms * 269 / 8192 works very well)|
