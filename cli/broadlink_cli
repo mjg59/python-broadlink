@@ -15,6 +15,7 @@ parser.add_argument("--host", help="host address")
 parser.add_argument("--mac", help="mac address (hex reverse), as used by python-broadlink library")
 parser.add_argument("--temperature",action="store_true", help="request temperature from device")
 parser.add_argument("--send", help="send command")
+parser.add_argument("--sensors",action="store_true", help="check all sensors")
 parser.add_argument("--learn",action="store_true", help="learn command")
 parser.add_argument("--learnfile", help="learn command and save to specified file")
 args = parser.parse_args()
@@ -34,6 +35,14 @@ dev = broadlink.gendevice(type, (host, 80), mac)
 dev.auth()
 if args.temperature:
     print dev.check_temperature()
+if args.sensors:
+    try:
+        data = dev.check_sensors()
+    except:
+        data = {}
+        data['temperature'] =  dev.check_temperature()
+    for key in data:
+        print "{} {}".format(key, data[key])
 if args.send:
     data = bytearray.fromhex(args.send)
     dev.send_data(data)
