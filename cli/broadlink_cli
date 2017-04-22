@@ -1,0 +1,68 @@
+#!/usr/bin/python
+
+import broadlink
+import sys
+import argparse
+import time
+
+def auto_int(x):
+    return int(x, 0)
+
+parser = argparse.ArgumentParser(fromfile_prefix_chars='@');
+parser.add_argument("--device", help="device definition as 'type host mac'")
+parser.add_argument("--type", type=auto_int, default=0x2712, help="type of device")
+parser.add_argument("--host", help="host address")
+parser.add_argument("--mac", help="mac address (hex reverse), as used by python-broadlink library")
+parser.add_argument("--temperature",action="store_true", help="request temperature from device")
+parser.add_argument("--send", help="send command")
+parser.add_argument("--sensors",action="store_true", help="check all sensors")
+parser.add_argument("--learn",action="store_true", help="learn command")
+parser.add_argument("--learnfile", help="learn command and save to specified file")
+args = parser.parse_args()
+
+if args.device:
+    values = args.device.split();
+    type = int(values[0],0)
+    host = values[1]
+    mac = bytearray.fromhex(values[2])
+else:
+    type = args.type
+    host = args.host
+    mac = bytearray.fromhex(args.mac)
+
+
+dev = broadlink.gendevice(type, (host, 80), mac)
+dev.auth()
+if args.temperature:
+    print dev.check_temperature()
+if args.sensors:
+    try:
+        data = dev.check_sensors()
+    except:
+        data = {}
+        data['temperature'] =  dev.check_temperature()
+    for key in data:
+        print "{} {}".format(key, data[key])
+if args.send:
+    data = bytearray.fromhex(args.send)
+    dev.send_data(data)
+if args.learn or args.learnfile:
+    dev.enter_learning()
+    data = None
+    print "Learning..."
+    timeout = 30
+    while (data is None) and (timeout > 0):
+        time.sleep(2)
+        timeout -= 2
+        data = dev.check_data()
+    if data:
+        learned = ''.join(format(x, '02x') for x in bytearray(data))
+        if args.learn:
+            print learned    
+        if args.learnfile:
+            print "Saving to {}".format(args.learnfile)
+            with open(args.learnfile, "w") as text_file:
+                text_file.write(learned)
+    else:
+        print "No data received..."
+            

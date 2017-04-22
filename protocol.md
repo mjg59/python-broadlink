@@ -6,6 +6,11 @@ Encryption
 
 Packets include AES-based encryption in CBC mode. The initial key is 0x09, 0x76, 0x28, 0x34, 0x3f, 0xe9, 0x9e, 0x23, 0x76, 0x5c, 0x15, 0x13, 0xac, 0xcf, 0x8b, 0x02. The IV is 0x56, 0x2e, 0x17, 0x99, 0x6d, 0x09, 0x3d, 0x28, 0xdd, 0xb3, 0xba, 0x69, 0x5a, 0x2e, 0x6f, 0x58.
 
+Checksum
+--------
+
+Construct the packet and set checksum bytes to zero. Add each byte to the starting value of 0xbeaf, wrapping after 0xffff.
+
 New device setup
 ----------------
 
@@ -49,12 +54,40 @@ To discover Broadlink devices on the local network, send a 48 byte packet with t
 |0x26|06|
 |0x27-0x2f|00|
 
-Send this packet as a UDP broadcast to 255.255.255.255 on port 80. Bytes 0x3a-0x40 of any unicast response will contain the MAC address of the target device.
+Send this packet as a UDP broadcast to 255.255.255.255 on port 80.
 
-Checksum
---------
+Response (any unicast response):
 
-Construct the packet and set checksum bytes to zero. Add each byte to the starting value of 0xbeaf, wrapping after 0xffff.
+| Offset  | Contents |
+|---------|----------|
+|0x34-0x35|Device type as a little-endian 16 bit integer (see device type mapping)|
+|0x3a-0x40|MAC address of the target device|
+
+Device type mapping:
+
+| Device type in response packet | Device type | Treat as |
+|---------|----------|----------|
+|0|SP1|SP1|
+|0x2711|SP2|SP2|
+|0x2719 or 0x7919 or 0x271a or 0x791a|Honeywell SP2|SP2|
+|0x2720|SPMini|SP2|
+|0x753e|SP3|SP2|
+|0x2728|SPMini2|SP2
+|0x2733 or 0x273e|OEM branded SPMini|SP2|
+|>= 0x7530 and <= 0x7918|OEM branded SPMini2|SP2|
+|0x2736|SPMiniPlus|SP2|
+|0x2712|RM2|RM|
+|0x2737|RM Mini / RM3 Mini Blackbean|RM|
+|0x273d|RM Pro Phicomm|RM|
+|0x2783|RM2 Home Plus|RM|
+|0x277c|RM2 Home Plus GDT|RM|
+|0x272a|RM2 Pro Plus|RM|
+|0x2787|RM2 Pro Plus2|RM|
+|0x278b|RM2 Pro Plus BL|RM|
+|0x278f|RM Mini Shate|RM|
+|0x2714|A1|A1|
+|0x4EB5|MP1|MP1|
+
 
 Command packet format
 ---------------------
@@ -144,7 +177,20 @@ Send the following payload with a command byte of 0x006a
 |------|--------|
 |0x00|0x02|
 |0x01-0x03|0x00|
-|0x04-end|data|
+|0x04|0x26 = IR, 0xb2 for RF 433Mhz, 0xd7 for RF 315Mhz|
+|0x05|repeat count, (0 = no repeat, 1 send twice, .....)|
+|0x06-0x07|Length of the following data in little endian|
+|0x08 ....|Pulse lengths in 32,84ms units (ms * 269 / 8192 works very well)|
+|....|0x0d 0x05 at the end for IR only|
+
+Each value is represented by one byte. If the length exceeds one byte
+then it is stored big endian with a leading 0.
+
+Example: The header for my Optoma projector is 8920 4450  
+8920 * 269 / 8192 = 0x124  
+4450 * 269 / 8192 = 0x92  
+
+So the data starts with `0x00 0x1 0x24 0x92 ....`
 
 
 Todo
@@ -153,3 +199,4 @@ Todo
 * Support for other devices using the Broadlink protocol (various smart home devices)
 * Figure out what the format of the data packets actually is.
 * Deal with the response after AP Mode WiFi network setup.
+
