@@ -1,10 +1,15 @@
 #!/usr/bin/python
 
 from datetime import datetime
-from Crypto.Cipher import AES
+try:
+    from Crypto.Cipher import AES
+except ImportError, e:
+    import pyaes
+
 import time
 import random
 import socket
+import sys
 import threading
 
 def gendevice(devtype, host, mac):
@@ -145,6 +150,29 @@ class device:
     self.type = "Unknown"
     self.lock = threading.Lock()
 
+    if 'pyaes' in sys.modules:
+        self.encrypt = self.encrypt_pyaes
+        self.decrypt = self.decrypt_pyaes
+    else:
+        self.encrypt = self.encrypt_pycrypto
+        self.decrypt = self.decrypt_pycrypto
+
+  def encrypt_pyaes(self, payload):
+    aes = pyaes.AESModeOfOperationCBC(self.key, iv = bytes(self.iv))
+    return "".join([aes.encrypt(bytes(payload[i:i+16])) for i in range(0, len(payload), 16)])
+
+  def decrypt_pyaes(self, payload):
+    aes = pyaes.AESModeOfOperationCBC(self.key, iv = bytes(self.iv))
+    return "".join([aes.decrypt(bytes(payload[i:i+16])) for i in range(0, len(payload), 16)])
+
+  def encrypt_pycrypto(self, payload):
+    aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
+    return aes.encrypt(bytes(payload))
+
+  def decrypt_pycrypto(self, payload):
+    aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
+    return aes.decrypt(bytes(payload))
+
   def auth(self):
     payload = bytearray(0x50)
     payload[0x04] = 0x31
@@ -174,10 +202,7 @@ class device:
 
     response = self.send_packet(0x65, payload)
 
-    enc_payload = response[0x38:]
-
-    aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
-    payload = aes.decrypt(bytes(enc_payload))
+    payload = self.decrypt(response[0x38:])
 
     if not payload:
      return False
@@ -225,8 +250,7 @@ class device:
       checksum += payload[i]
       checksum = checksum & 0xffff
 
-    aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
-    payload = aes.encrypt(bytes(payload))
+    payload = self.encrypt(payload)
 
     packet[0x34] = checksum & 0xff
     packet[0x35] = checksum >> 8
@@ -301,8 +325,7 @@ class mp1(device):
     response = self.send_packet(0x6a, packet)
     err = response[0x22] | (response[0x23] << 8)
     if err == 0:
-      aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
-      payload = aes.decrypt(bytes(response[0x38:]))
+      payload = self.decrypt(bytes(response[0x38:]))
       if type(payload[0x4]) == int:
         state = payload[0x0e]
       else:
@@ -350,8 +373,7 @@ class sp2(device):
     response = self.send_packet(0x6a, packet)
     err = response[0x22] | (response[0x23] << 8)
     if err == 0:
-      aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
-      payload = aes.decrypt(bytes(response[0x38:]))
+      payload = self.decrypt(bytes(response[0x38:]))
       if type(payload[0x4]) == int:
         state = bool(payload[0x4])
       else:
@@ -370,8 +392,7 @@ class a1(device):
     err = response[0x22] | (response[0x23] << 8)
     if err == 0:
       data = {}
-      aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
-      payload = aes.decrypt(bytes(response[0x38:]))
+      payload = self.decrypt(bytes(response[0x38:]))
       if type(payload[0x4]) == int:
         data['temperature'] = (payload[0x4] * 10 + payload[0x5]) / 10.0
         data['humidity'] = (payload[0x6] * 10 + payload[0x7]) / 10.0
@@ -421,8 +442,7 @@ class a1(device):
     err = response[0x22] | (response[0x23] << 8)
     if err == 0:
       data = {}
-      aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
-      payload = aes.decrypt(bytes(response[0x38:]))
+      payload = self.decrypt(bytes(response[0x38:]))
       if type(payload[0x4]) == int:
         data['temperature'] = (payload[0x4] * 10 + payload[0x5]) / 10.0
         data['humidity'] = (payload[0x6] * 10 + payload[0x7]) / 10.0
@@ -449,8 +469,7 @@ class rm(device):
     response = self.send_packet(0x6a, packet)
     err = response[0x22] | (response[0x23] << 8)
     if err == 0:
-      aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
-      payload = aes.decrypt(bytes(response[0x38:]))
+      payload = self.decrypt(bytes(response[0x38:]))
       return payload[0x04:]
 
   def send_data(self, data):
@@ -469,8 +488,7 @@ class rm(device):
     response = self.send_packet(0x6a, packet)
     err = response[0x22] | (response[0x23] << 8)
     if err == 0:
-      aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
-      payload = aes.decrypt(bytes(response[0x38:]))
+      payload = self.decrypt(bytes(response[0x38:]))
       if type(payload[0x4]) == int:
         temp = (payload[0x4] * 10 + payload[0x5]) / 10.0
       else:
