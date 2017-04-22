@@ -11,6 +11,25 @@ Checksum
 
 Construct the packet and set checksum bytes to zero. Add each byte to the starting value of 0xbeaf, wrapping after 0xffff.
 
+New device setup
+----------------
+
+To setup a new Broadlink device while in AP Mode a 136 byte packet needs to be sent to the device as follows:
+
+| Offset  | Contents |
+|---------|----------|
+|0x00-0x19|00|
+|0x20-0x21|Checksum as a little-endian 16 bit integer|
+|0x26|14 (Always 14)|
+|0x44-0x63|SSID Name (zero padding is appended)|
+|0x64-0x83|Password (zero padding is appended)|
+|0x84|Character length of SSID|
+|0x85|Character length of password|
+|0x86|Wireless security mode (00 - none, 01 = WEP, 02 = WPA1, 03 = WPA2, 04 = WPA1/2)|
+|0x87-88|00|
+
+Send this packet as a UDP broadcast to 255.255.255.255 on port 80.
+
 Network discovery
 -----------------
 
@@ -179,3 +198,5 @@ Todo
 
 * Support for other devices using the Broadlink protocol (various smart home devices)
 * Figure out what the format of the data packets actually is.
+* Deal with the response after AP Mode WiFi network setup.
+

@@ -6,6 +6,20 @@ A simple Python API for controlling IR controllers from [Broadlink](http://www.i
 Example use
 -----------
 
+Setup a new device on your local wireless network:
+
+1. Put the device into AP Mode
+  1. Long press the reset button until the blue LED is blinking quickly.
+  2. Long press again until blue LED is blinking slowly.
+  3. Manually connect to the WiFi SSID named BroadlinkProv.
+2. Run setup() and provide your ssid, network password (if secured), and set the security mode
+  1. Security mode options are (0 = none, 1 = WEP, 2 = WPA1, 3 = WPA2, 4 = WPA1/2)
+```
+import broadlink
+
+broadlink.setup('myssid', 'mynetworkpass', 3)
+```
+
 Discover available devices on the local network:
 ```
 import broadlink
