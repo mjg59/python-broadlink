@@ -374,7 +374,11 @@ class sp2(device):
     err = response[0x22] | (response[0x23] << 8)
     if err == 0:
       payload = self.decrypt(bytes(response[0x38:]))
-      return bool(payload[0x4])
+      if type(payload[0x4]) == int:
+        state = bool(payload[0x4])
+      else:
+        state = bool(ord(payload[0x4]))
+      return state
 
 class a1(device):
   def __init__ (self, host, mac):
