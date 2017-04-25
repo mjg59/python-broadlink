@@ -3,7 +3,7 @@
 from datetime import datetime
 try:
     from Crypto.Cipher import AES
-except ImportError, e:
+except ImportError as e:
     import pyaes
 
 import time
