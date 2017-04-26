@@ -9,7 +9,7 @@ import warnings
 try:
     import pyaes
     dynamic_requires = ["pyaes==1.6.0"]
-except ImportError, e:
+except ImportError as e:
     dynamic_requires = ['pycrypto==2.6.1']
 
 version = 0.3
