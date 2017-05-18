@@ -53,6 +53,8 @@ def gendevice(devtype, host, mac):
     return a1(host=host, mac=mac)
   elif devtype == 0x4EB5: # MP1
     return mp1(host=host, mac=mac)
+  elif devtype == 0x2722: # MP1
+    raise NotImplemented
   else:
     return device(host=host, mac=mac)
 
@@ -276,7 +278,7 @@ class device:
         try:
           self.cs.sendto(packet, self.host)
           self.cs.settimeout(1)
-          response = self.cs.recvfrom(1024)
+          response = self.cs.recvfrom(2048)
           break
         except socket.timeout:
           if (time.time() - starttime) > self.timeout:
@@ -508,6 +510,53 @@ class rm2(rm):
     dev = discover()
     self.host = dev.host
     self.mac = dev.mac
+
+
+class S1C(device):
+  """
+  Its VERY VERY VERY DIRTY IMPLEMENTATION of S1C
+  """
+  def __init__(self, *a, **kw):
+    super(S1C, self).__init__(*a, **kw)
+    self.type = 'S1C'
+
+  def get_sensors_status(self):
+    packet = bytearray(16)
+    packet[0] = 0x06
+    response = self.send_packet(0x6a, packet)
+    err = response[0x22] | (response[0x23] << 8)
+    if err == 0:
+      aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
+
+      x_ = response[0x38:]
+      payload = aes.decrypt(bytes(x_))
+      if payload:
+        head = payload[:4]
+        count = ord(payload[0x4])
+        sensors = payload[0x6:]
+        sensors_a = [sensors[i * 83:(i + 1) * 83] for i in range(len(sensors) / 83)]
+
+        sens_res = []
+        for sens in sensors_a:
+          status = ord(sens[0])  # & 0x4
+          _name = sens[4:26]
+          _order = ord(sens[1])
+          _type = ord(sens[3])
+          _serial = [str(sens[26:30]).encode('hex')]
+          r = {
+            'status': status,
+            'name': _name,
+            'type': _type,
+            'order': _order,
+            'serial': _serial,
+          }
+          sens_res.append(r)
+          result = {
+            'count': count,
+            'sensors': sens_res
+          }
+          return result
+
 
 # Setup a new Broadlink device via AP Mode. Review the README to see how to enter AP Mode.
 # Only tested with Broadlink RM3 Mini (Blackbean)
