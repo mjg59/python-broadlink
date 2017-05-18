@@ -53,7 +53,7 @@ def gendevice(devtype, host, mac):
     return a1(host=host, mac=mac)
   elif devtype == 0x4EB5: # MP1
     return mp1(host=host, mac=mac)
-  elif devtype == 0x2722: # MP1
+  elif devtype == 0x2722: # S1 (SmartOne Alarm Kit)
     return S1C(host=host, mac=mac)
   else:
     return device(host=host, mac=mac)
