@@ -544,17 +544,18 @@ class S1C(device):
           _serial = str(sens[26:30]).encode('hex')
           r = {
             'status': status,
-            'name': _name,
+            'name': _name.replace('\x00',''),
             'type': _type,
             'order': _order,
             'serial': _serial,
           }
-          sens_res.append(r)
+          if r['serial'] != '00000000':
+            sens_res.append(r)
           result = {
             'count': count,
             'sensors': sens_res
           }
-          return result
+        return result
 
 
 # Setup a new Broadlink device via AP Mode. Review the README to see how to enter AP Mode.
