@@ -543,11 +543,11 @@ class S1C(device):
           _type = ord(sens[3])
           _serial = str(sens[26:30]).encode('hex')
 
-          if _type == 49:
+          if _type == 0x31:  # 49 as hex
             _type = 'Door Sensor'
-          elif _type == 145:
+          elif _type == 0x91:  # 145 as hex, as serial on fob corpse
             _type = 'Key Fob'
-          elif _type == 33:
+          elif _type == 0x21:  # 33 as hex
             _type = 'Motion Sensor'
           else:
             _type = 'Unknown'
