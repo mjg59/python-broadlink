@@ -528,8 +528,7 @@ class S1C(device):
     if err == 0:
       aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
 
-      x_ = response[0x38:]
-      payload = aes.decrypt(bytes(x_))
+      payload = aes.decrypt(bytes(response[0x38:]))
       if payload:
         head = payload[:4]
         count = ord(payload[0x4])
