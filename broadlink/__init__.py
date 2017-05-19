@@ -512,6 +512,13 @@ class rm2(rm):
     self.mac = dev.mac
 
 
+S1C_SENSORS_TYPES = {
+    0x31: 'Door Sensor',  # 49 as hex
+    0x91: 'Key Fob',  # 145 as hex, as serial on fob corpse
+    0x21: 'Motion Sensor'  # 33 as hex
+}
+
+
 class S1C(device):
   """
   Its VERY VERY VERY DIRTY IMPLEMENTATION of S1C
@@ -543,19 +550,12 @@ class S1C(device):
           _type = ord(sens[3])
           _serial = str(sens[26:30]).encode('hex')
 
-          if _type == 0x31:  # 49 as hex
-            _type = 'Door Sensor'
-          elif _type == 0x91:  # 145 as hex, as serial on fob corpse
-            _type = 'Key Fob'
-          elif _type == 0x21:  # 33 as hex
-            _type = 'Motion Sensor'
-          else:
-            _type = 'Unknown'
+          type_str = S1C_SENSORS_TYPES.get(_type, 'Unknown')
 
           r = {
             'status': status,
             'name': _name.replace('\x00',''),
-            'type': _type,
+            'type': type_str,
             'order': _order,
             'serial': _serial,
           }
