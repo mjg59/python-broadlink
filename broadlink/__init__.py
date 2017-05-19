@@ -542,7 +542,7 @@ class S1C(device):
           _name = sens[4:26]
           _order = ord(sens[1])
           _type = ord(sens[3])
-          _serial = [str(sens[26:30]).encode('hex')]
+          _serial = str(sens[26:30]).encode('hex')
           r = {
             'status': status,
             'name': _name,
