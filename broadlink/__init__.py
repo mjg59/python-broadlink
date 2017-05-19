@@ -561,10 +561,10 @@ class S1C(device):
           }
           if r['serial'] != '00000000':
             sens_res.append(r)
-          result = {
-            'count': count,
-            'sensors': sens_res
-          }
+        result = {
+          'count': count,
+          'sensors': sens_res
+        }
         return result
 
 
