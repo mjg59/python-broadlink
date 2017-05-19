@@ -542,6 +542,16 @@ class S1C(device):
           _order = ord(sens[1])
           _type = ord(sens[3])
           _serial = str(sens[26:30]).encode('hex')
+
+          if _type == 49:
+            _type = 'Door Sensor'
+          elif _type == 145:
+            _type = 'Key Fob'
+          elif _type == 33:
+            _type = 'Motion Sensor'
+          else:
+            _type = 'Unknown'
+
           r = {
             'status': status,
             'name': _name.replace('\x00',''),
