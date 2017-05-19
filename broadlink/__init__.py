@@ -522,7 +522,7 @@ class S1C(device):
 
   def get_sensors_status(self):
     packet = bytearray(16)
-    packet[0] = 0x06
+    packet[0] = 0x06  # 0x06 - get sensors info, 0x07 - probably add sensors
     response = self.send_packet(0x6a, packet)
     err = response[0x22] | (response[0x23] << 8)
     if err == 0:
