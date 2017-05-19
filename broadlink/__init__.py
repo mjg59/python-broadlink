@@ -552,7 +552,6 @@ class S1C(device):
           _type = ord(chr(sens[3]))
           _serial = bytes(codecs.encode(sens[26:30],"hex")).decode()
 
-
           type_str = S1C_SENSORS_TYPES.get(_type, 'Unknown')
 
           r = {
