@@ -531,7 +531,7 @@ class S1C(device):
   @property
   def get_sensors_status(self):
     packet = bytearray(16)
-    packet[0] = 0x06
+    packet[0] = 0x06  # 0x06 - get sensors info, 0x07 - probably add sensors
     response = self.send_packet(0x6a, packet)
     err = response[0x22] | (response[0x23] << 8)
     if err == 0:
@@ -551,6 +551,7 @@ class S1C(device):
           _order = ord(chr(sens[1]))
           _type = ord(chr(sens[3]))
           _serial = bytes(codecs.encode(sens[26:30],"hex")).decode()
+
 
           type_str = S1C_SENSORS_TYPES.get(_type, 'Unknown')
 
