@@ -554,7 +554,7 @@ class S1C(device):
 
           r = {
             'status': status,
-            'name': _name.replace('\x00',''),
+            'name': _name.strip('\x00'),
             'type': type_str,
             'order': _order,
             'serial': _serial,
