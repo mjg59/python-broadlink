@@ -517,7 +517,7 @@ class S1C(device):
   Its VERY VERY VERY DIRTY IMPLEMENTATION of S1C
   """
   def __init__(self, *a, **kw):
-    device.__init__(*a, **kw)
+    device.__init__(self, *a, **kw)
     self.type = 'S1C'
 
   def get_sensors_status(self):
