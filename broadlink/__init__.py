@@ -528,7 +528,6 @@ class S1C(device):
     device.__init__(self, *a, **kw)
     self.type = 'S1C'
 
-  @property
   def get_sensors_status(self):
     packet = bytearray(16)
     packet[0] = 0x06
