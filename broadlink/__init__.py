@@ -11,6 +11,7 @@ import random
 import socket
 import sys
 import threading
+import codecs
 
 def gendevice(devtype, host, mac):
   if devtype == 0: # SP1
@@ -250,7 +251,7 @@ class device:
     # pad the payload for AES encryption
     if len(payload)>0:
       numpad=(len(payload)//16+1)*16
-      payload=payload.ljust(numpad,"\x00")
+      payload=payload.ljust(numpad,b"\x00")
 
     checksum = 0xbeaf
     for i in range(len(payload)):
@@ -538,17 +539,17 @@ class S1C(device):
       payload = aes.decrypt(bytes(response[0x38:]))
       if payload:
         head = payload[:4]
-        count = ord(payload[0x4])
+        count = payload[0x4] #need to fix for python 2.x
         sensors = payload[0x6:]
-        sensors_a = [sensors[i * 83:(i + 1) * 83] for i in range(len(sensors) / 83)]
+        sensors_a = [bytearray(sensors[i * 83:(i + 1) * 83]) for i in range(len(sensors) // 83)]
 
         sens_res = []
         for sens in sensors_a:
-          status = ord(sens[0])  # & 0x4
-          _name = sens[4:26]
-          _order = ord(sens[1])
-          _type = ord(sens[3])
-          _serial = str(sens[26:30]).encode('hex')
+          status = ord(chr(sens[0]))
+          _name = str(bytes(sens[4:26]).decode())
+          _order = ord(chr(sens[1]))
+          _type = ord(chr(sens[3]))
+          _serial = bytes(codecs.encode(sens[26:30],"hex")).decode()
 
           type_str = S1C_SENSORS_TYPES.get(_type, 'Unknown')
 
