@@ -12,16 +12,19 @@ try:
 except ImportError as e:
     dynamic_requires = ['pycrypto==2.6.1']
 
-version = 0.3
+version = 0.5
 
 setup(
     name='broadlink',
-    version=0.4,
+    version=version,
     author='Matthew Garrett',
     author_email='mjg59@srcf.ucam.org',
     url='http://github.com/mjg59/python-broadlink',
     packages=find_packages(),
-    scripts=[],
+    scripts=[
+        "cli/broadlink_cli",
+        "cli/broadlink_discovery",
+    ],
     install_requires=dynamic_requires,
     description='Python API for controlling Broadlink IR controllers',
     classifiers=[
