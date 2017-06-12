@@ -248,7 +248,7 @@ class device:
     # pad the payload for AES encryption
     if len(payload)>0:
       numpad=(len(payload)//16+1)*16
-      payload=payload.ljust(numpad,"\x00")
+      payload=payload.ljust(numpad,b"\x00")
 
     checksum = 0xbeaf
     for i in range(len(payload)):
