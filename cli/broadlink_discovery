@@ -19,7 +19,8 @@ for device in devices:
         print "# broadlink_cli --type 0x2712 --host {} --mac {}".format(device.host[0], ''.join(format(x, '02x') for x in device.mac))
         print "Device file data (to be used with --device @filename in broadlink_cli) : "
         print "0x2712 {} {}".format(device.host[0], ''.join(format(x, '02x') for x in device.mac))
-        print "temperature = {}".format(device.check_temperature())
+        if hasattr(device, 'check_temperature'):
+            print "temperature = {}".format(device.check_temperature())
         print ""
     else:
         print "Error authenticating with device : {}".format(device.host)
