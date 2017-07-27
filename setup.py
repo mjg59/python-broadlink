@@ -21,7 +21,10 @@ setup(
     author_email='mjg59@srcf.ucam.org',
     url='http://github.com/mjg59/python-broadlink',
     packages=find_packages(),
-    scripts=[],
+    scripts=[
+        "cli/broadlink_cli",
+        "cli/broadlink_discovery",
+    ],
     install_requires=dynamic_requires,
     description='Python API for controlling Broadlink IR controllers',
     classifiers=[

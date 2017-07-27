@@ -1,9 +1,11 @@
 #!/usr/bin/python
 
-import broadlink
-import sys
 import argparse
 import time
+from base64 import b64encode, b64decode
+
+import broadlink
+
 
 def auto_int(x):
     return int(x, 0)
@@ -18,6 +20,7 @@ parser.add_argument("--send", help="send command")
 parser.add_argument("--sensors",action="store_true", help="check all sensors")
 parser.add_argument("--learn",action="store_true", help="learn command")
 parser.add_argument("--learnfile", help="learn command and save to specified file")
+parser.add_argument('--ha', action='store_true', help='use home assistant b64 format')
 args = parser.parse_args()
 
 if args.device:
@@ -44,8 +47,12 @@ if args.sensors:
     for key in data:
         print "{} {}".format(key, data[key])
 if args.send:
-    data = bytearray.fromhex(args.send)
+    if args.ha:
+        data = b64decode(args.send)
+    else:
+        data = bytearray.fromhex(args.send)
     dev.send_data(data)
+
 if args.learn or args.learnfile:
     dev.enter_learning()
     data = None
@@ -56,13 +63,16 @@ if args.learn or args.learnfile:
         timeout -= 2
         data = dev.check_data()
     if data:
-        learned = ''.join(format(x, '02x') for x in bytearray(data))
+        if args.ha:
+            learned = b64encode(data).decode('utf8')
+        else:
+            learned = ''.join(format(x, '02x') for x in bytearray(data))
+
         if args.learn:
-            print learned    
+            print learned
         if args.learnfile:
             print "Saving to {}".format(args.learnfile)
             with open(args.learnfile, "w") as text_file:
                 text_file.write(learned)
     else:
         print "No data received..."
-            
