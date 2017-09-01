@@ -23,6 +23,8 @@ def gendevice(devtype, host, mac):
     return sp2(host=host, mac=mac)
   elif devtype == 0x753e: # SP3
     return sp2(host=host, mac=mac)
+  elif devtype == 0x947A or devtype == 0x9479: # SP3S
+    return sp2(host=host, mac=mac)
   elif devtype == 0x2728: # SPMini2
     return sp2(host=host, mac=mac)
   elif devtype == 0x2733 or devtype == 0x273e: # OEM branded SPMini
@@ -325,6 +327,22 @@ class mp1(device):
     packet[0x06] = 0xae
     packet[0x07] = 0xc0
     packet[0x08] = 0x01
+
+  def check_energy(self):
+    """Returns the energy state of the smart plug."""
+    packet = bytearray(16)
+    packet[0] = 0x08
+    packet[2] = 0xFE
+    packet[3] = 0x01
+    packet[4] = 0x05
+    packet[5] = 0x01
+    packet[9] = 0x2D
+    response = self.send_packet(0x6a, packet)
+    err = response[0x22] | (response[0x23] << 8)
+    if err == 0:
+      payload = self.decrypt(bytes(response[0x38:]))
+      state = (ord(payload[0x7]) * 10000 + ord(payload[0x6]) * 100 + ord(payload[0x5])) / 100.0
+      return state
 
     response = self.send_packet(0x6a, packet)
     err = response[0x22] | (response[0x23] << 8)

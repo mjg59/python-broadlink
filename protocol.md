@@ -72,6 +72,7 @@ Device type mapping:
 |0x2719 or 0x7919 or 0x271a or 0x791a|Honeywell SP2|SP2|
 |0x2720|SPMini|SP2|
 |0x753e|SP3|SP2|
+|0x947A or 0x9479|SP3S|SP2|
 |0x2728|SPMini2|SP2
 |0x2733 or 0x273e|OEM branded SPMini|SP2|
 |>= 0x7530 and <= 0x7918|OEM branded SPMini2|SP2|
