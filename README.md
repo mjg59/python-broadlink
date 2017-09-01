@@ -63,6 +63,11 @@ Set power state on a SmartPlug SP2/SP3:
 devices[0].set_power(True)
 ```
 
+Get energy state on a SmartPlug SP3:
+```
+devices[0].check_energy()
+```
+
 Check power state on a SmartPlug:
 ```
 state = devices[0].check_power()
