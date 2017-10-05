@@ -40,13 +40,14 @@ To discover Broadlink devices on the local network, send a 48 byte packet with t
 |0x00-0x07|00|
 |0x08-0x0b|Current offset from GMT as a little-endian 32 bit integer|
 |0x0c-0x0d|Current year as a little-endian 16 bit integer|
-|0x0e|Current number of minutes past the hour|
-|0x0f|Current number of hours past midnight|
-|0x10|Current number of years past the century|
-|0x11|Current day of the week (Monday = 0, Tuesday = 1, etc)|
+|0x0e|Current number of seconds past the minute|
+|0x0f|Current number of minutes past the hour|
+|0x10|Current number of hours past midnight|
+|0x11|Current day of the week (Monday = 1, Tuesday = 2, etc)|
 |0x12|Current day in month|
 |0x13|Current month|
-|0x19-0x1b|Local IP address|
+|0x14-0x17|00|
+|0x18-0x1b|Local IP address|
 |0x1c-0x1d|Source port as a little-endian 16 bit integer|
 |0x1e-0x1f|00|
 |0x20-0x21|Checksum as a little-endian 16 bit integer|
