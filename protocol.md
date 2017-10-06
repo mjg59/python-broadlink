@@ -62,7 +62,7 @@ Response (any unicast response):
 | Offset  | Contents |
 |---------|----------|
 |0x34-0x35|Device type as a little-endian 16 bit integer (see device type mapping)|
-|0x3a-0x40|MAC address of the target device|
+|0x3a-0x3f|MAC address of the target device|
 
 Device type mapping:
 
