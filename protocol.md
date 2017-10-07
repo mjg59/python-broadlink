@@ -108,20 +108,19 @@ The command packet header is 56 bytes long with the following format:
 |0x08-0x1f|00|
 |0x20-0x21|Checksum of full packet as a little-endian 16 bit integer|
 |0x22-0x23|00|
-|0x24|0x2a|
-|0x25|0x27|
+|0x24-0x25|Device type as a little-endian 16 bit integer|
 |0x26-0x27|Command code as a little-endian 16 bit integer|
 |0x28-0x29|Packet count as a little-endian 16 bit integer|
 |0x2a-0x2f|Local MAC address|
 |0x30-0x33|Local device ID (obtained during authentication, 00 before authentication)|
-|0x34-0x35|Checksum of packet header as a little-endian 16 bit integer
+|0x34-0x35|Checksum of unencrypted payload as a little-endian 16 bit integer
 |0x36-0x37|00|
 
-The payload is appended immediately after this. The checksum at 0x34 is calculated *before* the payload is appended, and covers only the header. The checksum at 0x20 is calculated *after* the payload is appended, and covers the entire packet (including the checksum at 0x34). Therefore:
+The payload is appended immediately after this. The checksum at 0x20 is calculated *after* the payload is appended, and covers the entire packet (including the checksum at 0x34). Therefore:
 
 1. Generate packet header with checksum values set to 0
-2. Set the checksum initialisation value to 0xbeaf and calculate the checksum of the packet header. Set 0x34-0x35 to this value.
-3. Append the payload
+2. Set the checksum initialisation value to 0xbeaf and calculate the checksum of the unencrypted payload. Set 0x34-0x35 to this value.
+3. Encrypt and append the payload
 4. Set the checksum initialisation value to 0xbeaf and calculate the checksum of the entire packet. Set 0x20-0x21 to this value.
 
 Authorisation
