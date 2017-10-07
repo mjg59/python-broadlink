@@ -180,7 +180,7 @@ Send the following payload with a command byte of 0x006a
 |0x04|0x26 = IR, 0xb2 for RF 433Mhz, 0xd7 for RF 315Mhz|
 |0x05|repeat count, (0 = no repeat, 1 send twice, .....)|
 |0x06-0x07|Length of the following data in little endian|
-|0x08 ....|Pulse lengths in 32,84ms units (ms * 269 / 8192 works very well)|
+|0x08 ....|Pulse lengths in 2^-15 s units (µs * 269 / 8192 works very well)|
 |....|0x0d 0x05 at the end for IR only|
 
 Each value is represented by one byte. If the length exceeds one byte
