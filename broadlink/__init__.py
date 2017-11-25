@@ -23,6 +23,8 @@ def gendevice(devtype, host, mac):
     return sp2(host=host, mac=mac)
   elif devtype == 0x753e: # SP3
     return sp2(host=host, mac=mac)
+  elif devtype == 0x947a or devtype == 0x9479: # SP3S
+    return sp2(host=host, mac=mac)
   elif devtype == 0x2728: # SPMini2
     return sp2(host=host, mac=mac)
   elif devtype == 0x2733 or devtype == 0x273e: # OEM branded SPMini
