@@ -51,7 +51,7 @@ def gendevice(devtype, host, mac):
     return rm(host=host, mac=mac)
   elif devtype == 0x2714: # A1
     return a1(host=host, mac=mac)
-  elif devtype == 0x4EB5: # MP1
+  elif devtype == 0x4EB5or devtype == 0x4ef7: # MP1: 0x4eb5, honyar oem mp1: 0x4ef7
     return mp1(host=host, mac=mac)
   else:
     return device(host=host, mac=mac)
