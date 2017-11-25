@@ -501,6 +501,33 @@ class rm(device):
     packet[0] = 3
     self.send_packet(0x6a, packet)
 
+  def sweep_frequency(self):
+    packet = bytearray(16)
+    packet[0] = 0x19;
+    self.send_packet(0x6a, packet)
+
+  def check_frequency(self):
+    packet = bytearray(16)
+    packet[0] = 0x1a
+    response = self.send_packet(0x6a, packet)
+    err = response[0x22] | (response[0x23] << 8)
+    if err == 0:
+      payload = self.decrypt(bytes(response[0x38:]))
+      if payload[0x04] == 1:
+          return True
+    return False
+
+  def find_rf_packet(self):
+    packet = bytearray(16)
+    packet[0] = 0x1b
+    response = self.send_packet(0x6a, packet)
+    err = response[0x22] | (response[0x23] << 8)
+    if err == 0:
+      payload = self.decrypt(bytes(response[0x38:]))
+      if payload[0x04] == 1:
+          return True
+    return False
+
   def check_temperature(self):
     packet = bytearray(16)
     packet[0] = 1

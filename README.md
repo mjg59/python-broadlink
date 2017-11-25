@@ -37,6 +37,23 @@ Enter learning mode:
 devices[0].enter_learning()
 ```
 
+Sweep RF frequencies:
+```
+devices[0].sweep_frequency()
+```
+
+Check whether a frequency has been found:
+```
+found = devices[0].check_frequency()
+```
+(This will return True if the RM has locked onto a frequency, False otherwise)
+
+Attempt to learn an RF packet:
+```
+found = devices[0].find_rf_packet()
+```
+(This will return True if a packet has been found, False otherwise)
+
 Obtain an IR or RF packet while in learning mode:
 ```
 ir_packet = devices[0].check_data()
@@ -77,3 +94,23 @@ Check power state on a SmartPowerStrip:
 ```
 state = devices[0].check_power()
 ```
+
+Learning RF packets
+-------------------
+
+timeout = 10
+devices[0].sweep_frequency()
+# Hold down the rf button
+for i in range(0, timeout):
+  found = devices[0].check_frequency()
+  if found == True:
+    break
+  time.sleep(1)
+# Tap the rf button
+for i in range(0, timeout):
+  found = devices[0].find_rf_packet()
+  if found == True:
+    break
+  time.sleep(1)
+# Obtain the code
+code = devices[0].check_data()
