@@ -87,7 +87,7 @@ elif args.mac:
     host = args.host
     mac = bytearray.fromhex(args.mac)
 
-if args.host:
+if args.host or args.device:
     dev = broadlink.gendevice(type, (host, 80), mac)
     dev.auth()
 
@@ -123,11 +123,10 @@ if args.learn or args.learnfile:
             if args.durations \
             else ''.join(format(x, '02x') for x in bytearray(data))
         if args.learn:
-            print learned    
+            print learned
         if args.learnfile:
             print "Saving to {}".format(args.learnfile)
             with open(args.learnfile, "w") as text_file:
                 text_file.write(learned)
     else:
         print "No data received..."
-            
