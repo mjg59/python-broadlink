@@ -68,6 +68,9 @@ parser.add_argument("--type", type=auto_int, default=0x2712, help="type of devic
 parser.add_argument("--host", help="host address")
 parser.add_argument("--mac", help="mac address (hex reverse), as used by python-broadlink library")
 parser.add_argument("--temperature",action="store_true", help="request temperature from device")
+parser.add_argument("--check", action="store_true", help="check current power state")
+parser.add_argument("--turnon", action="store_true", help="turn on device")
+parser.add_argument("--turnoff", action="store_true", help="turn off device")
 parser.add_argument("--send", action="store_true", help="send command")
 parser.add_argument("--sensors", action="store_true", help="check all sensors")
 parser.add_argument("--learn", action="store_true", help="learn command")
@@ -130,3 +133,20 @@ if args.learn or args.learnfile:
                 text_file.write(learned)
     else:
         print "No data received..."
+if args.check:
+    if dev.check_power():
+        print '* ON *'
+    else:
+        print '* OFF *'
+if args.turnon:
+    dev.set_power(True)
+    if dev.check_power():
+        print '== Turned * ON * =='
+    else:
+        print '!! Still OFF !!'
+if args.turnoff:
+    dev.set_power(False)
+    if dev.check_power():
+        print '!! Still ON !!'
+    else:
+        print '== Turned * OFF * =='
