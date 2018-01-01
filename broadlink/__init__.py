@@ -53,6 +53,8 @@ def gendevice(devtype, host, mac):
     return a1(host=host, mac=mac)
   elif devtype == 0x4EB5: # MP1
     return mp1(host=host, mac=mac)
+  elif devtype == 0x4EAD: # Hysen controller
+    return hysen(host=host, mac=mac)
   else:
     return device(host=host, mac=mac)
 
@@ -117,6 +119,8 @@ def discover(timeout=None, local_ip_address=None):
     host = response[1]
     mac = responsepacket[0x3a:0x40]
     devtype = responsepacket[0x34] | responsepacket[0x35] << 8
+
+
     return gendevice(devtype, host, mac)
   else:
     while (time.time() - starttime) < timeout:
@@ -128,6 +132,9 @@ def discover(timeout=None, local_ip_address=None):
       responsepacket = bytearray(response[0])
       host = response[1]
       devtype = responsepacket[0x34] | responsepacket[0x35] << 8
+
+      print(devtype)
+
       mac = responsepacket[0x3a:0x40]
       dev = gendevice(devtype, host, mac)
       devices.append(dev)
@@ -213,6 +220,13 @@ class device:
 
     self.id = payload[0x00:0x04]
     self.key = key
+
+    # PW remove this
+    print('Key = ')
+    print ''.join(format(ord(x), '02x') for x in self.key)
+    print('ID= ')
+    print ''.join(format(ord(x), '02x') for x in self.id)
+
     return True
 
   def get_type(self):
@@ -229,8 +243,8 @@ class device:
     packet[0x05] = 0xa5
     packet[0x06] = 0xaa
     packet[0x07] = 0x55
-    packet[0x24] = 0x2a
-    packet[0x25] = 0x27
+    packet[0x24] = 0xAD #0x2a # should be right dev type!
+    packet[0x25] = 0x4E #0x27 # 
     packet[0x26] = command
     packet[0x28] = self.count & 0xff
     packet[0x29] = self.count >> 8
@@ -462,6 +476,7 @@ class a1(device):
       return data
 
 
+
 class rm(device):
   def __init__ (self, host, mac):
     device.__init__(self, host, mac)
@@ -508,6 +523,32 @@ class rm2(rm):
     dev = discover()
     self.host = dev.host
     self.mac = dev.mac
+
+
+#
+# Hysen heating controller
+# 
+class hysen(device):
+  def __init__ (self, host, mac):
+    device.__init__(self, host, mac)
+    self.type = "Hysen heating controller"
+
+  def get_temp(self):
+    input_payload = bytearray([0x08,0x00,0x01,0x03,0x00,0x00,0x00,0x08,0x44,0x0c,0x00,0x00,0x00,0x00,0x00,0x00])
+    response = self.send_packet(0x6a, input_payload)
+    err = response[0x22] | (response[0x23] << 8)
+    if err == 0:
+      data = {}
+      payload = self.decrypt(bytes(response[0x38:]))
+
+      if type(payload[0x4]) == int:
+        temp = payload[0x07] / 2.0
+      else:
+        temp = ord(payload[0x07])/2.0
+      return temp
+
+
+
 
 # Setup a new Broadlink device via AP Mode. Review the README to see how to enter AP Mode.
 # Only tested with Broadlink RM3 Mini (Blackbean)
