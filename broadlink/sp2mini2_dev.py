@@ -120,8 +120,87 @@ class sp2mini2(device):
                 raise
         return bytearray(response[0])
 
+    # overwritting the method adapted to SP2Mini2
+    def send_packet(self, command, payload):
+        self.count = (self.count + 1) & 0xffff
 
-    def flip_the_switch(status):
+        package_size = 0x38
+        packet = bytearray(package_size)
+
+        for i in range(0,package_size):
+            packet[i] = 0
+
+        packet[0x00] = 0x5a
+        packet[0x01] = 0xa5
+        packet[0x02] = 0xaa
+        packet[0x03] = 0x55
+        packet[0x04] = 0x5a
+        packet[0x05] = 0xa5
+        packet[0x06] = 0xaa
+        packet[0x07] = 0x55
+
+        packet[0x24] = 0x28
+        packet[0x25] = 0x27
+        packet[0x26] = command
+
+        packet[0x28] = self.count & 0xff
+        packet[0x29] = self.count >> 8
+        packet[0x2a] = self.mac[0]
+        packet[0x2b] = self.mac[1]
+        packet[0x2c] = self.mac[2]
+        packet[0x2d] = self.mac[3]
+        packet[0x2e] = self.mac[4]
+        packet[0x2f] = self.mac[5]
+        packet[0x30] = self.id[0]
+        packet[0x31] = self.id[1]
+        packet[0x32] = self.id[2]
+        packet[0x33] = self.id[3]
+
+        # pad the payload for AES encryption
+        if len(payload)>0:
+            numpad=(len(payload)//16+1)*16
+            payload=payload.ljust(numpad,b"\x00")
+
+        checksum = 0xbeaf
+        for i in range(len(payload)):
+            checksum += payload[i]
+            checksum = checksum & 0xffff
+
+        payload = self.encrypt(payload)
+
+        packet[0x34] = checksum & 0xff
+        packet[0x35] = checksum >> 8
+
+        for i in range(len(payload)):
+          packet.append(payload[i])
+
+        checksum = 0xbeaf
+        for i in range(len(packet)):
+            checksum += packet[i]
+            checksum = checksum & 0xffff
+
+        packet[0x20] = checksum & 0xff
+        packet[0x21] = checksum >> 8
+
+        starttime = time.time()
+        print "Dump buffer to send..."
+        print dump_hex_buffer(packet)
+
+        with self.lock:
+            while True:
+                try:
+                    self.cs.sendto(packet, self.host)
+                    self.cs.settimeout(1)
+                    response = self.cs.recvfrom(2048)
+                    break
+                except socket.timeout:
+                    if (time.time() - starttime) > self.timeout:
+                        raise
+        return bytearray(response[0])
+
+
+
+    def flip_the_switch(self, status=1):
         
         print "Switching to %s" % status
         local_ip_address = None
@@ -160,11 +239,9 @@ class sp2mini2(device):
             packet[IDX_TIMEZONE + 1] = 0
             packet[IDX_TIMEZONE + 2] = 0
             packet[IDX_TIMEZONE + 3] = 0
-            print "8 -> Timezone %s" % timezone
 
         packet[IDX_YEAR]        = year & 0xff
         packet[IDX_YEAR + 1]    = year >> 8
-        print "12-13 -> year %s" % year
 
         packet[IDX_TIME_SEC] = datetime.now().second
         packet[IDX_TIME_MIN] = datetime.now().minute
@@ -181,8 +258,7 @@ class sp2mini2(device):
         packet[0x17] = int(address[1])
         packet[0x18] = int(address[2])
         packet[0x19] = int(address[3])
-        print "24,25,26 -> IP %s.%s.%s.%s" % (packet[0x18], packet[0x19],packet[0x1a],packet[0x1b])
-     
+             
         packet[IDX_PORT]     = port & 0xff
         packet[IDX_PORT + 1] = port >> 8
         packet[0x1C] = 0
@@ -198,22 +274,40 @@ class sp2mini2(device):
         checksum = checksum & 0xffff
         packet[0x1E] = checksum & 0xff
         packet[0x1F] = checksum >> 8
-        print "Checksum: %s " % checksum
-        print "Sending status"
+        print "Checksum: %x " % checksum
+        print "Sending package"
 
-        cs.sendto(packet, ('255.255.255.255', 80))
-        print format_frame(packet)
-        #print "Waiting response..."
+        response = self.send_packet(CMD_Command, packet)
+        #cs.sendto(packet, ('255.255.255.255', 80))
+        print "Dump buffer received..."
+        print dump_hex_buffer(response)
+        
+        payload = self.decrypt(response[0x38:])
+        print "Decode response..."
+        if len(payload) > 0:
+            print dump_hex_buffer(payload)
+        print "Done"
 
-        #response       = cs.recvfrom(1024)
-        #responsepacket = bytearray(response[0])
-        #host           = response[1]
+def dump_hex_buffer(buf):
+    str   = ""
+    size  = len(buf)
+
+    # print the index header in hex 0 to F
+    str += "Index:\t"
+    for j in xrange(0,0x10):
+        str += "%2X " % j
+
+    # print the buffer content in lines of 16 elements
+    for i in range(0, size):
+        # every 16 bytes we write a new line with the index
+        idx = i % 16
         
-        #print "Host: %s" % host
-        #mac = responsepacket[0x3a:0x40]
-        #devtype = responsepacket[0x34] | responsepacket[0x35] << 8
-        
-        #return gendevice(devtype, host, mac)
+        if idx == 0:
+            str += "\n%04x\t" % i
+
+        str += "%02x " %buf[i]
+
+    return str
 
 # Prints the buffer message on screen
 def format_frame(msg):

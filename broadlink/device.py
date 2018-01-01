@@ -5,6 +5,12 @@ import sys
 import threading
 import codecs
 
+from datetime import datetime
+try:
+    from Crypto.Cipher import AES
+except ImportError as e:
+    import pyaes
+
 
 class device:
   def __init__(self, host, mac, timeout=10):
