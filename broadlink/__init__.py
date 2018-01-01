@@ -13,13 +13,14 @@ import sys
 import threading
 import codecs
 
-from device     import device
-from mp_dev     import mp1
-from sp_dev     import sp1,sp2
-from dooya_dev  import dooya
-from s1_dev     import S1C
-from rm_dev     import rm
-from a_dev      import a1
+from device       import device
+from mp_dev       import mp1
+from sp_dev       import sp1,sp2
+from dooya_dev    import dooya
+from s1_dev       import S1C
+from rm_dev       import rm
+from a_dev        import a1
+from sp2mini2_dev import sp2mini2
 
 def gendevice(devtype, host, mac):
   if devtype == 0: # SP1
@@ -35,7 +36,7 @@ def gendevice(devtype, host, mac):
   elif devtype == 0x947a or devtype == 0x9479: # SP3S
     return sp2(host=host, mac=mac)
   elif devtype == 0x2728: # SPMini2
-    return sp2(host=host, mac=mac)
+    return sp2mini2(host=host, mac=mac)
   elif devtype == 0x2733 or devtype == 0x273e: # OEM branded SPMini
     return sp2(host=host, mac=mac)
   elif devtype >= 0x7530 and devtype <= 0x7918: # OEM branded SPMini2
