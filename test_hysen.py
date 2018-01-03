@@ -1,13 +1,10 @@
 import broadlink
 
-devices = broadlink.discover(timeout=1)
-
-# Get first device (assume there is only 1)
-dev = devices[0]
-
-print(dev.type)
-
+dev = broadlink.discover()
 dev.auth()
 
-print(dev.get_temp())
+
+print('Device: ' + dev.type)
+print('Temperature: '+ str(dev.get_temp()) + 'C')
+print('Test switch to auto mode: ' + str(dev.switch_to_auto()) )
 

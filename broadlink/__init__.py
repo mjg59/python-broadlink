@@ -132,9 +132,6 @@ def discover(timeout=None, local_ip_address=None):
       responsepacket = bytearray(response[0])
       host = response[1]
       devtype = responsepacket[0x34] | responsepacket[0x35] << 8
-
-      print(devtype)
-
       mac = responsepacket[0x3a:0x40]
       dev = gendevice(devtype, host, mac)
       devices.append(dev)
@@ -220,12 +217,6 @@ class device:
 
     self.id = payload[0x00:0x04]
     self.key = key
-
-    # PW remove this
-    print('Key = ')
-    print ''.join(format(ord(x), '02x') for x in self.key)
-    print('ID= ')
-    print ''.join(format(ord(x), '02x') for x in self.id)
 
     return True
 
@@ -533,6 +524,8 @@ class hysen(device):
     device.__init__(self, host, mac)
     self.type = "Hysen heating controller"
 
+
+  # Get current temperature in degrees celsius (assume can get Fahrenheit with other params)
   def get_temp(self):
     input_payload = bytearray([0x08,0x00,0x01,0x03,0x00,0x00,0x00,0x08,0x44,0x0c,0x00,0x00,0x00,0x00,0x00,0x00])
     response = self.send_packet(0x6a, input_payload)
@@ -546,6 +539,18 @@ class hysen(device):
       else:
         temp = ord(payload[0x07])/2.0
       return temp
+
+  # Put controller in automatic (pre-programmed mode)
+  def switch_to_auto(self):
+     input_payload = bytearray([0x08,0x00,0x01,0x06,0x00,0x02,0x11,0x00,0x24,0x5a,0x00,0x00,0x00,0x00,0x00,0x00])
+     response = self.send_packet(0x6a, input_payload)
+     err = response[0x22] | (response[0x23] << 8)
+     if err == 0:
+       if (response[0x27] == 0x03) and (response[0x26] == 0xee):
+         return True
+
+     return False
+
 
 
 
