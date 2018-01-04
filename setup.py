@@ -12,11 +12,11 @@ try:
 except ImportError as e:
     dynamic_requires = ['pycrypto==2.6.1']
 
-version = 0.5
+version = 0.6
 
 setup(
     name='broadlink',
-    version=0.5,
+    version=0.6,
     author='Matthew Garrett',
     author_email='mjg59@srcf.ucam.org',
     url='http://github.com/mjg59/python-broadlink',

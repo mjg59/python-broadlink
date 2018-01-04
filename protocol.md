@@ -40,13 +40,14 @@ To discover Broadlink devices on the local network, send a 48 byte packet with t
 |0x00-0x07|00|
 |0x08-0x0b|Current offset from GMT as a little-endian 32 bit integer|
 |0x0c-0x0d|Current year as a little-endian 16 bit integer|
-|0x0e|Current number of minutes past the hour|
-|0x0f|Current number of hours past midnight|
-|0x10|Current number of years past the century|
-|0x11|Current day of the week (Monday = 0, Tuesday = 1, etc)|
+|0x0e|Current number of seconds past the minute|
+|0x0f|Current number of minutes past the hour|
+|0x10|Current number of hours past midnight|
+|0x11|Current day of the week (Monday = 1, Tuesday = 2, etc)|
 |0x12|Current day in month|
 |0x13|Current month|
-|0x19-0x1b|Local IP address|
+|0x14-0x17|00|
+|0x18-0x1b|Local IP address|
 |0x1c-0x1d|Source port as a little-endian 16 bit integer|
 |0x1e-0x1f|00|
 |0x20-0x21|Checksum as a little-endian 16 bit integer|
@@ -61,7 +62,7 @@ Response (any unicast response):
 | Offset  | Contents |
 |---------|----------|
 |0x34-0x35|Device type as a little-endian 16 bit integer (see device type mapping)|
-|0x3a-0x40|MAC address of the target device|
+|0x3a-0x3f|MAC address of the target device|
 
 Device type mapping:
 
@@ -107,20 +108,19 @@ The command packet header is 56 bytes long with the following format:
 |0x08-0x1f|00|
 |0x20-0x21|Checksum of full packet as a little-endian 16 bit integer|
 |0x22-0x23|00|
-|0x24|0x2a|
-|0x25|0x27|
+|0x24-0x25|Device type as a little-endian 16 bit integer|
 |0x26-0x27|Command code as a little-endian 16 bit integer|
 |0x28-0x29|Packet count as a little-endian 16 bit integer|
 |0x2a-0x2f|Local MAC address|
 |0x30-0x33|Local device ID (obtained during authentication, 00 before authentication)|
-|0x34-0x35|Checksum of packet header as a little-endian 16 bit integer
+|0x34-0x35|Checksum of unencrypted payload as a little-endian 16 bit integer
 |0x36-0x37|00|
 
-The payload is appended immediately after this. The checksum at 0x34 is calculated *before* the payload is appended, and covers only the header. The checksum at 0x20 is calculated *after* the payload is appended, and covers the entire packet (including the checksum at 0x34). Therefore:
+The payload is appended immediately after this. The checksum at 0x20 is calculated *after* the payload is appended, and covers the entire packet (including the checksum at 0x34). Therefore:
 
 1. Generate packet header with checksum values set to 0
-2. Set the checksum initialisation value to 0xbeaf and calculate the checksum of the packet header. Set 0x34-0x35 to this value.
-3. Append the payload
+2. Set the checksum initialisation value to 0xbeaf and calculate the checksum of the unencrypted payload. Set 0x34-0x35 to this value.
+3. Encrypt and append the payload
 4. Set the checksum initialisation value to 0xbeaf and calculate the checksum of the entire packet. Set 0x20-0x21 to this value.
 
 Authorisation
@@ -180,7 +180,7 @@ Send the following payload with a command byte of 0x006a
 |0x04|0x26 = IR, 0xb2 for RF 433Mhz, 0xd7 for RF 315Mhz|
 |0x05|repeat count, (0 = no repeat, 1 send twice, .....)|
 |0x06-0x07|Length of the following data in little endian|
-|0x08 ....|Pulse lengths in 32,84ms units (ms * 269 / 8192 works very well)|
+|0x08 ....|Pulse lengths in 2^-15 s units (µs * 269 / 8192 works very well)|
 |....|0x0d 0x05 at the end for IR only|
 
 Each value is represented by one byte. If the length exceeds one byte
