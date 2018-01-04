@@ -524,6 +524,8 @@ class hysen(device):
     device.__init__(self, host, mac)
     self.type = "Hysen heating controller"
 
+  # Command 0x6a payload is typically 08 00 (signature) + 6 bytes instruction + Modbus CRC16 (2 bytes)
+  # 
 
   # Get current temperature in degrees celsius (assume can get Fahrenheit with other params)
   def get_temp(self):
@@ -551,9 +553,34 @@ class hysen(device):
 
      return False
 
+  # Put controller into manual mode
+  # Note this activates the last used manual temperature
+  def switch_to_manual(self):
+     input_payload = bytearray([0x08,0x00,0x01,0x06,0x00,0x02,0x10,0x00,0x25,0xca,0x00,0x00,0x00,0x00,0x00,0x00])
+     response = self.send_packet(0x6a, input_payload)
+     err = response[0x22] | (response[0x23] << 8)
+     if err == 0:
+       if (response[0x27] == 0x03) and (response[0x26] == 0xee):
+         return True
 
+     return False
 
+  # Set temperature for manual mode
+  def set_temp(self, temp):
+     # set byte[7] to temp degrees *2 (e.g. 29.5 deg= 59/2 = 0x3b/2) and calculate modbus crc
 
+     input_payload = bytearray([0x08,0x00,0x01,0x06,0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00])
+     input_payload[7] = int(temp * 2)
+
+     from PyCRC.CRC16 import CRC16
+     crc = CRC16(modbus_flag=True).calculate(bytes(input_payload[2:8]))
+     # print("{:20s} {:10X}".format('CRC-16 (Modbus)', crc))
+     input_payload[8] = (crc & 0xFF)
+     input_payload[9] = (crc >> 8) & 0xFF
+
+     response = self.send_packet(0x6a, input_payload)
+
+     return ( (response[0x22] | (response[0x23] << 8) ) == 0 )
 
 # Setup a new Broadlink device via AP Mode. Review the README to see how to enter AP Mode.
 # Only tested with Broadlink RM3 Mini (Blackbean)
