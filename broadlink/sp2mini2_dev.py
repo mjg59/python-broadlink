@@ -107,80 +107,12 @@ class sp2mini2(device):
         packet[0x20] = checksum & 0xff
         packet[0x21] = checksum >> 8
 
-        starttime = time.time()
-        with self.lock:
-          while True:
-            try:
-              self.cs.sendto(packet, self.host)
-              self.cs.settimeout(1)
-              response = self.cs.recvfrom(2048)
-              break
-            except socket.timeout:
-              if (time.time() - starttime) > self.timeout:
-                raise
-        return bytearray(response[0])
+        return packet
 
     # overwritting the method adapted to SP2Mini2
     def send_packet(self, command, payload):
-        self.count = (self.count + 1) & 0xffff
 
-        package_size = 0x38
-        packet = bytearray(package_size)
-
-        for i in range(0,package_size):
-            packet[i] = 0
-
-        packet[0x00] = 0x5a
-        packet[0x01] = 0xa5
-        packet[0x02] = 0xaa
-        packet[0x03] = 0x55
-        packet[0x04] = 0x5a
-        packet[0x05] = 0xa5
-        packet[0x06] = 0xaa
-        packet[0x07] = 0x55
-
-        packet[0x24] = 0x28
-        packet[0x25] = 0x27
-        packet[0x26] = command
-
-        packet[0x28] = self.count & 0xff
-        packet[0x29] = self.count >> 8
-        packet[0x2a] = self.mac[0]
-        packet[0x2b] = self.mac[1]
-        packet[0x2c] = self.mac[2]
-        packet[0x2d] = self.mac[3]
-        packet[0x2e] = self.mac[4]
-        packet[0x2f] = self.mac[5]
-        packet[0x30] = self.id[0]
-        packet[0x31] = self.id[1]
-        packet[0x32] = self.id[2]
-        packet[0x33] = self.id[3]
-
-        # pad the payload for AES encryption
-        if len(payload)>0:
-            numpad=(len(payload)//16+1)*16
-            payload=payload.ljust(numpad,b"\x00")
-
-        checksum = 0xbeaf
-        for i in range(len(payload)):
-            checksum += payload[i]
-            checksum = checksum & 0xffff
-
-        payload = self.encrypt(payload)
-
-        packet[0x34] = checksum & 0xff
-        packet[0x35] = checksum >> 8
-
-        for i in range(len(payload)):
-          packet.append(payload[i])
-
-        checksum = 0xbeaf
-        for i in range(len(packet)):
-            checksum += packet[i]
-            checksum = checksum & 0xffff
-
-        packet[0x20] = checksum & 0xff
-        packet[0x21] = checksum >> 8
+        packet = self.build_static_packet(command, payload)
 
         starttime = time.time()
         print "Dump buffer to send..."
@@ -197,8 +129,7 @@ class sp2mini2(device):
                     if (time.time() - starttime) > self.timeout:
                         raise
         return bytearray(response[0])
-
-
+        
 
     def flip_the_switch(self, status=1):
         
@@ -288,6 +219,7 @@ class sp2mini2(device):
             print dump_hex_buffer(payload)
         print "Done"
 
+# helper function to print raw data
 def dump_hex_buffer(buf):
     str   = ""
     size  = len(buf)
@@ -309,7 +241,7 @@ def dump_hex_buffer(buf):
 
     return str
 
-# Prints the buffer message on screen
+# Helper function prints the buffer message on screen
 def format_frame(msg):
     data  = []
     str   = ""
