@@ -550,7 +550,6 @@ class hysen(device):
     response = self.send_packet(0x6a, input_payload)
     err = response[0x22] | (response[0x23] << 8)
     if err == 0:
-      data = {}
       payload = self.decrypt(bytes(response[0x38:]))
 
       if type(payload[0x4]) == int:
@@ -558,6 +557,9 @@ class hysen(device):
       else:
         temp = ord(payload[0x07])/2.0
       return temp
+
+    return None
+
 
   # Put controller in automatic (pre-programmed mode)
   def switch_to_auto(self):
@@ -598,6 +600,28 @@ class hysen(device):
      response = self.send_packet(0x6a, input_payload)
 
      return ( (response[0x22] | (response[0x23] << 8) ) == 0 )
+
+  # Get heating schedule used in auto mode
+  def get_schedule(self):
+    input_payload = bytearray([0x08,0x00,0x01,0x03,0x00,0x00,0x00,0x16,0xc4,0x04]);
+    response = self.send_packet(0x6a, input_payload)
+    err = response[0x22] | (response[0x23] << 8)
+    if err == 0:
+      if (response[0x27] == 0x03) and (response[0x26] == 0xee):
+        payload = self.decrypt(bytes(response[0x38:]))
+        payload = bytearray(payload)
+	weekday = []
+	for i in range(0, 6):
+		weekday.append({'start_hour':payload[2*i + 25], 'start_minute':payload[2*i + 26],'temp':payload[i + 41]/2.0})
+
+	weekend = []
+	for i in range(6, 8):
+		weekend.append({'start_hour':payload[2*i + 25], 'start_minute':payload[2*i + 26],'temp':payload[i + 41]/2.0})
+
+	return {'weekday':weekday, 'weekend':weekend}
+
+    return None
+
 
 
 S1C_SENSORS_TYPES = {
