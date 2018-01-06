@@ -560,6 +560,40 @@ class hysen(device):
 
     return None
 
+  # Get full status (including timer schedule)
+  def get_full_status(self):
+    input_payload = bytearray([0x08,0x00,0x01,0x03,0x00,0x00,0x00,0x16,0xc4,0x04]);
+    response = self.send_packet(0x6a, bytearray(input_payload))
+    err = response[0x22] | (response[0x23] << 8)
+    if err == 0 and (response[0x27] == 0x03) and (response[0x26] == 0xee):
+      payload = bytearray(self.decrypt(bytes(response[0x38:])))
+      data = {}
+      data['remote'] =  payload[3+2]
+      data['power'] =  payload[4+2] & 1
+      data['active'] =  (payload[4+2] >> 4) & 1
+      data['temp_manual'] =  (payload[4+2] >> 6) & 1
+      data['room_temp'] =  (payload[5+2] & 255)/2.0
+      data['thermostat_temp'] =  (payload[6+2] & 255)/2.0
+      data['loop_mode'] =  payload[7+2] & 15
+      data['loop_mode_backup'] =  (payload[7+2] >> 4) & 15
+      data['hour'] =  payload[19+2]
+      data['min'] =  payload[20+2]
+      data['sec'] =  payload[21+2]
+      data['dayofweek'] =  payload[22+2]
+      weekday = []
+      for i in range(0, 6):
+        weekday.append({'start_hour':payload[2*i + 25], 'start_minute':payload[2*i + 26],'temp':payload[i + 41]/2.0})
+      
+      data['weekday'] = weekday
+      weekend = []
+      for i in range(6, 8):
+        weekend.append({'start_hour':payload[2*i + 25], 'start_minute':payload[2*i + 26],'temp':payload[i + 41]/2.0})
+
+      data['weekend'] = weekend
+      return data
+
+    return None
+
 
   # Put controller in automatic (pre-programmed mode)
   def switch_to_auto(self):
@@ -600,29 +634,6 @@ class hysen(device):
      response = self.send_packet(0x6a, input_payload)
 
      return ( (response[0x22] | (response[0x23] << 8) ) == 0 )
-
-  # Get heating schedule used in auto mode
-  def get_schedule(self):
-    input_payload = bytearray([0x08,0x00,0x01,0x03,0x00,0x00,0x00,0x16,0xc4,0x04]);
-    response = self.send_packet(0x6a, input_payload)
-    err = response[0x22] | (response[0x23] << 8)
-    if err == 0:
-      if (response[0x27] == 0x03) and (response[0x26] == 0xee):
-        payload = self.decrypt(bytes(response[0x38:]))
-        payload = bytearray(payload)
-	weekday = []
-	for i in range(0, 6):
-		weekday.append({'start_hour':payload[2*i + 25], 'start_minute':payload[2*i + 26],'temp':payload[i + 41]/2.0})
-
-	weekend = []
-	for i in range(6, 8):
-		weekend.append({'start_hour':payload[2*i + 25], 'start_minute':payload[2*i + 26],'temp':payload[i + 41]/2.0})
-
-	return {'weekday':weekday, 'weekend':weekend}
-
-    return None
-
-
 
 S1C_SENSORS_TYPES = {
     0x31: 'Door Sensor',  # 49 as hex
