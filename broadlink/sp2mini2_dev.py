@@ -9,7 +9,8 @@ import time
 import random
 import socket
 
-from device import device
+from device     import device
+from dbg_utils  import dump_hex_buffer,init_buffer
 
 # This in an implementation for eControl with devices of the type 'SPMini2' ID code 0x2728
 
@@ -31,11 +32,19 @@ IDX_PORT     = 0x1A
 IDX_CMD      = 0x26 
 
 # Posible values for IDX_CMD
-CMD_Hello    = 0x6
-CMD_Discover = 0x1a
-CMD_Join     = 0x14
-CMD_Auth     = 0x65
-CMD_Command  = 0x6a
+# Command transmission values
+CMD_tx_Hello    = 0x6
+CMD_tx_Discover = 0x1a
+CMD_tx_Join     = 0x14
+CMD_tx_Auth     = 0x65
+CMD_tx_Command  = 0x6a
+
+# Command response values
+CMD_rx_Hello    = 0x7
+CMD_rx_Discover = 0x1b
+CMD_rx_Join     = 0x15
+CMD_rx_Auth     = 0x3e9
+CMD_rx_Command  = 0x3ee
 
 
 
@@ -46,13 +55,10 @@ class sp2mini2(device):
         self.type = "SP2Mini2"
 
 
-    def build_static_packet(self, command, payload):
+    def build_static_msg(self, command, payload):
         self.count = (self.count + 1) & 0xffff
-        package_size = 0x38
-        packet = bytearray(package_size)
 
-        for i in range(0,package_size):
-            packet[i] = 0
+        packet = init_buffer(0x38)
 
         packet[0x00] = 0x5a
         packet[0x01] = 0xa5
@@ -112,7 +118,7 @@ class sp2mini2(device):
     # overwritting the method adapted to SP2Mini2
     def send_packet(self, command, payload):
 
-        packet = self.build_static_packet(command, payload)
+        packet = self.build_static_msg(command, payload)
 
         starttime = time.time()
         print "Dump buffer to send..."
@@ -129,9 +135,44 @@ class sp2mini2(device):
                     if (time.time() - starttime) > self.timeout:
                         raise
         return bytearray(response[0])
-        
 
-    def flip_the_switch(self, status=1):
+    def enter_learning(self):
+        print "creating buffer"
+        packet = bytearray(16)
+        packet[0] = 3
+        print "Dump learning packet to send..."
+        print dump_hex_buffer(packet)
+        self.send_packet(0x6a, packet)
+
+    def set_power(self, state):
+        """Sets the power state of the smart plug."""
+        packet = init_buffer(16)
+        packet[0] = 2 # Set command
+        packet[4] = 1 if state else 0
+        response = self.send_packet(CMD_tx_Command, packet)
+        print "Dump buffer received..."
+        print dump_hex_buffer(response)
+
+    def check_power(self):
+        """Returns the power state of the smart plug."""
+        packet = init_buffer(16)
+        packet[0] = 1 # Get Command
+        response = self.send_packet(CMD_tx_Command, packet)
+        err = response[0x22] | (response[0x23] << 8)
+        state = -1
+
+        if err == 0:
+            print "Received correct response"
+            payload = self.decrypt(bytes(response[0x38:]))
+            if type(payload[0x4]) == int:
+                state = bool(payload[0x4])
+            else:
+                state = bool(ord(payload[0x4]))
+            print "state %d" % state
+        return state
+
+'''
+    def set_power(self, status=1):
         
         print "Switching to %s" % status
         local_ip_address = None
@@ -208,7 +249,7 @@ class sp2mini2(device):
         print "Checksum: %x " % checksum
         print "Sending package"
 
-        response = self.send_packet(CMD_Command, packet)
+        response = self.send_packet(CMD_tx_Command, packet)
         #cs.sendto(packet, ('255.255.255.255', 80))
         print "Dump buffer received..."
         print dump_hex_buffer(response)
@@ -218,51 +259,4 @@ class sp2mini2(device):
         if len(payload) > 0:
             print dump_hex_buffer(payload)
         print "Done"
-
-# helper function to print raw data
-def dump_hex_buffer(buf):
-    str   = ""
-    size  = len(buf)
-
-    # print the index header in hex 0 to F
-    str += "Index:\t"
-    for j in xrange(0,0x10):
-        str += "%2X " % j
-
-    # print the buffer content in lines of 16 elements
-    for i in range(0, size):
-        # every 16 bytes we write a new line with the index
-        idx = i % 16
-        
-        if idx == 0:
-            str += "\n%04x\t" % i
-
-        str += "%02x " %buf[i]
-
-    return str
-
-# Helper function prints the buffer message on screen
-def format_frame(msg):
-    data  = []
-    str   = ""
-    size  = len(msg)
-    print "Package of size: %s" % size
-
-    for i in range(0, size):
-        txt = "[%2d] %2X " % (i, msg[i])
-        data.append( txt )
-
-    for i in range(0, 10):
-        for j in range(0,13):
-            idx = (j*10)+i
-            if idx < len(msg):
-                str += data[ idx ]
-        str += "\n"
-
-    if size > 37:
-        print "36-37 Device ID %x%x" % (msg[37],msg[36])
-
-    if size > 57:
-        print "Plug IP: 54-57 IP %s:%s:%s:%s" %(msg[54],msg[55],msg[56],msg[57])
-
-    return str 
+'''

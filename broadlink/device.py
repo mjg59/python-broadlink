@@ -52,6 +52,7 @@ class device:
     return aes.decrypt(bytes(payload))
 
   def auth(self):
+    print "Auth"
     payload = bytearray(0x50)
     payload[0x04] = 0x31
     payload[0x05] = 0x31
@@ -133,6 +134,9 @@ class device:
       checksum += payload[i]
       checksum = checksum & 0xffff
 
+    print "Dump payload not encrypted..."
+    print dump_hex_buffer(packet)
+
     payload = self.encrypt(payload)
 
     packet[0x34] = checksum & 0xff
@@ -159,4 +163,8 @@ class device:
         except socket.timeout:
           if (time.time() - starttime) > self.timeout:
             raise
+
+    print "Dump response..."
+    print dump_hex_buffer(response[0])
+
     return bytearray(response[0])

@@ -20,8 +20,11 @@ class rm(device):
     self.send_packet(0x6a, packet)
 
   def enter_learning(self):
+    print "creating buffer"
     packet = bytearray(16)
     packet[0] = 3
+    print "Dump learning packet to send..."
+    print dump_hex_buffer(packet)
     self.send_packet(0x6a, packet)
 
   def check_temperature(self):

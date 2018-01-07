@@ -21,6 +21,7 @@ from s1_dev       import S1C
 from rm_dev       import rm
 from a_dev        import a1
 from sp2mini2_dev import sp2mini2
+from dbg_utils    import dump_hex_buffer
 
 def gendevice(devtype, host, mac):
   if devtype == 0: # SP1
@@ -117,15 +118,20 @@ def discover(timeout=None, local_ip_address=None):
   packet[0x1b] = int(address[3])
   packet[0x1c] = port & 0xff
   packet[0x1d] = port >> 8
-  packet[0x26] = 6
+  packet[0x26] = 6  # Hello command
+  
   checksum = 0xbeaf
 
   for i in range(len(packet)):
       checksum += packet[i]
+
   checksum = checksum & 0xffff
+  
   packet[0x20] = checksum & 0xff
   packet[0x21] = checksum >> 8
 
+  print "sending hello"
+  print dump_hex_buffer(packet)
   cs.sendto(packet, ('255.255.255.255', 80))
   if timeout is None:
     response = cs.recvfrom(1024)
@@ -142,6 +148,8 @@ def discover(timeout=None, local_ip_address=None):
       except socket.timeout:
         return devices
       responsepacket = bytearray(response[0])
+      print "response hello"
+      print dump_hex_buffer(responsepacket)
       host = response[1]
       devtype = responsepacket[0x34] | responsepacket[0x35] << 8
       mac = responsepacket[0x3a:0x40]
@@ -152,15 +160,19 @@ def discover(timeout=None, local_ip_address=None):
 # Setup a new Broadlink device via AP Mode. Review the README to see how to enter AP Mode.
 # Only tested with Broadlink RM3 Mini (Blackbean)
 def setup(ssid, password, security_mode):
+  print "Call Setup"
   # Security mode options are (0 - none, 1 = WEP, 2 = WPA1, 3 = WPA2, 4 = WPA1/2)
   payload = bytearray(0x88)
+
   payload[0x26] = 0x14  # This seems to always be set to 14
+  
   # Add the SSID to the payload
   ssid_start = 68
   ssid_length = 0
   for letter in ssid:
     payload[(ssid_start + ssid_length)] = ord(letter)
     ssid_length += 1
+  
   # Add the WiFi password to the payload
   pass_start = 100
   pass_length = 0
