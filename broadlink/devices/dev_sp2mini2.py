@@ -1,4 +1,3 @@
-
 import time
 import random
 import socket
@@ -10,7 +9,7 @@ except ImportError as e:
 
 from datetime   import datetime
 from device     import device
-from dbg_utils  import dump_hex_buffer,init_buffer
+from dbg_utils  import dump_hex_buffer
 
 # This in an implementation for eControl with devices of the type 'SPMini2' ID code 0x2728
 
@@ -43,20 +42,27 @@ CMD_rx_Join     = 0x15
 CMD_rx_Auth     = 0x3e9
 CMD_rx_Command  = 0x3ee
 
-
-
 class sp2mini2(device):
 
     def __init__ (self, host, mac):
         device.__init__(self, host, mac)
         self.type = "SP2Mini2"
 
+    # returns a buffer of the given size, initialized to 0s
+    def init_buffer(size):
+        buf = bytearray(size)
+    
+        for i in range(0,size):
+            buf[i] = 0
+            
+        return buf
 
     def build_static_msg(self, command, payload):
         self.count = (self.count + 1) & 0xffff
 
-        packet = init_buffer(0x38)
+        packet = self.init_buffer(0x38)
 
+        # static header
         packet[0x00] = 0x5a
         packet[0x01] = 0xa5
         packet[0x02] = 0xaa
@@ -87,13 +93,13 @@ class sp2mini2(device):
 
         # pad the payload for AES encryption
         if len(payload)>0:
-          numpad=(len(payload)//16+1)*16
-          payload=payload.ljust(numpad,b"\x00")
+            numpad=(len(payload)//16+1)*16
+            payload=payload.ljust(numpad,b"\x00")
 
         checksum = 0xbeaf
         for i in range(len(payload)):
-          checksum += payload[i]
-          checksum = checksum & 0xffff
+            checksum += payload[i]
+            checksum = checksum & 0xffff
 
         payload = self.encrypt(payload)
 
@@ -101,12 +107,12 @@ class sp2mini2(device):
         packet[0x35] = checksum >> 8
 
         for i in range(len(payload)):
-          packet.append(payload[i])
+            packet.append(payload[i])
 
         checksum = 0xbeaf
         for i in range(len(packet)):
-          checksum += packet[i]
-          checksum = checksum & 0xffff
+            checksum += packet[i]
+            checksum = checksum & 0xffff
         packet[0x20] = checksum & 0xff
         packet[0x21] = checksum >> 8
 
@@ -114,10 +120,9 @@ class sp2mini2(device):
 
     # overwritting the method adapted to SP2Mini2
     def send_packet(self, command, payload):
-
         packet = self.build_static_msg(command, payload)
-
         starttime = time.time()
+
         print "Dump buffer to send..."
         print dump_hex_buffer(packet)
 
@@ -143,7 +148,7 @@ class sp2mini2(device):
 
     def set_power(self, state):
         """Sets the power state of the smart plug."""
-        packet = init_buffer(16)
+        packet = self.init_buffer(16)
         packet[0] = 2 # Set command
         packet[4] = 1 if state else 0
         response = self.send_packet(CMD_tx_Command, packet)
@@ -152,7 +157,7 @@ class sp2mini2(device):
 
     def check_power(self):
         """Returns the power state of the smart plug."""
-        packet = init_buffer(16)
+        packet = self.init_buffer(16)
         packet[0] = 1 # Get Command
         response = self.send_packet(CMD_tx_Command, packet)
         err = response[0x22] | (response[0x23] << 8)

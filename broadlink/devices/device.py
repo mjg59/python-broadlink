@@ -11,7 +11,7 @@ try:
 except ImportError as e:
     import pyaes
 
-
+# this is an abstract class for broadlink devices
 class device:
   def __init__(self, host, mac, timeout=10):
     self.host = host

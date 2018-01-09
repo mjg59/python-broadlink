@@ -13,65 +13,7 @@ import sys
 import threading
 import codecs
 
-from device       import device
-from mp_dev       import mp1
-from sp_dev       import sp1,sp2
-from dooya_dev    import dooya
-from s1_dev       import S1C
-from rm_dev       import rm
-from a_dev        import a1
-from sp2mini2_dev import sp2mini2
-from dbg_utils    import dump_hex_buffer
-
-def gendevice(devtype, host, mac):
-  if devtype == 0: # SP1
-    return sp1(host=host, mac=mac)
-  if devtype == 0x2711: # SP2
-    return sp2(host=host, mac=mac)
-  if devtype == 0x2719 or devtype == 0x7919 or devtype == 0x271a or devtype == 0x791a: # Honeywell SP2
-    return sp2(host=host, mac=mac)
-  if devtype == 0x2720: # SPMini
-    return sp2(host=host, mac=mac)
-  elif devtype == 0x753e: # SP3
-    return sp2(host=host, mac=mac)
-  elif devtype == 0x947a or devtype == 0x9479: # SP3S
-    return sp2(host=host, mac=mac)
-  elif devtype == 0x2728: # SPMini2
-    return sp2mini2(host=host, mac=mac)
-  elif devtype == 0x2733 or devtype == 0x273e: # OEM branded SPMini
-    return sp2(host=host, mac=mac)
-  elif devtype >= 0x7530 and devtype <= 0x7918: # OEM branded SPMini2
-    return sp2(host=host, mac=mac)
-  elif devtype == 0x2736: # SPMiniPlus
-    return sp2(host=host, mac=mac)
-  elif devtype == 0x2712: # RM2
-    return rm(host=host, mac=mac)
-  elif devtype == 0x2737: # RM Mini
-    return rm(host=host, mac=mac)
-  elif devtype == 0x273d: # RM Pro Phicomm
-    return rm(host=host, mac=mac)
-  elif devtype == 0x2783: # RM2 Home Plus
-    return rm(host=host, mac=mac)
-  elif devtype == 0x277c: # RM2 Home Plus GDT
-    return rm(host=host, mac=mac)
-  elif devtype == 0x272a: # RM2 Pro Plus
-    return rm(host=host, mac=mac)
-  elif devtype == 0x2787: # RM2 Pro Plus2
-    return rm(host=host, mac=mac)
-  elif devtype == 0x278b: # RM2 Pro Plus BL
-    return rm(host=host, mac=mac)
-  elif devtype == 0x278f: # RM Mini Shate
-    return rm(host=host, mac=mac)
-  elif devtype == 0x2714: # A1
-    return a1(host=host, mac=mac)
-  elif devtype == 0x4EB5 or devtype == 0x4EF7: # MP1: 0x4eb5, honyar oem mp1: 0x4ef7
-    return mp1(host=host, mac=mac)
-  elif devtype == 0x2722: # S1 (SmartOne Alarm Kit)
-    return S1C(host=host, mac=mac)
-  elif devtype == 0x4E4D: # Dooya DT360E (DOOYA_CURTAIN_V2)
-    return dooya(host=host, mac=mac)
-  else:
-    return device(host=host, mac=mac)
+from device_types import gendevice
 
 def discover(timeout=None, local_ip_address=None):
   if local_ip_address is None:
@@ -130,8 +72,6 @@ def discover(timeout=None, local_ip_address=None):
   packet[0x20] = checksum & 0xff
   packet[0x21] = checksum >> 8
 
-  print "sending hello"
-  print dump_hex_buffer(packet)
   cs.sendto(packet, ('255.255.255.255', 80))
   if timeout is None:
     response = cs.recvfrom(1024)
@@ -148,8 +88,6 @@ def discover(timeout=None, local_ip_address=None):
       except socket.timeout:
         return devices
       responsepacket = bytearray(response[0])
-      print "response hello"
-      print dump_hex_buffer(responsepacket)
       host = response[1]
       devtype = responsepacket[0x34] | responsepacket[0x35] << 8
       mac = responsepacket[0x3a:0x40]
@@ -160,7 +98,6 @@ def discover(timeout=None, local_ip_address=None):
 # Setup a new Broadlink device via AP Mode. Review the README to see how to enter AP Mode.
 # Only tested with Broadlink RM3 Mini (Blackbean)
 def setup(ssid, password, security_mode):
-  print "Call Setup"
   # Security mode options are (0 - none, 1 = WEP, 2 = WPA1, 3 = WPA2, 4 = WPA1/2)
   payload = bytearray(0x88)
 

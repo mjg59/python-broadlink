@@ -1,3 +1,6 @@
 *.pyc
 wireshark_logs.txt
 econtrol.py
+broadlink/.DS_Store
+terminal.glue
+.DS_Store

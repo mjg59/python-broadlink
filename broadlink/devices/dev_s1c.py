@@ -1,6 +1,6 @@
 from device import device
 
-class S1C(device):
+class s1c(device):
   """
   Its VERY VERY VERY DIRTY IMPLEMENTATION of S1C
   """
