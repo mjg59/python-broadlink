@@ -13,7 +13,7 @@ import sys
 import threading
 import codecs
 
-from device_types import gendevice
+from "devices/device_types" import gendevice
 
 def discover(timeout=None, local_ip_address=None):
   if local_ip_address is None:

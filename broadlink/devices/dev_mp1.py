@@ -1,4 +1,3 @@
-
 from device import device
 
 class mp1(device):
