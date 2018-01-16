@@ -1,7 +1,8 @@
 #!/usr/bin/python
 
-from __init__ import setup, discover
 import time
+import broadlink
+
 
 # Notice:
 # The divices have to be pre-configured and associated 
@@ -11,7 +12,7 @@ import time
 # python sp2mini2_test.py
 
 print "Call discovery..."
-devices = discover(timeout=5)
+devices = broadlink.discover(timeout=5)
 print "Found %d" % len(devices)
 
 if len(devices) > 0:
