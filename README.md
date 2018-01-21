@@ -9,6 +9,7 @@ livolo_send( 6500  , "Off")
 livolo_send( 6500 , "On")
 ```
 How to use
+
 Assume 6500 is your remote id 
 
 You need to set livolo switch to learn mode then send btn1 and hear a beep on the device
