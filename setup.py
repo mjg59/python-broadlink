@@ -12,6 +12,9 @@ try:
 except ImportError as e:
     dynamic_requires = ['pycrypto==2.6.1']
 
+# For Hysen thermostatic heating controller
+dynamic_requires.append('PyCRC')
+
 version = 0.6
 
 setup(
