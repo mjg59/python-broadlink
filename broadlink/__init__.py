@@ -145,6 +145,7 @@ def discover(timeout=None, local_ip_address=None):
     return devices
 
 
+
 class device:
   def __init__(self, host, mac, timeout=10):
     self.host = host
@@ -541,99 +542,124 @@ class hysen(device):
     device.__init__(self, host, mac)
     self.type = "Hysen heating controller"
 
-  # Command 0x6a payload is typically 08 00 (signature) + 6 bytes instruction + Modbus CRC16 (2 bytes)
-  # 
+  # Send a request
+  # input_payload should be a bytearray, usually 6 bytes, e.g. bytearray([0x01,0x06,0x00,0x02,0x10,0x00]) 
+  # Returns decrypted payload
+  # New behaviour: raises a ValueError if the device response indicates an error
+  # Note the function will prepend signature and append CRC
+  def send_request(self,input_payload):
+    
+    from PyCRC.CRC16 import CRC16
+    crc = CRC16(modbus_flag=True).calculate(bytes(input_payload))
+
+    # first byte is length, +2 for CRC16
+    request_payload = bytearray([len(input_payload) + 2,0x00])
+    request_payload.extend(input_payload)
+    
+    # append CRC
+    request_payload.append(crc & 0xFF)
+    request_payload.append((crc >> 8) & 0xFF)
+
+    # send to device
+    response = self.send_packet(0x6a, request_payload)
+
+    # check for error
+    err = response[0x22] | (response[0x23] << 8)
+    if err: 
+      raise ValueError('broadlink_response_error',err)
+    else:
+      return bytearray(self.decrypt(bytes(response[0x38:])))
+
 
   # Get current temperature in degrees celsius (assume can get Fahrenheit with other params)
   def get_temp(self):
-    input_payload = bytearray([0x08,0x00,0x01,0x03,0x00,0x00,0x00,0x08,0x44,0x0c,0x00,0x00,0x00,0x00,0x00,0x00])
-    response = self.send_packet(0x6a, input_payload)
-    err = response[0x22] | (response[0x23] << 8)
-    if err == 0:
-      payload = self.decrypt(bytes(response[0x38:]))
-
-      if type(payload[0x4]) == int:
-        temp = payload[0x07] / 2.0
-      else:
-        temp = ord(payload[0x07])/2.0
-      return temp
-
-    return None
+    payload = self.send_request(bytearray([0x01,0x03,0x00,0x00,0x00,0x08]))
+    return payload[0x07] / 2.0
 
   # Get full status (including timer schedule)
   def get_full_status(self):
-    input_payload = bytearray([0x08,0x00,0x01,0x03,0x00,0x00,0x00,0x16,0xc4,0x04]);
-    response = self.send_packet(0x6a, bytearray(input_payload))
-    err = response[0x22] | (response[0x23] << 8)
-    if err == 0 and (response[0x27] == 0x03) and (response[0x26] == 0xee):
-      payload = bytearray(self.decrypt(bytes(response[0x38:])))
-      data = {}
-      data['remote'] =  payload[3+2]
-      data['power'] =  payload[4+2] & 1
-      data['active'] =  (payload[4+2] >> 4) & 1
-      data['temp_manual'] =  (payload[4+2] >> 6) & 1
-      data['room_temp'] =  (payload[5+2] & 255)/2.0
-      data['thermostat_temp'] =  (payload[6+2] & 255)/2.0
-      data['loop_mode'] =  payload[7+2] & 15
-      data['loop_mode_backup'] =  (payload[7+2] >> 4) & 15
-      data['hour'] =  payload[19+2]
-      data['min'] =  payload[20+2]
-      data['sec'] =  payload[21+2]
-      data['dayofweek'] =  payload[22+2]
-      weekday = []
-      for i in range(0, 6):
-        weekday.append({'start_hour':payload[2*i + 25], 'start_minute':payload[2*i + 26],'temp':payload[i + 41]/2.0})
-      
-      data['weekday'] = weekday
-      weekend = []
-      for i in range(6, 8):
-        weekend.append({'start_hour':payload[2*i + 25], 'start_minute':payload[2*i + 26],'temp':payload[i + 41]/2.0})
+    payload = self.send_request(bytearray([0x01,0x03,0x00,0x00,0x00,0x16]))  
+    data = {}
+    data['remote'] =  payload[3+2]
+    data['power'] =  payload[4+2] & 1
+    data['active'] =  (payload[4+2] >> 4) & 1
+    data['temp_manual'] =  (payload[4+2] >> 6) & 1
+    data['room_temp'] =  (payload[5+2] & 255)/2.0
+    data['thermostat_temp'] =  (payload[6+2] & 255)/2.0
+    data['loop_mode'] =  payload[7+2] & 15
+    data['loop_mode_backup'] =  (payload[7+2] >> 4) & 15
+    data['sensor'] =  payload[8+2]
+    data['hour'] =  payload[19+2]
+    data['min'] =  payload[20+2]
+    data['sec'] =  payload[21+2]
+    data['dayofweek'] =  payload[22+2]
+    weekday = []
+    for i in range(0, 6):
+      weekday.append({'start_hour':payload[2*i + 25], 'start_minute':payload[2*i + 26],'temp':payload[i + 41]/2.0})
+    
+    data['weekday'] = weekday
+    weekend = []
+    for i in range(6, 8):
+      weekend.append({'start_hour':payload[2*i + 25], 'start_minute':payload[2*i + 26],'temp':payload[i + 41]/2.0})
 
-      data['weekend'] = weekend
-      return data
+    data['weekend'] = weekend
+    return data
 
-    return None
-
-
-  # Put controller in automatic (pre-programmed mode)
+  # Change controller mode
+  # auto_mode = 1 for auto (scheduled/timed) mode, 0 for manual mode.
+  # Manual mode will activate last used temperature.  In typical usage call set_temp to activate manual control and set temp.
+  # loop_mode refers to index in [ "12345,67", "123456,7", "1234567" ]
+  # E.g. loop_mode = 0 ("12345,67") means Saturday and Sunday follow the "weekend" schedule
+  # loop_mode = 2 ("1234567") means every day (including Saturday and Sunday) follows the "weekday" schedule
+  def set_mode(self, auto_mode, loop_mode):
+    mode_byte = ( (loop_mode + 1) << 4) + auto_mode
+    # print 'Mode byte: 0x'+ format(mode_byte, '02x')
+    input_payload=bytearray([0x01,0x06,0x00,0x02,mode_byte,0x00])
+    self.send_request(input_payload)
+  
+  # For backwards compatibility only
   def switch_to_auto(self):
-     input_payload = bytearray([0x08,0x00,0x01,0x06,0x00,0x02,0x11,0x00,0x24,0x5a,0x00,0x00,0x00,0x00,0x00,0x00])
-     response = self.send_packet(0x6a, input_payload)
-     err = response[0x22] | (response[0x23] << 8)
-     if err == 0:
-       if (response[0x27] == 0x03) and (response[0x26] == 0xee):
-         return True
-
-     return False
-
-  # Put controller into manual mode
-  # Note this activates the last used manual temperature
+    self.set_mode(auto_mode=1, loop_mode=0)
+  
   def switch_to_manual(self):
-     input_payload = bytearray([0x08,0x00,0x01,0x06,0x00,0x02,0x10,0x00,0x25,0xca,0x00,0x00,0x00,0x00,0x00,0x00])
-     response = self.send_packet(0x6a, input_payload)
-     err = response[0x22] | (response[0x23] << 8)
-     if err == 0:
-       if (response[0x27] == 0x03) and (response[0x26] == 0xee):
-         return True
+    self.set_mode(auto_mode=0, loop_mode=0)
 
-     return False
-
-  # Set temperature for manual mode
+  # Set temperature for manual mode (also activates manual mode if currently in automatic)
   def set_temp(self, temp):
-     # set byte[7] to temp degrees *2 (e.g. 29.5 deg= 59/2 = 0x3b/2) and calculate modbus crc
+     self.send_request(bytearray([0x01,0x06,0x00,0x01,0x00,int(temp * 2)]) )
 
-     input_payload = bytearray([0x08,0x00,0x01,0x06,0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00])
-     input_payload[7] = int(temp * 2)
+  # Set timer schedule
+  # Format is the same as you get from get_full_status.
+  # weekday is a list (ordered) of 6 dicts like:
+  # {'start_hour':17, 'start_minute':30, 'temp': 22 }
+  # Each one specifies the thermostat temp that will become effective at start_hour:start_minute
+  # weekend is similar but only has 2 (e.g. switch on in morning and off in afternoon)
+  def set_schedule(self,weekday,weekend):
+    # Begin with some magic values ...
+    input_payload = bytearray([0x01,0x10,0x00,0x0a,0x00,0x0c,0x18])
 
-     from PyCRC.CRC16 import CRC16
-     crc = CRC16(modbus_flag=True).calculate(bytes(input_payload[2:8]))
-     # print("{:20s} {:10X}".format('CRC-16 (Modbus)', crc))
-     input_payload[8] = (crc & 0xFF)
-     input_payload[9] = (crc >> 8) & 0xFF
+    # Now simply append times/temps
+    # weekday times
+    for i in range(0, 6):
+      input_payload.append( weekday[i]['start_hour'] )
+      input_payload.append( weekday[i]['start_minute'] )
 
-     response = self.send_packet(0x6a, input_payload)
+    # weekend times
+    for i in range(0, 2):
+      input_payload.append( weekend[i]['start_hour'] )
+      input_payload.append( weekend[i]['start_minute'] )
 
-     return ( (response[0x22] | (response[0x23] << 8) ) == 0 )
+    # weekday temperatures
+    for i in range(0, 6):
+      input_payload.append( int(weekday[i]['temp'] * 2) )
+
+    # weekend temperatures
+    for i in range(0, 2):
+      input_payload.append( int(weekend[i]['temp'] * 2) )
+
+    self.send_request(input_payload)
+
+############################ End Hysen thermostat device class ############################
 
 S1C_SENSORS_TYPES = {
     0x31: 'Door Sensor',  # 49 as hex
