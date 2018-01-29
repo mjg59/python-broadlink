@@ -503,7 +503,12 @@ class rm(device):
 
   def sweep_frequency(self):
     packet = bytearray(16)
-    packet[0] = 0x19;
+    packet[0] = 0x19
+    self.send_packet(0x6a, packet)
+
+  def cancel_sweep_frequency(self):
+    packet = bytearray(16)
+    packet[0] = 0x1e
     self.send_packet(0x6a, packet)
 
   def check_frequency(self):
@@ -541,7 +546,7 @@ class rm(device):
         temp = (ord(payload[0x4]) * 10 + ord(payload[0x5])) / 10.0
       return temp
 
-# For legay compatibility - don't use this
+# For legacy compatibility - don't use this
 class rm2(rm):
   def __init__ (self):
     device.__init__(self, None, None)
