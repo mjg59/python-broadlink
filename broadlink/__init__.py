@@ -567,40 +567,59 @@ class hysen(device):
     err = response[0x22] | (response[0x23] << 8)
     if err: 
       raise ValueError('broadlink_response_error',err)
-    else:
-      return bytearray(self.decrypt(bytes(response[0x38:])))
+    
+    response_payload = bytearray(self.decrypt(bytes(response[0x38:])))
 
+    # experimental check on CRC in response (first 2 bytes are len, and trailing bytes are crc)
+    response_payload_len = response_payload[0]
+    if response_payload_len + 2 > len(response_payload):
+      raise ValueError('hysen_response_error','first byte of response is not length')
+    crc = CRC16(modbus_flag=True).calculate(bytes(response_payload[2:response_payload_len]))
+    if (response_payload[response_payload_len] == crc & 0xFF) and (response_payload[response_payload_len+1] == (crc >> 8) & 0xFF):
+      return response_payload[2:response_payload_len]
 
   # Get current temperature in degrees celsius (assume can get Fahrenheit with other params)
   def get_temp(self):
     payload = self.send_request(bytearray([0x01,0x03,0x00,0x00,0x00,0x08]))
-    return payload[0x07] / 2.0
+    return payload[0x05] / 2.0
 
   # Get full status (including timer schedule)
   def get_full_status(self):
-    payload = self.send_request(bytearray([0x01,0x03,0x00,0x00,0x00,0x16]))  
+    payload = self.send_request(bytearray([0x01,0x03,0x00,0x00,0x00,0x16]))    
     data = {}
-    data['remote'] =  payload[3+2]
-    data['power'] =  payload[4+2] & 1
-    data['active'] =  (payload[4+2] >> 4) & 1
-    data['temp_manual'] =  (payload[4+2] >> 6) & 1
-    data['room_temp'] =  (payload[5+2] & 255)/2.0
-    data['thermostat_temp'] =  (payload[6+2] & 255)/2.0
-    data['loop_mode'] =  payload[7+2] & 15
-    data['loop_mode_backup'] =  (payload[7+2] >> 4) & 15
-    data['sensor'] =  payload[8+2]
-    data['hour'] =  payload[19+2]
-    data['min'] =  payload[20+2]
-    data['sec'] =  payload[21+2]
-    data['dayofweek'] =  payload[22+2]
+    # payload = payload[2:] # burn first two bytes, not sure what they are
+    data['remote'] =  payload[3]
+    data['power'] =  payload[4] & 1
+    data['active'] =  (payload[4] >> 4) & 1
+    data['temp_manual'] =  (payload[4] >> 6) & 1
+    data['room_temp'] =  (payload[5] & 255)/2.0
+    data['thermostat_temp'] =  (payload[6] & 255)/2.0
+    data['auto_mode'] =  payload[7] & 15 # same way round as input, duh
+    data['loop_mode'] =  (payload[7] >> 4) & 15
+    data['sensor'] = payload[8]
+    data['osv'] = payload[9]
+    data['dif'] = payload[10]
+    data['svh'] = payload[11]
+    data['svl'] = payload[12]
+    data['unknown1'] = payload[13]
+    data['unknown2'] = payload[14]
+    data['fre'] = payload[15]
+    data['poweron'] = payload[16]
+    data['unknown3'] = payload[17]
+    data['unknown4'] = payload[18]
+    data['hour'] =  payload[19]
+    data['min'] =  payload[20]
+    data['sec'] =  payload[21]
+    data['dayofweek'] =  payload[22]
+    
     weekday = []
     for i in range(0, 6):
-      weekday.append({'start_hour':payload[2*i + 25], 'start_minute':payload[2*i + 26],'temp':payload[i + 41]/2.0})
+      weekday.append({'start_hour':payload[2*i + 23], 'start_minute':payload[2*i + 24],'temp':payload[i + 39]/2.0})
     
     data['weekday'] = weekday
     weekend = []
     for i in range(6, 8):
-      weekend.append({'start_hour':payload[2*i + 25], 'start_minute':payload[2*i + 26],'temp':payload[i + 41]/2.0})
+      weekend.append({'start_hour':payload[2*i + 23], 'start_minute':payload[2*i + 24],'temp':payload[i + 39]/2.0})
 
     data['weekend'] = weekend
     return data
@@ -615,9 +634,12 @@ class hysen(device):
   def set_mode(self, auto_mode, loop_mode,sensor=0):
     mode_byte = ( (loop_mode + 1) << 4) + auto_mode
     # print 'Mode byte: 0x'+ format(mode_byte, '02x')
-    input_payload=bytearray([0x01,0x06,0x00,0x02,mode_byte,sensor])
+    self.send_request(bytearray([0x01,0x06,0x00,0x02,mode_byte,sensor]))
+
+  def set_advanced(self, loop_mode, sensor, osv, dif, svh, svl, fre, poweron):
+    input_payload = bytearray([0x01,0x10,0x00,0x02,0x00,0x05,0x0a, loop_mode, sensor, osv, dif, svh, svl, 0x00, 0x00, fre, poweron])
     self.send_request(input_payload)
-  
+
   # For backwards compatibility only
   def switch_to_auto(self):
     self.set_mode(auto_mode=1, loop_mode=0)
