@@ -611,10 +611,11 @@ class hysen(device):
   # loop_mode refers to index in [ "12345,67", "123456,7", "1234567" ]
   # E.g. loop_mode = 0 ("12345,67") means Saturday and Sunday follow the "weekend" schedule
   # loop_mode = 2 ("1234567") means every day (including Saturday and Sunday) follows the "weekday" schedule
-  def set_mode(self, auto_mode, loop_mode):
+  # The sensor command is currently experimental
+  def set_mode(self, auto_mode, loop_mode,sensor=0):
     mode_byte = ( (loop_mode + 1) << 4) + auto_mode
     # print 'Mode byte: 0x'+ format(mode_byte, '02x')
-    input_payload=bytearray([0x01,0x06,0x00,0x02,mode_byte,0x00])
+    input_payload=bytearray([0x01,0x06,0x00,0x02,mode_byte,sensor])
     self.send_request(input_payload)
   
   # For backwards compatibility only
@@ -626,7 +627,12 @@ class hysen(device):
 
   # Set temperature for manual mode (also activates manual mode if currently in automatic)
   def set_temp(self, temp):
-     self.send_request(bytearray([0x01,0x06,0x00,0x01,0x00,int(temp * 2)]) )
+    self.send_request(bytearray([0x01,0x06,0x00,0x01,0x00,int(temp * 2)]) )
+
+  # set time on device
+  # n.b. day=1 is Monday, ..., day=7 is Sunday
+  def set_time(self, hour, minute, second, day):
+    self.send_request(bytearray([0x01,0x10,0x00,0x08,0x00,0x02,0x04, hour, minute, second, day ]))
 
   # Set timer schedule
   # Format is the same as you get from get_full_status.
