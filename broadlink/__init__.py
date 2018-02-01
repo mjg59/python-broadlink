@@ -578,10 +578,15 @@ class hysen(device):
     if (response_payload[response_payload_len] == crc & 0xFF) and (response_payload[response_payload_len+1] == (crc >> 8) & 0xFF):
       return response_payload[2:response_payload_len]
 
-  # Get current temperature in degrees celsius (assume can get Fahrenheit with other params)
+  # Get current room temperature in degrees celsius (assume can get Fahrenheit with other params)
   def get_temp(self):
     payload = self.send_request(bytearray([0x01,0x03,0x00,0x00,0x00,0x08]))
     return payload[0x05] / 2.0
+
+  # Get current external temperature in degrees celsius
+  def get_external_temp(self):
+    payload = self.send_request(bytearray([0x01,0x03,0x00,0x00,0x00,0x08]))
+    return payload[18] / 2.0
 
   # Get full status (including timer schedule)
   def get_full_status(self):
