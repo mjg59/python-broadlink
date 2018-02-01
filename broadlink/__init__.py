@@ -601,12 +601,13 @@ class hysen(device):
     data['dif'] = payload[10]
     data['svh'] = payload[11]
     data['svl'] = payload[12]
-    data['unknown1'] = payload[13]
-    data['unknown2'] = payload[14]
+    data['room_temp_adj'] = ((payload[13] << 8) + payload[14])/2.0
+    if data['room_temp_adj'] > 32767:
+      data['room_temp_adj'] = 32767 - data['room_temp_adj']
     data['fre'] = payload[15]
     data['poweron'] = payload[16]
-    data['unknown3'] = payload[17]
-    data['unknown4'] = payload[18]
+    data['unknown'] = payload[17] # maybe MSB of external_temp?
+    data['external_temp'] = (payload[18] & 255)/2.0
     data['hour'] =  payload[19]
     data['min'] =  payload[20]
     data['sec'] =  payload[21]
@@ -636,8 +637,8 @@ class hysen(device):
     # print 'Mode byte: 0x'+ format(mode_byte, '02x')
     self.send_request(bytearray([0x01,0x06,0x00,0x02,mode_byte,sensor]))
 
-  def set_advanced(self, loop_mode, sensor, osv, dif, svh, svl, fre, poweron):
-    input_payload = bytearray([0x01,0x10,0x00,0x02,0x00,0x05,0x0a, loop_mode, sensor, osv, dif, svh, svl, 0x00, 0x00, fre, poweron])
+  def set_advanced(self, loop_mode, sensor, osv, dif, svh, svl, adj, fre, poweron):
+    input_payload = bytearray([0x01,0x10,0x00,0x02,0x00,0x05,0x0a, loop_mode, sensor, osv, dif, svh, svl, (int(adj*2)>>8 & 0xff), (int(adj*2) & 0xff), fre, poweron])
     self.send_request(input_payload)
 
   # For backwards compatibility only
