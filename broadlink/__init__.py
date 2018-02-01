@@ -613,7 +613,7 @@ class hysen(device):
       data['room_temp_adj'] = 32767 - data['room_temp_adj']
     data['fre'] = payload[15]
     data['poweron'] = payload[16]
-    data['unknown'] = payload[17] # maybe MSB of external_temp?
+    data['unknown'] = payload[17]
     data['external_temp'] = (payload[18] & 255)/2.0
     data['hour'] =  payload[19]
     data['min'] =  payload[20]
