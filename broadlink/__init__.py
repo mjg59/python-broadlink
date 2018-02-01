@@ -577,6 +577,9 @@ class hysen(device):
     crc = CRC16(modbus_flag=True).calculate(bytes(response_payload[2:response_payload_len]))
     if (response_payload[response_payload_len] == crc & 0xFF) and (response_payload[response_payload_len+1] == (crc >> 8) & 0xFF):
       return response_payload[2:response_payload_len]
+    else: 
+      raise ValueError('hysen_response_error','CRC check on response failed')
+      
 
   # Get current room temperature in degrees celsius (assume can get Fahrenheit with other params)
   def get_temp(self):
@@ -592,7 +595,6 @@ class hysen(device):
   def get_full_status(self):
     payload = self.send_request(bytearray([0x01,0x03,0x00,0x00,0x00,0x16]))    
     data = {}
-    # payload = payload[2:] # burn first two bytes, not sure what they are
     data['remote'] =  payload[3]
     data['power'] =  payload[4] & 1
     data['active'] =  (payload[4] >> 4) & 1
