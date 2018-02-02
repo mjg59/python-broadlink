@@ -659,6 +659,10 @@ class hysen(device):
   def set_temp(self, temp):
     self.send_request(bytearray([0x01,0x06,0x00,0x01,0x00,int(temp * 2)]) )
 
+  # Set device on(1) or off(0), does not deactivate Wifi connectivity
+  def set_power(self, power):
+    self.send_request(bytearray([0x01,0x06,0x00,0x00,0x00,power]) )
+
   # set time on device
   # n.b. day=1 is Monday, ..., day=7 is Sunday
   def set_time(self, hour, minute, second, day):
