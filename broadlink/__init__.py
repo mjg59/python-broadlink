@@ -595,7 +595,7 @@ class hysen(device):
   def get_full_status(self):
     payload = self.send_request(bytearray([0x01,0x03,0x00,0x00,0x00,0x16]))    
     data = {}
-    data['remote'] =  payload[3]
+    data['remote_lock'] =  payload[3] & 1
     data['power'] =  payload[4] & 1
     data['active'] =  (payload[4] >> 4) & 1
     data['temp_manual'] =  (payload[4] >> 6) & 1
@@ -660,8 +660,8 @@ class hysen(device):
     self.send_request(bytearray([0x01,0x06,0x00,0x01,0x00,int(temp * 2)]) )
 
   # Set device on(1) or off(0), does not deactivate Wifi connectivity
-  def set_power(self, power):
-    self.send_request(bytearray([0x01,0x06,0x00,0x00,0x00,power]) )
+  def set_power(self, power=1, remote_lock=0):
+    self.send_request(bytearray([0x01,0x06,0x00,0x00,remote_lock,power]) )
 
   # set time on device
   # n.b. day=1 is Monday, ..., day=7 is Sunday
