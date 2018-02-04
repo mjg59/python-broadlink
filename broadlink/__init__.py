@@ -545,8 +545,8 @@ class hysen(device):
   # Send a request
   # input_payload should be a bytearray, usually 6 bytes, e.g. bytearray([0x01,0x06,0x00,0x02,0x10,0x00]) 
   # Returns decrypted payload
-  # New behaviour: raises a ValueError if the device response indicates an error
-  # Note the function will prepend signature and append CRC
+  # New behaviour: raises a ValueError if the device response indicates an error or CRC check fails
+  # The function prepends length (2 bytes) and appends CRC
   def send_request(self,input_payload):
     
     from PyCRC.CRC16 import CRC16
@@ -581,7 +581,7 @@ class hysen(device):
       raise ValueError('hysen_response_error','CRC check on response failed')
       
 
-  # Get current room temperature in degrees celsius (assume can get Fahrenheit with other params)
+  # Get current room temperature in degrees celsius
   def get_temp(self):
     payload = self.send_request(bytearray([0x01,0x03,0x00,0x00,0x00,0x08]))
     return payload[0x05] / 2.0
@@ -601,7 +601,7 @@ class hysen(device):
     data['temp_manual'] =  (payload[4] >> 6) & 1
     data['room_temp'] =  (payload[5] & 255)/2.0
     data['thermostat_temp'] =  (payload[6] & 255)/2.0
-    data['auto_mode'] =  payload[7] & 15 # same way round as input, duh
+    data['auto_mode'] =  payload[7] & 15
     data['loop_mode'] =  (payload[7] >> 4) & 15
     data['sensor'] = payload[8]
     data['osv'] = payload[9]
@@ -648,7 +648,7 @@ class hysen(device):
     input_payload = bytearray([0x01,0x10,0x00,0x02,0x00,0x05,0x0a, loop_mode, sensor, osv, dif, svh, svl, (int(adj*2)>>8 & 0xff), (int(adj*2) & 0xff), fre, poweron])
     self.send_request(input_payload)
 
-  # For backwards compatibility only
+  # For backwards compatibility only.  Prefer calling set_mode directly.  Note this function invokes loop_mode=0 and sensor=0.
   def switch_to_auto(self):
     self.set_mode(auto_mode=1, loop_mode=0)
   
@@ -659,7 +659,7 @@ class hysen(device):
   def set_temp(self, temp):
     self.send_request(bytearray([0x01,0x06,0x00,0x01,0x00,int(temp * 2)]) )
 
-  # Set device on(1) or off(0), does not deactivate Wifi connectivity
+  # Set device on(1) or off(0), does not deactivate Wifi connectivity.  Remote lock disables control by buttons on thermostat.
   def set_power(self, power=1, remote_lock=0):
     self.send_request(bytearray([0x01,0x06,0x00,0x00,remote_lock,power]) )
 
