@@ -48,7 +48,17 @@ def gendevice(devtype, host, mac):
     return rm(host=host, mac=mac)
   elif devtype == 0x2787: # RM2 Pro Plus2
     return rm(host=host, mac=mac)
+  elif devtype == 0x279d: # RM2 Pro Plus3
+    return rm(host=host, mac=mac)
+  elif devtype == 0x27a9: # RM2 Pro Plus_300
+    return rm(host=host, mac=mac)
   elif devtype == 0x278b: # RM2 Pro Plus BL
+    return rm(host=host, mac=mac)
+  elif devtype == 0x2797: # RM2 Pro Plus HYC
+    return rm(host=host, mac=mac)
+  elif devtype == 0x27a1: # RM2 Pro Plus R1
+    return rm(host=host, mac=mac)
+  elif devtype == 0x27a6: # RM2 Pro PP
     return rm(host=host, mac=mac)
   elif devtype == 0x278f: # RM Mini Shate
     return rm(host=host, mac=mac)
