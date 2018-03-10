@@ -16,11 +16,11 @@ import codecs
 def gendevice(devtype, host, mac):
   if devtype == 0: # SP1
     return sp1(host=host, mac=mac)
-  if devtype == 0x2711: # SP2
+  elif devtype == 0x2711: # SP2
     return sp2(host=host, mac=mac)
-  if devtype == 0x2719 or devtype == 0x7919 or devtype == 0x271a or devtype == 0x791a: # Honeywell SP2
+  elif devtype == 0x2719 or devtype == 0x7919 or devtype == 0x271a or devtype == 0x791a: # Honeywell SP2
     return sp2(host=host, mac=mac)
-  if devtype == 0x2720: # SPMini
+  elif devtype == 0x2720: # SPMini
     return sp2(host=host, mac=mac)
   elif devtype == 0x753e: # SP3
     return sp2(host=host, mac=mac)
