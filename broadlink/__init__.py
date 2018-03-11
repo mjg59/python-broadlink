@@ -413,6 +413,16 @@ class sp2(device):
         energy = int(hex(ord(payload[0x07]) * 256 + ord(payload[0x06]))[2:]) + int(hex(ord(payload[0x05]))[2:])/100.0
       return energy
 
+  def get_energy_raw_p3(self):
+    packet = bytearray([8, 0, 254, 1, 5, 1, 0, 0, 0, 45])
+    response = self.send_packet(0x6a, packet)
+    err = response[0x22] | (response[0x23] << 8)
+    if err == 0:
+      data = {}
+      payload = self.decrypt(bytes(response[0x38:]))
+      data['energy'] = int(hex(payload[7] * 256 + payload[6])[2:]) + int(hex(payload[5])[2:])/100.0
+      return data
+
 
 class a1(device):
   def __init__ (self, host, mac):
@@ -595,7 +605,6 @@ class S1C(device):
         }
         return result
 
-
 class dooya(device):
   def __init__ (self, host, mac):
     device.__init__(self, host, mac)
@@ -641,6 +650,8 @@ class dooya(device):
         time.sleep(0.2)
         current = self.get_percentage()
     self.stop()
+
+
 
 # Setup a new Broadlink device via AP Mode. Review the README to see how to enter AP Mode.
 # Only tested with Broadlink RM3 Mini (Blackbean)
