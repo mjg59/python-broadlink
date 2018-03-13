@@ -384,7 +384,20 @@ class sp2(device):
     """Sets the power state of the smart plug."""
     packet = bytearray(16)
     packet[0] = 2
-    packet[4] = 1 if state else 0
+    if self.check_nightlight():
+      packet[4] = 3 if state else 2
+    else:
+      packet[4] = 1 if state else 0
+    self.send_packet(0x6a, packet)
+
+  def set_nightlight(self, state):
+    """Sets the night light state of the smart plug"""
+    packet = bytearray(16)
+    packet[0] = 2
+    if self.check_power():
+      packet[4] = 3 if state else 1
+    else:
+      packet[4] = 2 if state else 0
     self.send_packet(0x6a, packet)
 
   def check_power(self):
@@ -395,10 +408,24 @@ class sp2(device):
     err = response[0x22] | (response[0x23] << 8)
     if err == 0:
       payload = self.decrypt(bytes(response[0x38:]))
-      if type(payload[0x4]) == int:
+      if payload[0x4] == 1 or payload[0x4] == 3:
         state = bool(payload[0x4])
       else:
-        state = bool(ord(payload[0x4]))
+        state = False
+      return state
+
+  def check_nightlight(self):
+    """Returns the power state of the smart plug."""
+    packet = bytearray(16)
+    packet[0] = 1
+    response = self.send_packet(0x6a, packet)
+    err = response[0x22] | (response[0x23] << 8)
+    if err == 0:
+      payload = self.decrypt(bytes(response[0x38:]))
+      if payload[0x4] == 2 or payload[0x4] == 3:
+        state = bool(payload[0x4])
+      else:
+        state = False
       return state
 
   def get_energy(self):
