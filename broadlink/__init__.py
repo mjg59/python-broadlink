@@ -15,63 +15,63 @@ import codecs
 
 def gendevice(devtype, host, mac):
   if devtype == 0: # SP1
-    return sp1(host=host, mac=mac)
-  if devtype == 0x2711: # SP2
-    return sp2(host=host, mac=mac)
-  if devtype == 0x2719 or devtype == 0x7919 or devtype == 0x271a or devtype == 0x791a: # Honeywell SP2
-    return sp2(host=host, mac=mac)
-  if devtype == 0x2720: # SPMini
-    return sp2(host=host, mac=mac)
+    return sp1(host=host, mac=mac, devtype=devtype)
+  elif devtype == 0x2711: # SP2
+    return sp2(host=host, mac=mac, devtype=devtype)
+  elif devtype == 0x2719 or devtype == 0x7919 or devtype == 0x271a or devtype == 0x791a: # Honeywell SP2
+    return sp2(host=host, mac=mac, devtype=devtype)
+  elif devtype == 0x2720: # SPMini
+    return sp2(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x753e: # SP3
-    return sp2(host=host, mac=mac)
+    return sp2(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x947a or devtype == 0x9479: # SP3S
-    return sp2(host=host, mac=mac)
+    return sp2(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x2728: # SPMini2
-    return sp2(host=host, mac=mac)
+    return sp2(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x2733 or devtype == 0x273e: # OEM branded SPMini
-    return sp2(host=host, mac=mac)
+    return sp2(host=host, mac=mac, devtype=devtype)
   elif devtype >= 0x7530 and devtype <= 0x7918: # OEM branded SPMini2
-    return sp2(host=host, mac=mac)
+    return sp2(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x2736: # SPMiniPlus
-    return sp2(host=host, mac=mac)
+    return sp2(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x2712: # RM2
-    return rm(host=host, mac=mac)
+    return rm(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x2737: # RM Mini
-    return rm(host=host, mac=mac)
+    return rm(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x273d: # RM Pro Phicomm
-    return rm(host=host, mac=mac)
+    return rm(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x2783: # RM2 Home Plus
-    return rm(host=host, mac=mac)
+    return rm(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x277c: # RM2 Home Plus GDT
-    return rm(host=host, mac=mac)
+    return rm(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x272a: # RM2 Pro Plus
-    return rm(host=host, mac=mac)
+    return rm(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x2787: # RM2 Pro Plus2
-    return rm(host=host, mac=mac)
+    return rm(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x279d: # RM2 Pro Plus3
-    return rm(host=host, mac=mac)
+    return rm(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x27a9: # RM2 Pro Plus_300
-    return rm(host=host, mac=mac)
+    return rm(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x278b: # RM2 Pro Plus BL
-    return rm(host=host, mac=mac)
+    return rm(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x2797: # RM2 Pro Plus HYC
-    return rm(host=host, mac=mac)
+    return rm(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x27a1: # RM2 Pro Plus R1
-    return rm(host=host, mac=mac)
+    return rm(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x27a6: # RM2 Pro PP
-    return rm(host=host, mac=mac)
+    return rm(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x278f: # RM Mini Shate
-    return rm(host=host, mac=mac)
+    return rm(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x2714: # A1
-    return a1(host=host, mac=mac)
+    return a1(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x4EB5 or devtype == 0x4EF7: # MP1: 0x4eb5, honyar oem mp1: 0x4ef7
-    return mp1(host=host, mac=mac)
+    return mp1(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x2722: # S1 (SmartOne Alarm Kit)
-    return S1C(host=host, mac=mac)
+    return S1C(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x4E4D: # Dooya DT360E (DOOYA_CURTAIN_V2)
-    return dooya(host=host, mac=mac)
+    return dooya(host=host, mac=mac, devtype=devtype)
   else:
-    return device(host=host, mac=mac)
+    return device(host=host, mac=mac, devtype=devtype)
 
 def discover(timeout=None, local_ip_address=None):
   if local_ip_address is None:
@@ -152,9 +152,10 @@ def discover(timeout=None, local_ip_address=None):
 
 
 class device:
-  def __init__(self, host, mac, timeout=10):
+  def __init__(self, host, mac, devtype, timeout=10):
     self.host = host
     self.mac = mac
+    self.devtype = devtype
     self.timeout = timeout
     self.count = random.randrange(0xffff)
     self.key = bytearray([0x09, 0x76, 0x28, 0x34, 0x3f, 0xe9, 0x9e, 0x23, 0x76, 0x5c, 0x15, 0x13, 0xac, 0xcf, 0x8b, 0x02])
@@ -302,8 +303,8 @@ class device:
 
 
 class mp1(device):
-  def __init__ (self, host, mac):
-    device.__init__(self, host, mac)
+  def __init__ (self, host, mac, devtype):
+    device.__init__(self, host, mac, devtype)
     self.type = "MP1"
 
   def set_power_mask(self, sid_mask, state):
@@ -365,8 +366,8 @@ class mp1(device):
 
 
 class sp1(device):
-  def __init__ (self, host, mac):
-    device.__init__(self, host, mac)
+  def __init__ (self, host, mac, devtype):
+    device.__init__(self, host, mac, devtype)
     self.type = "SP1"
 
   def set_power(self, state):
@@ -376,8 +377,8 @@ class sp1(device):
 
 
 class sp2(device):
-  def __init__ (self, host, mac):
-    device.__init__(self, host, mac)
+  def __init__ (self, host, mac, devtype):
+    device.__init__(self, host, mac, devtype)
     self.type = "SP2"
 
   def set_power(self, state):
@@ -415,8 +416,8 @@ class sp2(device):
 
 
 class a1(device):
-  def __init__ (self, host, mac):
-    device.__init__(self, host, mac)
+  def __init__ (self, host, mac, devtype):
+    device.__init__(self, host, mac, devtype)
     self.type = "A1"
 
   def check_sensors(self):
@@ -493,8 +494,8 @@ class a1(device):
 
 
 class rm(device):
-  def __init__ (self, host, mac):
-    device.__init__(self, host, mac)
+  def __init__ (self, host, mac, devtype):
+    device.__init__(self, host, mac, devtype)
     self.type = "RM2"
 
   def check_data(self):
@@ -532,7 +533,7 @@ class rm(device):
 # For legay compatibility - don't use this
 class rm2(rm):
   def __init__ (self):
-    device.__init__(self, None, None)
+    device.__init__(self, None, None, None)
 
   def discover(self):
     dev = discover()
@@ -597,8 +598,8 @@ class S1C(device):
 
 
 class dooya(device):
-  def __init__ (self, host, mac):
-    device.__init__(self, host, mac)
+  def __init__ (self, host, mac, devtype):
+    device.__init__(self, host, mac, devtype)
     self.type = "Dooya DT360E"
 
   def _send(self, magic1, magic2):
