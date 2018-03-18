@@ -167,7 +167,7 @@ class device:
     self.type = "Unknown"
     self.lock = threading.Lock()
 
-    if 'pyaes' in sys.modules:
+    if 'pyaes' in globals():
         self.encrypt = self.encrypt_pyaes
         self.decrypt = self.decrypt_pyaes
     else:
