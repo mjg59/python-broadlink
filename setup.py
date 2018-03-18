@@ -12,6 +12,9 @@ try:
 except ImportError as e:
     dynamic_requires = ['pycryptodome==3.4.11']
 
+# For Hysen thermostatic heating controller
+dynamic_requires.append('PyCRC')
+
 version = 0.6
 
 setup(

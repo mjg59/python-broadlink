@@ -66,6 +66,8 @@ def gendevice(devtype, host, mac):
     return a1(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x4EB5 or devtype == 0x4EF7: # MP1: 0x4eb5, honyar oem mp1: 0x4ef7
     return mp1(host=host, mac=mac, devtype=devtype)
+  elif devtype == 0x4EAD: # Hysen controller
+    return hysen(host=host, mac=mac)
   elif devtype == 0x2722: # S1 (SmartOne Alarm Kit)
     return S1C(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x4E4D: # Dooya DT360E (DOOYA_CURTAIN_V2)
@@ -134,6 +136,8 @@ def discover(timeout=None, local_ip_address=None):
     host = response[1]
     mac = responsepacket[0x3a:0x40]
     devtype = responsepacket[0x34] | responsepacket[0x35] << 8
+
+
     return gendevice(devtype, host, mac)
   else:
     while (time.time() - starttime) < timeout:
@@ -149,6 +153,7 @@ def discover(timeout=None, local_ip_address=None):
       dev = gendevice(devtype, host, mac)
       devices.append(dev)
     return devices
+
 
 
 class device:
@@ -231,6 +236,7 @@ class device:
 
     self.id = payload[0x00:0x04]
     self.key = key
+
     return True
 
   def get_type(self):
@@ -530,7 +536,8 @@ class rm(device):
         temp = (ord(payload[0x4]) * 10 + ord(payload[0x5])) / 10.0
       return temp
 
-# For legay compatibility - don't use this
+
+# For legacy compatibility - don't use this
 class rm2(rm):
   def __init__ (self):
     device.__init__(self, None, None, None)
@@ -539,6 +546,169 @@ class rm2(rm):
     dev = discover()
     self.host = dev.host
     self.mac = dev.mac
+
+
+class hysen(device):
+  def __init__ (self, host, mac, devtype):
+    device.__init__(self, host, mac, devtype)
+    self.type = "Hysen heating controller"
+
+  # Send a request
+  # input_payload should be a bytearray, usually 6 bytes, e.g. bytearray([0x01,0x06,0x00,0x02,0x10,0x00]) 
+  # Returns decrypted payload
+  # New behaviour: raises a ValueError if the device response indicates an error or CRC check fails
+  # The function prepends length (2 bytes) and appends CRC
+  def send_request(self,input_payload):
+    
+    from PyCRC.CRC16 import CRC16
+    crc = CRC16(modbus_flag=True).calculate(bytes(input_payload))
+
+    # first byte is length, +2 for CRC16
+    request_payload = bytearray([len(input_payload) + 2,0x00])
+    request_payload.extend(input_payload)
+    
+    # append CRC
+    request_payload.append(crc & 0xFF)
+    request_payload.append((crc >> 8) & 0xFF)
+
+    # send to device
+    response = self.send_packet(0x6a, request_payload)
+
+    # check for error
+    err = response[0x22] | (response[0x23] << 8)
+    if err: 
+      raise ValueError('broadlink_response_error',err)
+    
+    response_payload = bytearray(self.decrypt(bytes(response[0x38:])))
+
+    # experimental check on CRC in response (first 2 bytes are len, and trailing bytes are crc)
+    response_payload_len = response_payload[0]
+    if response_payload_len + 2 > len(response_payload):
+      raise ValueError('hysen_response_error','first byte of response is not length')
+    crc = CRC16(modbus_flag=True).calculate(bytes(response_payload[2:response_payload_len]))
+    if (response_payload[response_payload_len] == crc & 0xFF) and (response_payload[response_payload_len+1] == (crc >> 8) & 0xFF):
+      return response_payload[2:response_payload_len]
+    else: 
+      raise ValueError('hysen_response_error','CRC check on response failed')
+      
+
+  # Get current room temperature in degrees celsius
+  def get_temp(self):
+    payload = self.send_request(bytearray([0x01,0x03,0x00,0x00,0x00,0x08]))
+    return payload[0x05] / 2.0
+
+  # Get current external temperature in degrees celsius
+  def get_external_temp(self):
+    payload = self.send_request(bytearray([0x01,0x03,0x00,0x00,0x00,0x08]))
+    return payload[18] / 2.0
+
+  # Get full status (including timer schedule)
+  def get_full_status(self):
+    payload = self.send_request(bytearray([0x01,0x03,0x00,0x00,0x00,0x16]))    
+    data = {}
+    data['remote_lock'] =  payload[3] & 1
+    data['power'] =  payload[4] & 1
+    data['active'] =  (payload[4] >> 4) & 1
+    data['temp_manual'] =  (payload[4] >> 6) & 1
+    data['room_temp'] =  (payload[5] & 255)/2.0
+    data['thermostat_temp'] =  (payload[6] & 255)/2.0
+    data['auto_mode'] =  payload[7] & 15
+    data['loop_mode'] =  (payload[7] >> 4) & 15
+    data['sensor'] = payload[8]
+    data['osv'] = payload[9]
+    data['dif'] = payload[10]
+    data['svh'] = payload[11]
+    data['svl'] = payload[12]
+    data['room_temp_adj'] = ((payload[13] << 8) + payload[14])/2.0
+    if data['room_temp_adj'] > 32767:
+      data['room_temp_adj'] = 32767 - data['room_temp_adj']
+    data['fre'] = payload[15]
+    data['poweron'] = payload[16]
+    data['unknown'] = payload[17]
+    data['external_temp'] = (payload[18] & 255)/2.0
+    data['hour'] =  payload[19]
+    data['min'] =  payload[20]
+    data['sec'] =  payload[21]
+    data['dayofweek'] =  payload[22]
+    
+    weekday = []
+    for i in range(0, 6):
+      weekday.append({'start_hour':payload[2*i + 23], 'start_minute':payload[2*i + 24],'temp':payload[i + 39]/2.0})
+    
+    data['weekday'] = weekday
+    weekend = []
+    for i in range(6, 8):
+      weekend.append({'start_hour':payload[2*i + 23], 'start_minute':payload[2*i + 24],'temp':payload[i + 39]/2.0})
+
+    data['weekend'] = weekend
+    return data
+
+  # Change controller mode
+  # auto_mode = 1 for auto (scheduled/timed) mode, 0 for manual mode.
+  # Manual mode will activate last used temperature.  In typical usage call set_temp to activate manual control and set temp.
+  # loop_mode refers to index in [ "12345,67", "123456,7", "1234567" ]
+  # E.g. loop_mode = 0 ("12345,67") means Saturday and Sunday follow the "weekend" schedule
+  # loop_mode = 2 ("1234567") means every day (including Saturday and Sunday) follows the "weekday" schedule
+  # The sensor command is currently experimental
+  def set_mode(self, auto_mode, loop_mode,sensor=0):
+    mode_byte = ( (loop_mode + 1) << 4) + auto_mode
+    # print 'Mode byte: 0x'+ format(mode_byte, '02x')
+    self.send_request(bytearray([0x01,0x06,0x00,0x02,mode_byte,sensor]))
+
+  def set_advanced(self, loop_mode, sensor, osv, dif, svh, svl, adj, fre, poweron):
+    input_payload = bytearray([0x01,0x10,0x00,0x02,0x00,0x05,0x0a, loop_mode, sensor, osv, dif, svh, svl, (int(adj*2)>>8 & 0xff), (int(adj*2) & 0xff), fre, poweron])
+    self.send_request(input_payload)
+
+  # For backwards compatibility only.  Prefer calling set_mode directly.  Note this function invokes loop_mode=0 and sensor=0.
+  def switch_to_auto(self):
+    self.set_mode(auto_mode=1, loop_mode=0)
+  
+  def switch_to_manual(self):
+    self.set_mode(auto_mode=0, loop_mode=0)
+
+  # Set temperature for manual mode (also activates manual mode if currently in automatic)
+  def set_temp(self, temp):
+    self.send_request(bytearray([0x01,0x06,0x00,0x01,0x00,int(temp * 2)]) )
+
+  # Set device on(1) or off(0), does not deactivate Wifi connectivity.  Remote lock disables control by buttons on thermostat.
+  def set_power(self, power=1, remote_lock=0):
+    self.send_request(bytearray([0x01,0x06,0x00,0x00,remote_lock,power]) )
+
+  # set time on device
+  # n.b. day=1 is Monday, ..., day=7 is Sunday
+  def set_time(self, hour, minute, second, day):
+    self.send_request(bytearray([0x01,0x10,0x00,0x08,0x00,0x02,0x04, hour, minute, second, day ]))
+
+  # Set timer schedule
+  # Format is the same as you get from get_full_status.
+  # weekday is a list (ordered) of 6 dicts like:
+  # {'start_hour':17, 'start_minute':30, 'temp': 22 }
+  # Each one specifies the thermostat temp that will become effective at start_hour:start_minute
+  # weekend is similar but only has 2 (e.g. switch on in morning and off in afternoon)
+  def set_schedule(self,weekday,weekend):
+    # Begin with some magic values ...
+    input_payload = bytearray([0x01,0x10,0x00,0x0a,0x00,0x0c,0x18])
+
+    # Now simply append times/temps
+    # weekday times
+    for i in range(0, 6):
+      input_payload.append( weekday[i]['start_hour'] )
+      input_payload.append( weekday[i]['start_minute'] )
+
+    # weekend times
+    for i in range(0, 2):
+      input_payload.append( weekend[i]['start_hour'] )
+      input_payload.append( weekend[i]['start_minute'] )
+
+    # weekday temperatures
+    for i in range(0, 6):
+      input_payload.append( int(weekday[i]['temp'] * 2) )
+
+    # weekend temperatures
+    for i in range(0, 2):
+      input_payload.append( int(weekend[i]['temp'] * 2) )
+
+    self.send_request(input_payload)
 
 
 S1C_SENSORS_TYPES = {
@@ -642,6 +812,7 @@ class dooya(device):
         time.sleep(0.2)
         current = self.get_percentage()
     self.stop()
+
 
 # Setup a new Broadlink device via AP Mode. Review the README to see how to enter AP Mode.
 # Only tested with Broadlink RM3 Mini (Blackbean)
