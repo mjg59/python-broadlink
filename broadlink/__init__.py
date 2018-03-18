@@ -182,11 +182,11 @@ class device:
 
   def encrypt_pyaes(self, payload):
     aes = pyaes.AESModeOfOperationCBC(self.key, iv = bytes(self.iv))
-    return "".join([aes.encrypt(bytes(payload[i:i+16])) for i in range(0, len(payload), 16)])
+    return b"".join([aes.encrypt(bytes(payload[i:i+16])) for i in range(0, len(payload), 16)])
 
   def decrypt_pyaes(self, payload):
     aes = pyaes.AESModeOfOperationCBC(self.key, iv = bytes(self.iv))
-    return "".join([aes.decrypt(bytes(payload[i:i+16])) for i in range(0, len(payload), 16)])
+    return b"".join([aes.decrypt(bytes(payload[i:i+16])) for i in range(0, len(payload), 16)])
 
   def encrypt_pycrypto(self, payload):
     aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
@@ -272,7 +272,7 @@ class device:
     # pad the payload for AES encryption
     if len(payload)>0:
       numpad=(len(payload)//16+1)*16
-      payload=payload.ljust(numpad,b"\x00")
+      payload=payload.ljust(numpad, b"\x00")
 
     checksum = 0xbeaf
     for i in range(len(payload)):
