@@ -74,6 +74,7 @@ parser.add_argument("--turnon", action="store_true", help="turn on device")
 parser.add_argument("--turnoff", action="store_true", help="turn off device")
 parser.add_argument("--turnnlon", action="store_true", help="turn on nightlight on the device")
 parser.add_argument("--turnnloff", action="store_true", help="turn off nightlight on the device")
+parser.add_argument("--switch", action="store_true", help="switch state from on to off and off to on")
 parser.add_argument("--send", action="store_true", help="send command")
 parser.add_argument("--sensors", action="store_true", help="check all sensors")
 parser.add_argument("--learn", action="store_true", help="learn command")
@@ -170,3 +171,10 @@ if args.turnnloff:
         print '!! Still ON !!'
     else:
         print '== Turned * OFF * =='
+if args.switch:
+    if dev.check_power():
+        dev.set_power(False)
+        print '* Switch to OFF *'
+    else:
+        dev.set_power(True)
+        print '* Switch to ON *'
