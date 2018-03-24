@@ -67,7 +67,7 @@ def gendevice(devtype, host, mac):
   elif devtype == 0x4EB5 or devtype == 0x4EF7: # MP1: 0x4eb5, honyar oem mp1: 0x4ef7
     return mp1(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x4EAD: # Hysen controller
-    return hysen(host=host, mac=mac)
+    return hysen(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x2722: # S1 (SmartOne Alarm Kit)
     return S1C(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x4E4D: # Dooya DT360E (DOOYA_CURTAIN_V2)
@@ -682,6 +682,15 @@ class hysen(device):
     # print 'Mode byte: 0x'+ format(mode_byte, '02x')
     self.send_request(bytearray([0x01,0x06,0x00,0x02,mode_byte,sensor]))
 
+  # Advanced settings
+  # Sensor mode (SEN) sensor = 0 for internal sensor, 1 for external sensor, 2 for internal control temperature, external limit temperature. Factory default: 0.
+  # Set temperature range for external sensor (OSV) osv = 5..99. Factory default: 42C
+  # Deadzone for floor temprature (dIF) dif = 1..9. Factory default: 2C
+  # Upper temperature limit for internal sensor (SVH) svh = 5..99. Factory default: 35C
+  # Lower temperature limit for internal sensor (SVL) svl = 5..99. Factory default: 5C
+  # Actual temperature calibration (AdJ) adj = -0.5. Prescision 0.1C
+  # Anti-freezing function (FrE) fre = 0 for anti-freezing function shut down, 1 for anti-freezing function open. Factory default: 0
+  # Power on memory (POn) poweron = 0 for power on memory off, 1 for power on memory on. Factory default: 0
   def set_advanced(self, loop_mode, sensor, osv, dif, svh, svl, adj, fre, poweron):
     input_payload = bytearray([0x01,0x10,0x00,0x02,0x00,0x05,0x0a, loop_mode, sensor, osv, dif, svh, svl, (int(adj*2)>>8 & 0xff), (int(adj*2) & 0xff), fre, poweron])
     self.send_request(input_payload)
