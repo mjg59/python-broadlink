@@ -417,10 +417,16 @@ class sp2(device):
     err = response[0x22] | (response[0x23] << 8)
     if err == 0:
       payload = self.decrypt(bytes(response[0x38:]))
-      if ord(payload[0x4]) == 1 or ord(payload[0x4]) == 3:
-        state = True
+      if type(payload[0x4]) == int:
+        if payload[0x4] == 1 or payload[0x4] == 3:
+          state = True
+        else:
+          state = False
       else:
-        state = False
+        if ord(payload[0x4]) == 1 or ord(payload[0x4]) == 3:
+          state = True
+        else:
+          state = False
       return state
 
   def check_nightlight(self):
@@ -431,10 +437,16 @@ class sp2(device):
     err = response[0x22] | (response[0x23] << 8)
     if err == 0:
       payload = self.decrypt(bytes(response[0x38:]))
-      if ord(payload[0x4]) == 2 or ord(payload[0x4]) == 3:
-        state = True
+      if type(payload[0x4]) == int:
+        if payload[0x4] == 2 or payload[0x4] == 3:
+          state = True
+        else:
+          state = False
       else:
-        state = False
+        if ord(payload[0x4]) == 2 or ord(payload[0x4]) == 3:
+          state = True
+        else:
+          state = False
       return state
 
   def get_energy(self):
