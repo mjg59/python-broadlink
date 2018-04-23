@@ -68,6 +68,7 @@ parser.add_argument("--type", type=auto_int, default=0x2712, help="type of devic
 parser.add_argument("--host", help="host address")
 parser.add_argument("--mac", help="mac address (hex reverse), as used by python-broadlink library")
 parser.add_argument("--temperature",action="store_true", help="request temperature from device")
+parser.add_argument("--energy",action="store_true", help="request energy consumption from device")
 parser.add_argument("--check", action="store_true", help="check current power state")
 parser.add_argument("--checknl", action="store_true", help="check current nightlight state")
 parser.add_argument("--turnon", action="store_true", help="turn on device")
@@ -104,6 +105,8 @@ if args.convert:
     print format_durations(durations)
 if args.temperature:
     print dev.check_temperature()
+if args.energy:
+    print dev.get_energy()
 if args.sensors:
     try:
         data = dev.check_sensors()
