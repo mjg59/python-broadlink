@@ -36,6 +36,8 @@ def gendevice(devtype, host, mac):
     return sp2(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x2736: # SPMiniPlus
     return sp2(host=host, mac=mac, devtype=devtype)
+  elif devtype == 0x7547: # SC1
+    return sp2(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x2712: # RM2
     return rm(host=host, mac=mac, devtype=devtype)
   elif devtype == 0x2737: # RM Mini
