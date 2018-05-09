@@ -401,15 +401,15 @@ class sp2(device):
       packet[4] = 1 if state else 0
     self.send_packet(0x6a, packet)
 
-  def set_nightlight(self, state):
-    """Sets the night light state of the smart plug"""
-    packet = bytearray(16)
-    packet[0] = 2
-    if self.check_power():
-      packet[4] = 3 if state else 1
-    else:
-      packet[4] = 2 if state else 0
-    self.send_packet(0x6a, packet)
+#   def set_nightlight(self, state):
+#     """Sets the night light state of the smart plug"""
+#     packet = bytearray(16)
+#     packet[0] = 2
+#     if self.check_power():
+#       packet[4] = 3 if state else 1
+#     else:
+#       packet[4] = 2 if state else 0
+#     self.send_packet(0x6a, packet)
 
   def check_power(self):
     """Returns the power state of the smart plug."""
@@ -468,6 +468,26 @@ class sc1(device):
   def __init__ (self, host, mac, devtype):
     device.__init__(self, host, mac, devtype)
     self.type = "SC1"
+    
+  def check_nightlight(self):
+    """Returns the power state of the smart plug."""
+    packet = bytearray(16)
+    packet[0] = 1
+    response = self.send_packet(0x6a, packet)
+    err = response[0x22] | (response[0x23] << 8)
+    if err == 0:
+      payload = self.decrypt(bytes(response[0x38:]))
+      if type(payload[0x4]) == int:
+        if payload[0x4] == 2 or payload[0x4] == 3:
+          state = True
+        else:
+          state = False
+      else:
+        if ord(payload[0x4]) == 2 or ord(payload[0x4]) == 3:
+          state = True
+        else:
+          state = False
+      return state
 
   def set_power(self, state):
     """Sets the power state of the smart plug."""
