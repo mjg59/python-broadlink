@@ -6,6 +6,7 @@ A simple Python API for controlling IR controllers from [Broadlink](http://www.i
 * RM Pro (referred to as RM2 in the codebase)
 * A1 sensor platform devices are supported
 * RM3 mini IR blaster
+* SC1, SP1, SP2, MP1
 
 There is currently no support for the cloud API.
 
