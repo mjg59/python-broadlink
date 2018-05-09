@@ -467,7 +467,7 @@ class sp2(device):
 class sc1(device):
   def __init__ (self, host, mac, devtype):
     device.__init__(self, host, mac, devtype)
-    self.type = "SС1"
+    self.type = "SC1"
 
   def set_power(self, state):
     """Sets the power state of the smart plug."""
