@@ -464,7 +464,7 @@ class sp2(device):
       return energy
 
 
-class sс1(device):
+class sc1(device):
   def __init__ (self, host, mac, devtype):
     device.__init__(self, host, mac, devtype)
     self.type = "SС1"
