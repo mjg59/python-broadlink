@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 import broadlink
-import sys
 import argparse
 import time
+import re
 
 TICK = 32.84
 IR_TOKEN = 0x26
@@ -78,8 +78,10 @@ parser.add_argument("--turnnloff", action="store_true", help="turn off nightligh
 parser.add_argument("--switch", action="store_true", help="switch state from on to off and off to on")
 parser.add_argument("--send", action="store_true", help="send command")
 parser.add_argument("--sensors", action="store_true", help="check all sensors")
+parser.add_argument("--continuous", action="store_true", help="continuous learning mode")
 parser.add_argument("--learn", action="store_true", help="learn command")
 parser.add_argument("--learnfile", help="learn command and save to specified file")
+parser.add_argument("--learned", help="saving a previously learned data to a file")
 parser.add_argument("--durations", action="store_true", help="use durations in micro seconds instead of the Broadlink format")
 parser.add_argument("--convert", action="store_true", help="convert input data to durations")
 parser.add_argument("data", nargs='*', help="Data to send or convert")
@@ -100,9 +102,14 @@ if args.host or args.device:
     dev.auth()
 
 if args.convert:
-    data = bytearray.fromhex(''.join(args.data))
-    durations = to_microseconds(data)
-    print format_durations(durations)
+    if re.match(r"[+-]", ''.join(args.data)):
+        data = durations_to_broadlink(parse_durations(''.join(args.data)))
+        result = ''.join(format(x, '02x') for x in data)
+        print result
+    else:
+        data = bytearray.fromhex(''.join(args.data))
+        durations = to_microseconds(data)
+        print format_durations(durations)
 if args.temperature:
     print dev.check_temperature()
 if args.energy:
@@ -116,30 +123,51 @@ if args.sensors:
     for key in data:
         print "{} {}".format(key, data[key])
 if args.send:
-    data = durations_to_broadlink(parse_durations(' '.join(args.data))) \
-        if args.durations else bytearray.fromhex(''.join(args.data))
-    dev.send_data(data)
+    for d in args.data:
+        data = None
+        if re.match(r"[+-]", d):
+            data = durations_to_broadlink(parse_durations(d))
+        else:
+            data = durations_to_broadlink(parse_durations(d)) \
+                if args.durations else bytearray.fromhex(d)
+        dev.send_data(data)
 if args.learn or args.learnfile:
-    dev.enter_learning()
-    data = None
-    print "Learning..."
-    timeout = 30
-    while (data is None) and (timeout > 0):
-        time.sleep(2)
-        timeout -= 2
-        data = dev.check_data()
+    while True:
+        dev.enter_learning()
+        data = None
+        print "Learning..."
+        timeout = 30
+        while (data is None) and (timeout > 0):
+            time.sleep(2)
+            timeout -= 2
+            data = dev.check_data()
+        if data:
+            learned = format_durations(to_microseconds(bytearray(data))) \
+                if args.durations \
+                else ''.join(format(x, '02x') for x in bytearray(data))
+            if args.learn:
+                if not args.continuous: print learned
+            if args.learnfile:
+                print "Saving to {}".format(args.learnfile)
+                with open(args.learnfile, "w") as text_file:
+                    text_file.write(learned)
+        else:
+            print "No data received..."
+        if not args.continuous:
+             break
+if args.learned:
+    data = dev.check_data()
     if data:
         learned = format_durations(to_microseconds(bytearray(data))) \
             if args.durations \
             else ''.join(format(x, '02x') for x in bytearray(data))
-        if args.learn:
-            print learned
-        if args.learnfile:
-            print "Saving to {}".format(args.learnfile)
-            with open(args.learnfile, "w") as text_file:
+        print learned
+        if args.learned:
+            print "Saving to {}".format(args.learned)
+            with open(args.learned, "w") as text_file:
                 text_file.write(learned)
     else:
-        print "No data received..."
+        print "No data was learned..."
 if args.check:
     if dev.check_power():
         print '* ON *'
