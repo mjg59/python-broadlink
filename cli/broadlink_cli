@@ -62,7 +62,7 @@ def parse_durations(str):
     return result
 
 
-parser = argparse.ArgumentParser(fromfile_prefix_chars='@');
+parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
 parser.add_argument("--device", help="device definition as 'type host mac'")
 parser.add_argument("--type", type=auto_int, default=0x2712, help="type of device")
 parser.add_argument("--host", help="host address")
@@ -86,7 +86,7 @@ parser.add_argument("data", nargs='*', help="Data to send or convert")
 args = parser.parse_args()
 
 if args.device:
-    values = args.device.split();
+    values = args.device.split()
     type = int(values[0],0)
     host = values[1]
     mac = bytearray.fromhex(values[2])
