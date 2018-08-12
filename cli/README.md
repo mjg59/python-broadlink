@@ -73,3 +73,8 @@ Get Temperature :
 ```
 broadlink_cli --device @BEDROOM.device --temperature
 ```
+
+Get Energy Consumption (For a SmartPlug) :
+```
+broadlink_cli --device @BEDROOM.device --energy
+```

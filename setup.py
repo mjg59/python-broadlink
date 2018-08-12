@@ -15,11 +15,11 @@ except ImportError as e:
 # For Hysen thermostatic heating controller
 dynamic_requires.append('PyCRC')
 
-version = 0.8
+version = 0.9
 
 setup(
     name='broadlink',
-    version=0.8,
+    version=0.9,
     author='Matthew Garrett',
     author_email='mjg59@srcf.ucam.org',
     url='http://github.com/mjg59/python-broadlink',

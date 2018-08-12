@@ -13,69 +13,50 @@ import sys
 import threading
 import codecs
 
+
 def gendevice(devtype, host, mac):
-  if devtype == 0: # SP1
-    return sp1(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x2711: # SP2
-    return sp2(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x2719 or devtype == 0x7919 or devtype == 0x271a or devtype == 0x791a: # Honeywell SP2
-    return sp2(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x2720: # SPMini
-    return sp2(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x753e: # SP3
-    return sp2(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x7D00: # OEM branded SP3
-    return sp2(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x947a or devtype == 0x9479: # SP3S
-    return sp2(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x2728: # SPMini2
-    return sp2(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x2733 or devtype == 0x273e: # OEM branded SPMini
-    return sp2(host=host, mac=mac, devtype=devtype)
-  elif devtype >= 0x7530 and devtype <= 0x7918: # OEM branded SPMini2
-    return sp2(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x2736: # SPMiniPlus
-    return sp2(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x2712: # RM2
-    return rm(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x2737: # RM Mini
-    return rm(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x273d: # RM Pro Phicomm
-    return rm(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x2783: # RM2 Home Plus
-    return rm(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x277c: # RM2 Home Plus GDT
-    return rm(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x272a: # RM2 Pro Plus
-    return rm(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x2787: # RM2 Pro Plus2
-    return rm(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x279d: # RM2 Pro Plus3
-    return rm(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x27a9: # RM2 Pro Plus_300
-    return rm(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x278b: # RM2 Pro Plus BL
-    return rm(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x2797: # RM2 Pro Plus HYC
-    return rm(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x27a1: # RM2 Pro Plus R1
-    return rm(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x27a6: # RM2 Pro PP
-    return rm(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x278f: # RM Mini Shate
-    return rm(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x2714: # A1
-    return a1(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x4EB5 or devtype == 0x4EF7: # MP1: 0x4eb5, honyar oem mp1: 0x4ef7
-    return mp1(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x4EAD: # Hysen controller
-    return hysen(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x2722: # S1 (SmartOne Alarm Kit)
-    return S1C(host=host, mac=mac, devtype=devtype)
-  elif devtype == 0x4E4D: # Dooya DT360E (DOOYA_CURTAIN_V2)
-    return dooya(host=host, mac=mac, devtype=devtype)
-  else:
+  devices = {
+          sp1: [0],
+          sp2: [0x2711,                          # SP2
+                0x2719, 0x7919, 0x271a, 0x791a,  # Honeywell SP2
+                0x2720,                          # SPMini
+                0x753e,                          # SP3
+                0x7D00,                          # OEM branded SP3
+                0x947a, 0x9479,                  # SP3S
+                0x2728,                          # SPMini2
+                0x2733, 0x273e,                  # OEM branded SPMini
+                0x7530, 0x7918,                  # OEM branded SPMini2
+                0x2736                           # SPMiniPlus
+                ],
+          rm: [0x2712,  # RM2
+               0x2737,  # RM Mini
+               0x273d,  # RM Pro Phicomm
+               0x2783,  # RM2 Home Plus
+               0x277c,  # RM2 Home Plus GDT
+               0x272a,  # RM2 Pro Plus
+               0x2787,  # RM2 Pro Plus2
+               0x279d,  # RM2 Pro Plus3
+               0x27a9,  # RM2 Pro Plus_300
+               0x278b,  # RM2 Pro Plus BL
+               0x2797,  # RM2 Pro Plus HYC
+               0x27a1,  # RM2 Pro Plus R1
+               0x27a6,  # RM2 Pro PP
+               0x278f   # RM Mini Shate
+               ],
+          a1: [0x2714],  # A1
+          mp1: [0x4EB5,  # MP1
+                0x4EF7   # Honyar oem mp1
+                ],
+          hysen: [0x4EAD],  # Hysen controller
+          S1C: [0x2722],  # S1 (SmartOne Alarm Kit)
+          dooya: [0x4E4D]  # Dooya DT360E (DOOYA_CURTAIN_V2)
+          }
+
+  # Look for the class associated to devtype in devices
+  [deviceClass] = [dev for dev in devices if devtype in devices[dev]] or [None]
+  if deviceClass is None:
     return device(host=host, mac=mac, devtype=devtype)
+  return deviceClass(host=host, mac=mac, devtype=devtype)
 
 def discover(timeout=None, local_ip_address=None, broadcast_ip_address=None):
   if local_ip_address is None:
@@ -423,10 +404,16 @@ class sp2(device):
     err = response[0x22] | (response[0x23] << 8)
     if err == 0:
       payload = self.decrypt(bytes(response[0x38:]))
-      if ord(payload[0x4]) == 1 or ord(payload[0x4]) == 3:
-        state = True
+      if type(payload[0x4]) == int:
+        if payload[0x4] == 1 or payload[0x4] == 3:
+          state = True
+        else:
+          state = False
       else:
-        state = False
+        if ord(payload[0x4]) == 1 or ord(payload[0x4]) == 3:
+          state = True
+        else:
+          state = False
       return state
 
   def check_nightlight(self):
@@ -437,10 +424,16 @@ class sp2(device):
     err = response[0x22] | (response[0x23] << 8)
     if err == 0:
       payload = self.decrypt(bytes(response[0x38:]))
-      if ord(payload[0x4]) == 2 or ord(payload[0x4]) == 3:
-        state = True
+      if type(payload[0x4]) == int:
+        if payload[0x4] == 2 or payload[0x4] == 3:
+          state = True
+        else:
+          state = False
       else:
-        state = False
+        if ord(payload[0x4]) == 2 or ord(payload[0x4]) == 3:
+          state = True
+        else:
+          state = False
       return state
 
   def get_energy(self):
