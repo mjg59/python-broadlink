@@ -10,7 +10,7 @@ try:
     import pyaes
     dynamic_requires = ["pyaes==1.6.0"]
 except ImportError as e:
-    dynamic_requires = ['pycryptodome==3.4.11']
+    dynamic_requires = ['pycryptodome==3.6.6']
 
 # For Hysen thermostatic heating controller
 dynamic_requires.append('PyCRC')
