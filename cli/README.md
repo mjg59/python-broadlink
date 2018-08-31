@@ -13,7 +13,7 @@ You should have the broadlink python installed, this can be made in many linux d
 sudo pip install broadlink
 ```
 
-Instalation
+Installation
 -----------
 Just copy this files
 
