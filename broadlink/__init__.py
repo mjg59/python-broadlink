@@ -399,12 +399,12 @@ class sp2(device):
     if err == 0:
       payload = self.decrypt(bytes(response[0x38:]))
       if type(payload[0x4]) == int:
-        if payload[0x4] == 1 or payload[0x4] == 3:
+        if payload[0x4] == 1 or payload[0x4] == 3 or payload[0x4] == 0xFD:
           state = True
         else:
           state = False
       else:
-        if ord(payload[0x4]) == 1 or ord(payload[0x4]) == 3:
+        if ord(payload[0x4]) == 1 or ord(payload[0x4]) == 3 or ord(payload[0x4]) == 0xFD:
           state = True
         else:
           state = False
@@ -419,12 +419,12 @@ class sp2(device):
     if err == 0:
       payload = self.decrypt(bytes(response[0x38:]))
       if type(payload[0x4]) == int:
-        if payload[0x4] == 2 or payload[0x4] == 3:
+        if payload[0x4] == 2 or payload[0x4] == 3 or payload[0x4] == 0xFF:
           state = True
         else:
           state = False
       else:
-        if ord(payload[0x4]) == 2 or ord(payload[0x4]) == 3:
+        if ord(payload[0x4]) == 2 or ord(payload[0x4]) == 3 or ord(payload[0x4]) == 0xFF:
           state = True
         else:
           state = False
