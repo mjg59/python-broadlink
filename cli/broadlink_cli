@@ -62,12 +62,20 @@ def parse_durations(str):
     return result
 
 
-parser = argparse.ArgumentParser(fromfile_prefix_chars='@');
+parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
 parser.add_argument("--device", help="device definition as 'type host mac'")
 parser.add_argument("--type", type=auto_int, default=0x2712, help="type of device")
 parser.add_argument("--host", help="host address")
 parser.add_argument("--mac", help="mac address (hex reverse), as used by python-broadlink library")
 parser.add_argument("--temperature",action="store_true", help="request temperature from device")
+parser.add_argument("--energy",action="store_true", help="request energy consumption from device")
+parser.add_argument("--check", action="store_true", help="check current power state")
+parser.add_argument("--checknl", action="store_true", help="check current nightlight state")
+parser.add_argument("--turnon", action="store_true", help="turn on device")
+parser.add_argument("--turnoff", action="store_true", help="turn off device")
+parser.add_argument("--turnnlon", action="store_true", help="turn on nightlight on the device")
+parser.add_argument("--turnnloff", action="store_true", help="turn off nightlight on the device")
+parser.add_argument("--switch", action="store_true", help="switch state from on to off and off to on")
 parser.add_argument("--send", action="store_true", help="send command")
 parser.add_argument("--sensors", action="store_true", help="check all sensors")
 parser.add_argument("--learn", action="store_true", help="learn command")
@@ -78,7 +86,7 @@ parser.add_argument("data", nargs='*', help="Data to send or convert")
 args = parser.parse_args()
 
 if args.device:
-    values = args.device.split();
+    values = args.device.split()
     type = int(values[0],0)
     host = values[1]
     mac = bytearray.fromhex(values[2])
@@ -97,6 +105,8 @@ if args.convert:
     print format_durations(durations)
 if args.temperature:
     print dev.check_temperature()
+if args.energy:
+    print dev.get_energy()
 if args.sensors:
     try:
         data = dev.check_sensors()
@@ -130,3 +140,44 @@ if args.learn or args.learnfile:
                 text_file.write(learned)
     else:
         print "No data received..."
+if args.check:
+    if dev.check_power():
+        print '* ON *'
+    else:
+        print '* OFF *'
+if args.checknl:
+    if dev.check_nightlight():
+        print '* ON *'
+    else:
+        print '* OFF *'
+if args.turnon:
+    dev.set_power(True)
+    if dev.check_power():
+        print '== Turned * ON * =='
+    else:
+        print '!! Still OFF !!'
+if args.turnoff:
+    dev.set_power(False)
+    if dev.check_power():
+        print '!! Still ON !!'
+    else:
+        print '== Turned * OFF * =='
+if args.turnnlon:
+    dev.set_nightlight(True)
+    if dev.check_nightlight():
+        print '== Turned * ON * =='
+    else:
+        print '!! Still OFF !!'
+if args.turnnloff:
+    dev.set_nightlight(False)
+    if dev.check_nightlight():
+        print '!! Still ON !!'
+    else:
+        print '== Turned * OFF * =='
+if args.switch:
+    if dev.check_power():
+        dev.set_power(False)
+        print '* Switch to OFF *'
+    else:
+        dev.set_power(True)
+        print '* Switch to ON *'

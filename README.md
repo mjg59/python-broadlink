@@ -1,7 +1,13 @@
 Python control for Broadlink RM2 IR controllers
 ===============================================
 
-A simple Python API for controlling IR controllers from [Broadlink](http://www.ibroadlink.com/rm/). At present, only RM Pro (referred to as RM2 in the codebase) and A1 sensor platform devices are supported. There is currently no support for the cloud API.
+A simple Python API for controlling IR controllers from [Broadlink](http://www.ibroadlink.com/rm/). At present, the following devices are currently supported:
+
+* RM Pro (referred to as RM2 in the codebase)
+* A1 sensor platform devices are supported
+* RM3 mini IR blaster
+
+There is currently no support for the cloud API.
 
 Example use
 -----------
@@ -66,6 +72,11 @@ devices[0].set_power(True)
 Check power state on a SmartPlug:
 ```
 state = devices[0].check_power()
+```
+
+Check energy consumption on a SmartPlug:
+```
+state = devices[0].get_energy()
 ```
 
 Set power state for S1 on a SmartPowerStrip MP1:

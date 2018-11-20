@@ -10,13 +10,16 @@ try:
     import pyaes
     dynamic_requires = ["pyaes==1.6.0"]
 except ImportError as e:
-    dynamic_requires = ['pycrypto==2.6.1']
+    dynamic_requires = ['pycryptodome==3.6.6']
 
-version = 0.6
+# For Hysen thermostatic heating controller
+dynamic_requires.append('PyCRC')
+
+version = 0.9
 
 setup(
     name='broadlink',
-    version=0.6,
+    version=0.9,
     author='Matthew Garrett',
     author_email='mjg59@srcf.ucam.org',
     url='http://github.com/mjg59/python-broadlink',

@@ -13,7 +13,7 @@ You should have the broadlink python installed, this can be made in many linux d
 sudo pip install broadlink
 ```
 
-Instalation
+Installation
 -----------
 Just copy this files
 
@@ -72,4 +72,9 @@ broadlink_cli --device @BEDROOM.device --send ....datafromlearncommand...
 Get Temperature :
 ```
 broadlink_cli --device @BEDROOM.device --temperature
+```
+
+Get Energy Consumption (For a SmartPlug) :
+```
+broadlink_cli --device @BEDROOM.device --energy
 ```
