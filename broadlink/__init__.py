@@ -815,16 +815,16 @@ class dooya(device):
     err = response[0x22] | (response[0x23] << 8)
     if err == 0:
       payload = self.decrypt(bytes(response[0x38:]))
-      return ord(payload[4])
+      return payload[4]
 
   def open(self):
-    return self._send(0x01, 0x00)
+    return self._send(0x01, 0x00) and self.get_percentage()
 
   def close(self):
-    return self._send(0x02, 0x00)
+    return self._send(0x02, 0x00) and self.get_percentage()
 
   def stop(self):
-    return self._send(0x03, 0x00)
+    return self._send(0x03, 0x00) and self.get_percentage()
 
   def get_percentage(self):
     return self._send(0x06, 0x5d)
