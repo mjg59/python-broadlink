@@ -43,6 +43,27 @@ Enter learning mode:
 devices[0].enter_learning()
 ```
 
+Sweep RF frequencies:
+```
+devices[0].sweep_frequency()
+```
+
+Cancel sweep RF frequencies:
+```
+devices[0].cancel_sweep_frequency()
+```
+Check whether a frequency has been found:
+```
+found = devices[0].check_frequency()
+```
+(This will return True if the RM has locked onto a frequency, False otherwise)
+
+Attempt to learn an RF packet:
+```
+found = devices[0].find_rf_packet()
+```
+(This will return True if a packet has been found, False otherwise)
+
 Obtain an IR or RF packet while in learning mode:
 ```
 ir_packet = devices[0].check_data()
