@@ -61,7 +61,7 @@ def parse_durations(str):
     return result
 
 
-parser = argparse.ArgumentParser(fromfile_prefix_chars='@');
+parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
 parser.add_argument("--device", help="device definition as 'type host mac'")
 parser.add_argument("--type", type=auto_int, default=0x2712, help="type of device")
 parser.add_argument("--host", help="host address")
@@ -70,8 +70,8 @@ parser.add_argument("--temperature",action="store_true", help="request temperatu
 parser.add_argument("--send", action="store_true", help="send command")
 parser.add_argument("--sensors", action="store_true", help="check all sensors")
 parser.add_argument("--learn", action="store_true", help="learn command")
+parser.add_argument("--learnfile", help="save learned command to a specified file")
 parser.add_argument("--rfscanlearn", action="store_true", help="rf scan learning")
-parser.add_argument("--learnfile", help="learn command and save to specified file")
 parser.add_argument("--durations", action="store_true", help="use durations in micro seconds instead of the Broadlink format")
 parser.add_argument("--convert", action="store_true", help="convert input data to durations")
 parser.add_argument("data", nargs='*', help="Data to send or convert")
@@ -109,7 +109,7 @@ if args.send:
     data = durations_to_broadlink(parse_durations(' '.join(args.data))) \
         if args.durations else bytearray.fromhex(''.join(args.data))
     dev.send_data(data)
-if args.learn or args.learnfile:
+if args.learn:
     dev.enter_learning()
     data = None
     print("Learning...")
@@ -122,9 +122,9 @@ if args.learn or args.learnfile:
         learned = format_durations(to_microseconds(bytearray(data))) \
             if args.durations \
             else ''.join(format(x, '02x') for x in bytearray(data))
-        if args.learn:
+        if args.learnfile is None:
             print(learned)
-        if args.learnfile:
+        if args.learnfile is not None:
             print("Saving to {}".format(args.learnfile))
             with open(args.learnfile, "w") as text_file:
                 text_file.write(learned)
@@ -148,7 +148,7 @@ if args.rfscanlearn:
     print("Found RF Frequency - 1 of 2!")
     print("You can now let go of the button")
 
-    input("Press any key to continue...")
+    input("Press enter to continue...")
 
     print("To complete learning, single press the button you want to learn")
 
@@ -167,9 +167,9 @@ if args.rfscanlearn:
         learned = format_durations(to_microseconds(bytearray(data))) \
             if args.durations \
             else ''.join(format(x, '02x') for x in bytearray(data))
-        if args.learn | args.rfscanlearn:
+        if args.learnfile is None:
             print(learned)
-        if args.learnfile:
+        if args.learnfile is not None:
             print("Saving to {}".format(args.learnfile))
             with open(args.learnfile, "w") as text_file:
                 text_file.write(learned)
