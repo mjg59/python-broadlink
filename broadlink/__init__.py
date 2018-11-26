@@ -849,7 +849,7 @@ class dooya(device):
 class hysenhvacr(device):
   def __init__ (self, host, mac, devtype):
     device.__init__(self, host, mac, devtype)
-	# HYSEN HY03AC-1-Wifi
+    # HYSEN HY03AC-1-Wifi
     # http://www.xmhysen.com/products_detail/productId=201.html
     self.type = "Hysen HVACR controller"
 
@@ -904,7 +904,7 @@ class hysenhvacr(device):
   def set_lock_power(self, remote_lock, key_lock, power):
     # ToDo check if input data is right(i.e. inside admitted limits)
     answer = self.send_request(bytearray([0x01, 0x06, 0x00, 0x00, (remote_lock<<4)+key_lock, power]) )
-     # ToDo check confirmation answer
+    # ToDo check confirmation answer
 
   # set mode and fan
   # 0x01, 0x06, 0x00, 0x01, Mod, Fs
