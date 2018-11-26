@@ -986,9 +986,12 @@ class hysenhvacr(device):
     # ToDo check confirmation answer
 
   # get status
-  # 0x01, 0x03, 0x00, 0x00, 0x00, 0x16
+  # 0x01, 0x03, 0x00, 0x00, 0x00, 0x10
+  # Note: 1. The last byte is the number of words requested, i.e. 0x10 means 32 bytes.
+  #          If more than max. = 0x16, the device answers with error = 0x01, 0x83, 0x02
+  #       2. The third byte in answer is the actual number of bytes to follow.
   # answer:
-  # 0x01, 0x03, 0x2c, 0xrk, 0xvp, Mod, Fs, Rt, Tt, Dif, Adj, Sh1, Sl1, Sh2, Sl2, Fan, Fre, hh, mm, ss, wd, Unk, Lm, T1OnH, T1OnMin, T1OffH, T1OffM, T2OnH, T2OnMin, T2OffH, T2OffM, Unk1, Unk2, Tv3, Tv4
+  # 0x01, 0x03, 0x20, 0xrk, 0xvp, Mod, Fs, Rt, Tt, Dif, Adj, Sh1, Sl1, Sh2, Sl2, Fan, Fre, hh, mm, ss, wd, Unk, Lm, T1OnH, T1OnMin, T1OffH, T1OffM, T2OnH, T2OnMin, T2OffH, T2OffM, Unk1, Unk2, Tv3, Tv4
   # r = Remote lock, 0 = Off, 1 = Only
   # k = Key lock (Loc), 0 = Unlocked, 1 = All buttons locked except Power, 2 = All buttons locked
   # v = Valve, 0 = Valve off, 1 = Valve on
@@ -1024,7 +1027,7 @@ class hysenhvacr(device):
   # Tv3 = Total time valve on in seconds
   # Tv4 = Total time valve on in seconds LSByte
   def get_status(self):
-    answer = self.send_request(bytearray([0x01, 0x03, 0x00, 0x00, 0x00, 0x16]))
+    answer = self.send_request(bytearray([0x01, 0x03, 0x00, 0x00, 0x00, 0x10]))
     data = {}
     data['remote_lock'] =  (answer[3]>>4) & 1
     data['key_lock'] = answer[3] & 1
@@ -1037,7 +1040,7 @@ class hysenhvacr(device):
     data['temp_dif'] = answer[9]
     data['temp_adj'] = answer[10]
     if data['temp_adj'] > 0x7F:
-	  data['temp_adj'] = (data['temp_adj'] - 0x100)
+      data['temp_adj'] = (data['temp_adj'] - 0x100)
     data['temp_adj'] = data['temp_adj']//0x0A
     data['cooling_max_temp'] = answer[11]
     data['cooling_min_temp'] = answer[12]
