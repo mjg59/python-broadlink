@@ -49,7 +49,8 @@ def gendevice(devtype, host, mac):
                 ],
           hysen: [0x4EAD],  # Hysen controller
           S1C: [0x2722],  # S1 (SmartOne Alarm Kit)
-          dooya: [0x4E4D]  # Dooya DT360E (DOOYA_CURTAIN_V2)
+          dooya: [0x4E4D],  # Dooya DT360E (DOOYA_CURTAIN_V2)
+          hysenhvacr: [0x4F5B]  # Hysen HVACR controller
           }
 
   # Look for the class associated to devtype in devices
@@ -843,6 +844,227 @@ class dooya(device):
         time.sleep(0.2)
         current = self.get_percentage()
     self.stop()
+
+
+class hysenhvacr(device):
+  def __init__ (self, host, mac, devtype):
+    device.__init__(self, host, mac, devtype)
+	# HYSEN HY03AC-1-Wifi
+    # http://www.xmhysen.com/products_detail/productId=201.html
+    self.type = "Hysen HVACR controller"
+
+  # Send a request
+  # input_payload should be a bytearray, usually 6 bytes, e.g. bytearray([0x01,0x06,0x00,0x02,0x10,0x00])
+  # Returns decrypted payload
+  # New behavior: raises a ValueError if the device response indicates an error or CRC check fails
+  # The function prepends length (2 bytes) and appends CRC
+  def send_request(self,input_payload):
+
+    from PyCRC.CRC16 import CRC16
+    crc = CRC16(modbus_flag=True).calculate(bytes(input_payload))
+
+    # first byte is length, +2 for CRC16
+    request_payload = bytearray([len(input_payload) + 2,0x00])
+    request_payload.extend(input_payload)
+
+    # append CRC
+    request_payload.append(crc & 0xFF)
+    request_payload.append((crc >> 8) & 0xFF)
+
+    # send to device
+    response = self.send_packet(0x6a, request_payload)
+
+    # check for error
+    err = response[0x22] | (response[0x23] << 8)
+    if err:
+      raise ValueError('broadlink_response_error',err)
+
+    response_payload = bytearray(self.decrypt(bytes(response[0x38:])))
+
+    # experimental check on CRC in response (first 2 bytes are len, and trailing bytes are crc)
+    response_payload_len = response_payload[0]
+    if response_payload_len + 2 > len(response_payload):
+      raise ValueError('hysen_response_error','first byte of response is not length')
+    crc = CRC16(modbus_flag=True).calculate(bytes(response_payload[2:response_payload_len]))
+    if (response_payload[response_payload_len] == crc & 0xFF) and (response_payload[response_payload_len+1] == (crc >> 8) & 0xFF):
+      return response_payload[2:response_payload_len]
+    else:
+      raise ValueError('hysen_response_error','CRC check on response failed')
+
+  # get decoded *** FOR TEST ONLY ***
+  def get_decoded(self, payload):
+    return bytearray(self.decrypt(bytes(payload)))
+
+  # set lock and power
+  # 0x01, 0x06, 0x00, 0x00, 0xrk, 0x0p
+  # r = Remote lock, 0 = Off, 1 = Only
+  # k = Key lock (Loc), 0 = Unlocked, 1 = All buttons locked except Power, 2 = All buttons locked
+  # p = Power, 0 = Power off, 1 = Power on
+  # If remote lock is Off then key lock has to be unlocked otherwise after any subsequent command we will get remote lock on
+  def set_lock_power(self, remote_lock, key_lock, power):
+    # ToDo check if input data is right(i.e. inside admitted limits)
+    answer = self.send_request(bytearray([0x01, 0x06, 0x00, 0x00, (remote_lock<<4)+key_lock, power]) )
+     # ToDo check confirmation answer
+
+  # set mode and fan
+  # 0x01, 0x06, 0x00, 0x01, Mod, Fs
+  # Mod = System mode, 0x01 = Ventilation, 0x02 = Cooling, 0x03 = Heating
+  # Fs = Fan speed, 0x01 = Low, 0x02 = Medium, 0x03 = High, 0x04 = Auto
+  # Note: ventilation and fan auto are mutual exclusive (e.g. Mod = 0x01 and Fs = 0x04 is not allowed)
+  def set_mode_fan(self, system_mode, fan_speed):
+    # ToDo check if input data is right(i.e. inside admitted limits)
+    answer = self.send_request(bytearray([0x01, 0x06, 0x00, 0x01, system_mode, fan_speed]))
+    # ToDo check confirmation answer
+
+  # set target temperature
+  # 0x01,0x06,0x00,0x02,0x00, Tt
+  # Tt = Target temperature in degrees Celsius
+  # confirmation answer:
+  # command 0xEE,0x03,
+  # payload 0x01,0x06,0x00,0x02,0x00,Tt
+  def set_target_temp(self, temp):
+    # ToDo the function should not do anything if in ventilation mode
+    # ToDo check temp against Sh1, Sl1 for cooling and against Sh2, Sl2 for heating
+    answer = self.send_request(bytearray([0x01, 0x06, 0x00, 0x02, 0x00, temp]))
+    # ToDo check confirmation answer
+
+  # set advanced settings
+  # 0x01, 0x10, 0x00, 0x03, 0x00, 0x04, 0x08, Dif, Adj, Sh1, Sl1, Sh2, Sl2, Fan, Fre
+  # Dif = Hysteresis, 0x00 = 0.5 degree Celsius, 0x01 = 1 degree Celsius
+  # Adj = Temperature calibration -5~+5, 1 degree Celsius step = 10 = 0x0A (e.g. -1 = 0xF6, 0 = 0x00, +1 = 0x0a, +2 = 0x14)
+  # Sh1 = Cooling max. temperature
+  # Sl1 = Cooling min. temperature
+  # Sh2 = Heating max. temperature
+  # Sl2 = Heating min. temperature
+  # Fan = Fan coil control mode, 0x00 = Fan coil in control, 0x01 = Fan coil out of control
+  # Fre = Antifreeze, 0x00 = On, 0x01 = Off
+  # confirmation answer:
+  # command 0xEE,0x03,
+  # payload 0x01,0x10,0x00,0x03,0x00,0x04
+  def set_advanced(self, dif, adj, cooling_max_temp, cooling_min_temp, heating_max_temp, heating_min_temp, fan_control, antifreeze):
+    # ToDo check if input data is right(i.e. inside admitted limits)
+    adj = adj * 10
+    if adj < 0:
+      adj = 0x100 - abs(adj)
+    answer = self.send_request(bytearray([0x01, 0x10, 0x00, 0x03, 0x00, 0x04, 0x08, dif, adj, cooling_max_temp, cooling_min_temp, heating_max_temp, heating_min_temp, fan_control, antifreeze]))
+    # ToDo check confirmation answer
+
+  # set time
+  # 0x01,0x10,0x00,0x07,0x00,0x02,0x04, hh, mm, ss, wd
+  # hh = Time hour past midnight
+  # mm = Time minute past hour
+  # ss = Time second past minute
+  # wd = Weekday 0x00 = Monday, 0x01 = Tuesday, ..., 0x06 = Saturday, 0x07 = Sunday
+  # confirmation answer:
+  # command 0xEE,0x03,
+  # payload 0x01,0x10,0x00,0x07,0x00,0x02
+  def set_time(self, hour, minute, second, day):
+    # ToDo check if input data is right(i.e. inside admitted limits)
+    answer = self.send_request(bytearray([0x01, 0x10, 0x00, 0x07, 0x00, 0x02, 0x04, hour, minute, second, day ]))
+    # ToDo check confirmation answer
+
+  # set schedule
+  # 0x01, 0x10, 0x00, 0x09, 0x00, 0x05, 0x0A, 0x00, Lm, T1OnH, T1OnM, T1OffH, T1OffM, T2OnH, T2OnM, T2OffH, T2OffM
+  # Lm = Loop mode, 0x00 = Execute once, 0x01 = 12345, 0x02 = 123456, 0x03 = 1234567
+  # T1OnH = Timer 1 On Hour, Note: The most significant bit, 0 = Setting inactive, 1 = Setting active
+  # T1OnM = Timer 1 On Minute past hour
+  # T1OffH = Timer 1 Off Hour, Note: The most significant bit, 0 = Setting inactive, 1 = Setting active
+  # T1OffM = Timer 1 Off Minute past hour
+  # T2OnH = Timer 2 On Hour, Note: The most significant bit, 0 = Setting inactive, 1 = Setting active
+  # T2OnM = Timer 2 On Minute past hour
+  # T2OffH = Timer 2 Off Hour, Note: The most significant bit, 0 = Setting inactive, 1 = Setting active
+  # T2OffM = Timer 2 Off Minute past hour
+  # Note: What means 0x0A, 0x00 ?
+  # confirmation answer:
+  # command 0xEE,0x03,
+  # payload 0x01, 0x10, 0x00, 0x09, 0x00, 0x05
+  def set_schedule(self, loop_mode, timer1_on_active, timer1_on_hour, timer1_on_min, timer1_off_active, timer1_off_hour, timer1_off_min, timer2_on_active, timer2_on_hour, timer2_on_min, timer2_off_active, timer2_off_hour, timer2_off_min):
+    # ToDo check if input data is right(i.e. inside admitted limits)
+    # ToDo check if timer1_on_hour * 60 + timer1_on_min <= timer1_off_hour * 60 + timer1_off_min and the same for timer2, matters
+    # ToDo check if 0x00<=Loop_mode<=0x03 0<=hour<24, 0<=minute<60
+    answer = self.send_request(bytearray([0x01,0x10,0x00,0x09,0x00,0x05,0x0A, 0x00, loop_mode, (timer1_on_active<<7)+timer1_on_hour, timer1_on_min, (timer1_off_active<<7)+timer1_off_hour, timer1_off_min, (timer2_on_active<<7)+timer2_on_hour, timer2_on_min, (timer2_off_active<<7)+timer2_off_hour, timer2_off_min]))
+    # ToDo check confirmation answer
+
+  # get status
+  # 0x01, 0x03, 0x00, 0x00, 0x00, 0x16
+  # answer:
+  # 0x01, 0x03, 0x2c, 0xrk, 0xvp, Mod, Fs, Rt, Tt, Dif, Adj, Sh1, Sl1, Sh2, Sl2, Fan, Fre, hh, mm, ss, wd, Unk, Lm, T1OnH, T1OnMin, T1OffH, T1OffM, T2OnH, T2OnMin, T2OffH, T2OffM, Unk1, Unk2, Tv3, Tv4
+  # r = Remote lock, 0 = Off, 1 = Only
+  # k = Key lock (Loc), 0 = Unlocked, 1 = All buttons locked except Power, 2 = All buttons locked
+  # v = Valve, 0 = Valve off, 1 = Valve on
+  # p = Power, 0 = Power off, 1 = Power on
+  # Mod = System mode, 0x01 = Ventilation, 0x02 = Cooling, 0x03 = Heating
+  # Fs = Fan speed, 0x01 = Low, 0x02 = Medium, 0x03 = High, 0x04 = Auto
+  # Rt = Room temperature
+  # Tt = Target temperature
+  # Dif = Hysteresis, 0x00 = 0.5 degree Celsius, 0x01 = 1 degree Celsius
+  # Adj = Temperature calibration -5~+5, 1 degree Celsius step = 10 = 0x0A (e.g. -1 = 0xF6, 0 = 0x00, +1 = 0x0a, +2 = 0x14)
+  # Sh1 = Cooling max. temperature
+  # Sl1 = Cooling min. temperature
+  # Sh2 = Heating max. temperature
+  # Sl2 = Heating min. temperature
+  # Fan = Fan coil control mode, 0x00 = Fan coil in control, 0x01 = Fan coil out of control
+  # Fre = Antifreeze, 0x00 = On, 0x01 = Off
+  # hh = Time hour past midnight
+  # mm = Time minute past hour
+  # ss = Time second past minute
+  # wd = Weekday 0x00 = Monday, 0x01 = Tuesday, ..., 0x06 = Saturday, 0x07 = Sunday
+  # Unk = Unknown, 0x00
+  # Lm = Loop mode, 0x00 = Execute once, 0x01 = 12345, 0x02 = 123456, 0x03 = 1234567
+  # T1OnH = Timer 1 On Hour, Note: The most significant bit, 0 = Setting inactive, 1 = Setting active
+  # T1OnM = Timer 1 On Minute past hour
+  # T1OffH = Timer 1 Off Hour, Note: The most significant bit, 0 = Setting inactive, 1 = Setting active
+  # T1OffM = Timer 1 Off Minute past hour
+  # T2OnH = Timer 2 On Hour, Note: The most significant bit, 0 = Setting inactive, 1 = Setting active
+  # T2OnM = Timer 2 On Minute past hour
+  # T2OffH = Timer 2 Off Hour, Note: The most significant bit, 0 = Setting inactive, 1 = Setting active
+  # T2OffM = Timer 2 Off Minute past hour
+  # Tv1 = Total time valve on in seconds MSByte
+  # Tv3 = Total time valve on in seconds
+  # Tv3 = Total time valve on in seconds
+  # Tv4 = Total time valve on in seconds LSByte
+  def get_status(self):
+    answer = self.send_request(bytearray([0x01, 0x03, 0x00, 0x00, 0x00, 0x16]))
+    data = {}
+    data['remote_lock'] =  (answer[3]>>4) & 1
+    data['key_lock'] = answer[3] & 1
+    data['valve'] =  (answer[4]>>4) & 1
+    data['power'] =  answer[4] & 1
+    data['mode'] = answer[5]
+    data['fan_speed'] = answer[6]
+    data['room_temp'] = answer[7]
+    data['target_temp'] = answer[8]
+    data['temp_dif'] = answer[9]
+    data['temp_adj'] = answer[10]
+    if data['temp_adj'] > 0x7F:
+	  data['temp_adj'] = (data['temp_adj'] - 0x100)
+    data['temp_adj'] = data['temp_adj']//0x0A
+    data['cooling_max_temp'] = answer[11]
+    data['cooling_min_temp'] = answer[12]
+    data['heating_max_temp'] = answer[13]
+    data['heating_min_temp'] = answer[14]
+    data['fan_control'] = answer[15]
+    data['antifreeze'] = answer[16]
+    data['hour'] = answer[17]
+    data['min'] = answer[18]
+    data['sec'] = answer[19]
+    data['weekday'] =  answer[20]
+    data['unknown'] = answer[21]
+    data['loop_mode'] = answer[22]
+    data['timer1_on_active'] = (answer[23]>>7) & 1
+    data['timer1_on_hour'] = answer[23] & 0x1F
+    data['timer1_on_min'] = answer[24] & 0x3F
+    data['timer1_off_active'] = (answer[25]>>7) & 1
+    data['timer1_off_hour'] = answer[25] & 0x1F
+    data['timer1_off_min'] = answer[26] & 0x3F
+    data['timer2_on_active'] = (answer[27]>>7) & 1
+    data['timer2_on_hour'] = answer[27] & 0x1F
+    data['timer2_on_min'] = answer[28] & 0x3F
+    data['timer2_off_active'] = (answer[29]>>7) & 1
+    data['timer2_off_hour'] = answer[29] & 0x1F
+    data['timer2_off_min'] = answer[30] & 0x3F
+    data['time_valve_on'] = (answer[31] << 24) + (answer[32] << 16) + (answer[33] << 8) + answer[34]
+    return data
 
 
 # Setup a new Broadlink device via AP Mode. Review the README to see how to enter AP Mode.
