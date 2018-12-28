@@ -12,6 +12,7 @@ import socket
 import sys
 import threading
 import codecs
+from PyCRC.CRC16 import CRC16
 
 
 def gendevice(devtype, host, mac):
@@ -583,7 +584,6 @@ class hysen(device):
   # The function prepends length (2 bytes) and appends CRC
   def send_request(self,input_payload):
     
-    from PyCRC.CRC16 import CRC16
     crc = CRC16(modbus_flag=True).calculate(bytes(input_payload))
 
     # first byte is length, +2 for CRC16
@@ -860,7 +860,6 @@ class hysenhvacr(device):
   # The function prepends length (2 bytes) and appends CRC
   def send_request(self,input_payload):
 
-    from PyCRC.CRC16 import CRC16
     crc = CRC16(modbus_flag=True).calculate(bytes(input_payload))
 
     # first byte is length, +2 for CRC16
