@@ -102,11 +102,11 @@ if args.host or args.device:
 if args.convert:
     data = bytearray.fromhex(''.join(args.data))
     durations = to_microseconds(data)
-    print format_durations(durations)
+    print(format_durations(durations))
 if args.temperature:
-    print dev.check_temperature()
+    print(dev.check_temperature())
 if args.energy:
-    print dev.get_energy()
+    print(dev.get_energy())
 if args.sensors:
     try:
         data = dev.check_sensors()
@@ -114,7 +114,7 @@ if args.sensors:
         data = {}
         data['temperature'] =  dev.check_temperature()
     for key in data:
-        print "{} {}".format(key, data[key])
+        print("{} {}".format(key, data[key]))
 if args.send:
     data = durations_to_broadlink(parse_durations(' '.join(args.data))) \
         if args.durations else bytearray.fromhex(''.join(args.data))
@@ -122,7 +122,7 @@ if args.send:
 if args.learn or args.learnfile:
     dev.enter_learning()
     data = None
-    print "Learning..."
+    print("Learning...")
     timeout = 30
     while (data is None) and (timeout > 0):
         time.sleep(2)
@@ -133,51 +133,51 @@ if args.learn or args.learnfile:
             if args.durations \
             else ''.join(format(x, '02x') for x in bytearray(data))
         if args.learn:
-            print learned
+            print(learned)
         if args.learnfile:
-            print "Saving to {}".format(args.learnfile)
+            print("Saving to {}".format(args.learnfile))
             with open(args.learnfile, "w") as text_file:
                 text_file.write(learned)
     else:
-        print "No data received..."
+        print("No data received...")
 if args.check:
     if dev.check_power():
-        print '* ON *'
+        print('* ON *')
     else:
-        print '* OFF *'
+        print('* OFF *')
 if args.checknl:
     if dev.check_nightlight():
-        print '* ON *'
+        print('* ON *')
     else:
-        print '* OFF *'
+        print('* OFF *')
 if args.turnon:
     dev.set_power(True)
     if dev.check_power():
-        print '== Turned * ON * =='
+        print('== Turned * ON * ==')
     else:
-        print '!! Still OFF !!'
+        print('!! Still OFF !!')
 if args.turnoff:
     dev.set_power(False)
     if dev.check_power():
-        print '!! Still ON !!'
+        print('!! Still ON !!')
     else:
-        print '== Turned * OFF * =='
+        print('== Turned * OFF * ==')
 if args.turnnlon:
     dev.set_nightlight(True)
     if dev.check_nightlight():
-        print '== Turned * ON * =='
+        print('== Turned * ON * ==')
     else:
-        print '!! Still OFF !!'
+        print('!! Still OFF !!')
 if args.turnnloff:
     dev.set_nightlight(False)
     if dev.check_nightlight():
-        print '!! Still ON !!'
+        print('!! Still ON !!')
     else:
-        print '== Turned * OFF * =='
+        print('== Turned * OFF * ==')
 if args.switch:
     if dev.check_power():
         dev.set_power(False)
-        print '* Switch to OFF *'
+        print('* Switch to OFF *')
     else:
         dev.set_power(True)
-        print '* Switch to ON *'
+        print('* Switch to ON *')
