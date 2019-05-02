@@ -134,6 +134,7 @@ if args.learn or args.learnfile:
             else ''.join(format(x, '02x') for x in bytearray(data))
         if args.learn:
             print(learned)
+            print("Base64: " + base64.b64encode(learned.decode("hex")))
         if args.learnfile:
             print("Saving to {}".format(args.learnfile))
             with open(args.learnfile, "w") as text_file:
