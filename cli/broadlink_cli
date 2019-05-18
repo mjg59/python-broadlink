@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import broadlink
 import sys
@@ -79,7 +79,8 @@ parser.add_argument("--switch", action="store_true", help="switch state from on 
 parser.add_argument("--send", action="store_true", help="send command")
 parser.add_argument("--sensors", action="store_true", help="check all sensors")
 parser.add_argument("--learn", action="store_true", help="learn command")
-parser.add_argument("--learnfile", help="learn command and save to specified file")
+parser.add_argument("--rfscanlearn", action="store_true", help="rf scan learning")
+parser.add_argument("--learnfile", help="save learned command to a specified file")
 parser.add_argument("--durations", action="store_true", help="use durations in micro seconds instead of the Broadlink format")
 parser.add_argument("--convert", action="store_true", help="convert input data to durations")
 parser.add_argument("data", nargs='*', help="Data to send or convert")
@@ -119,7 +120,7 @@ if args.send:
     data = durations_to_broadlink(parse_durations(' '.join(args.data))) \
         if args.durations else bytearray.fromhex(''.join(args.data))
     dev.send_data(data)
-if args.learn or args.learnfile:
+if args.learn:
     dev.enter_learning()
     data = None
     print("Learning...")
@@ -182,3 +183,48 @@ if args.switch:
     else:
         dev.set_power(True)
         print('* Switch to ON *')
+if args.rfscanlearn:
+    dev.sweep_frequency()
+    print("Learning RF Frequency, press and hold the button to learn...")
+
+    timeout = 20
+
+    while (not dev.check_frequency()) and (timeout > 0):
+        time.sleep(1)
+        timeout -= 1
+
+    if timeout <= 0:
+        print("RF Frequency not found")
+        dev.cancel_sweep_frequency()
+        exit(1)
+
+    print("Found RF Frequency - 1 of 2!")
+    print("You can now let go of the button")
+
+    input("Press enter to continue...")
+
+    print("To complete learning, single press the button you want to learn")
+
+    dev.find_rf_packet()
+
+    data = None
+    timeout = 20
+
+    while (data is None) and (timeout > 0):
+        time.sleep(1)
+        timeout -= 1
+        data = dev.check_data()
+
+    if data:
+        print("Found RF Frequency - 2 of 2!")
+        learned = format_durations(to_microseconds(bytearray(data))) \
+            if args.durations \
+            else ''.join(format(x, '02x') for x in bytearray(data))
+        if args.learnfile is None:
+            print(learned)
+        if args.learnfile is not None:
+            print("Saving to {}".format(args.learnfile))
+            with open(args.learnfile, "w") as text_file:
+                text_file.write(learned)
+    else:
+        print("No data received...")
