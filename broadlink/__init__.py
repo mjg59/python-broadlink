@@ -26,6 +26,7 @@ def gendevice(devtype, host, mac):
                 0x2728,                          # SPMini2
                 0x2733, 0x273e,                  # OEM branded SPMini
                 0x7530, 0x7918,                  # OEM branded SPMini2
+                0x7D0D,                          # TMall OEM SPMini3
                 0x2736                           # SPMiniPlus
                 ],
           rm: [0x2712,  # RM2
@@ -41,7 +42,8 @@ def gendevice(devtype, host, mac):
                0x2797,  # RM2 Pro Plus HYC
                0x27a1,  # RM2 Pro Plus R1
                0x27a6,  # RM2 Pro PP
-               0x278f   # RM Mini Shate
+               0x278f,  # RM Mini Shate
+               0x27c2   # RM Mini 3
                ],
           a1: [0x2714],  # A1
           mp1: [0x4EB5,  # MP1
@@ -142,7 +144,7 @@ def discover(timeout=None, local_ip_address=None):
 class device:
   def __init__(self, host, mac, devtype, timeout=10):
     self.host = host
-    self.mac = mac
+    self.mac = mac.encode() if isinstance(mac, str) else mac
     self.devtype = devtype
     self.timeout = timeout
     self.count = random.randrange(0xffff)
