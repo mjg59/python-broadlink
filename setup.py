@@ -2,15 +2,16 @@
 # -*- coding: utf-8 -*-
 
 import re
-from setuptools import setup, find_packages
 import sys
 import warnings
 
+from setuptools import setup, find_packages
+
 try:
-    import pyaes
+    import cryptography
+    dynamic_requires = ['cryptography>=2.1.1']
+except ImportError:
     dynamic_requires = ["pyaes==1.6.0"]
-except ImportError as e:
-    dynamic_requires = ['pycryptodome==3.6.6']
 
 # For Hysen thermostatic heating controller
 dynamic_requires.append('PyCRC')
