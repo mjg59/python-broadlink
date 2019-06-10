@@ -16,7 +16,7 @@ except ImportError:
 # For Hysen thermostatic heating controller
 dynamic_requires.append('PyCRC')
 
-version = '0.11'
+version = '0.11.1'
 
 setup(
     name='broadlink',
