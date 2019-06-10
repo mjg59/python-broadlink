@@ -357,6 +357,8 @@ class mp1(device):
     def check_power(self):
         """Returns the power state of the smart power strip."""
         state = self.check_power_raw()
+        if state is None:
+            return {'s1': None, 's2': None, 's3': None, 's4': None}
         data = {}
         data['s1'] = bool(state & 0x01)
         data['s2'] = bool(state & 0x02)
