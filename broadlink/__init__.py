@@ -25,7 +25,7 @@ def gendevice(devtype, host, mac):
               0x947a, 0x9479,  # SP3S
               0x2728,  # SPMini2
               0x2733, 0x273e,  # OEM branded SPMini
-              0x7530, 0x7918,  # OEM branded SPMini2
+              0x7530, 0x7546, 0x7918,  # OEM branded SPMini2
               0x7D0D,  # TMall OEM SPMini3
               0x2736  # SPMiniPlus
               ],
