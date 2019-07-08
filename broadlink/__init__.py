@@ -223,7 +223,7 @@ class device:
         payload = self.decrypt(response[0x38:])
 
         if not payload:
-            return False
+            return True
 
         key = payload[0x04:0x14]
         if len(key) % 16 != 0:
