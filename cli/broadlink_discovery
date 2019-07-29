@@ -6,10 +6,11 @@ import argparse
 
 parser = argparse.ArgumentParser(fromfile_prefix_chars='@');
 parser.add_argument("--timeout", type=int, default=5, help="timeout to wait for receiving discovery responses")
+parser.add_argument("--ip", default=None, help="ip address to use in the discovery")
 args = parser.parse_args()
 
 print("Discovering...")
-devices = broadlink.discover(timeout=args.timeout)
+devices = broadlink.discover(timeout=args.timeout, local_ip_address=args.ip)
 for device in devices:
     if device.auth():
         print("###########################################")
@@ -22,3 +23,4 @@ for device in devices:
         print("")
     else:
         print("Error authenticating with device : {}".format(device.host))
+
