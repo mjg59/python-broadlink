@@ -166,17 +166,18 @@ class device:
             self.update_aes = self.update_aes_crypto
 
         self.aes = None
-        key = bytearray(
+        self.key = bytearray(
             [0x09, 0x76, 0x28, 0x34, 0x3f, 0xe9, 0x9e, 0x23, 0x76, 0x5c, 0x15, 0x13, 0xac, 0xcf, 0x8b, 0x02])
-        self.update_aes(key)
 
     def update_aes_pyaes(self, key):
         self.aes = pyaes.AESModeOfOperationCBC(key, iv=bytes(self.iv))
 
     def encrypt_pyaes(self, payload):
+        self.update_aes(self.key)
         return b"".join([self.aes.encrypt(bytes(payload[i:i + 16])) for i in range(0, len(payload), 16)])
 
     def decrypt_pyaes(self, payload):
+        self.update_aes(self.key)
         return b"".join([self.aes.decrypt(bytes(payload[i:i + 16])) for i in range(0, len(payload), 16)])
 
     def update_aes_crypto(self, key):
@@ -230,7 +231,7 @@ class device:
             return False
 
         self.id = payload[0x00:0x04]
-        self.update_aes(key)
+        self.key = key
 
         return True
 
