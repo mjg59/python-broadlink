@@ -185,10 +185,12 @@ class device:
                           backend=default_backend())
 
     def encrypt_crypto(self, payload):
+        self.update_aes(self.key)
         encryptor = self.aes.encryptor()
         return encryptor.update(payload) + encryptor.finalize()
 
     def decrypt_crypto(self, payload):
+        self.update_aes(self.key)
         decryptor = self.aes.decryptor()
         return decryptor.update(payload) + decryptor.finalize()
 
