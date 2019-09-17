@@ -7,11 +7,8 @@ import threading
 import time
 from datetime import datetime
 
-try:
-    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-    from cryptography.hazmat.backends import default_backend
-except ImportError:
-    import pyaes
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 
 def gendevice(devtype, host, mac):
@@ -65,9 +62,9 @@ def discover(timeout=None, local_ip_address=None):
     if local_ip_address is None:
         local_ip_address = socket.gethostbyname(socket.gethostname())
     if local_ip_address.startswith('127.'):
-         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-         s.connect(('8.8.8.8', 53))  # connecting to a UDP address doesn't send packets
-         local_ip_address = s.getsockname()[0]
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 53))  # connecting to a UDP address doesn't send packets
+        local_ip_address = s.getsockname()[0]
     address = local_ip_address.split('.')
     cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -159,39 +156,20 @@ class device:
         self.type = "Unknown"
         self.lock = threading.Lock()
 
-        if 'pyaes' in globals():
-            self.encrypt = self.encrypt_pyaes
-            self.decrypt = self.decrypt_pyaes
-            self.update_aes = self.update_aes_pyaes
-
-        else:
-            self.encrypt = self.encrypt_crypto
-            self.decrypt = self.decrypt_crypto
-            self.update_aes = self.update_aes_crypto
-
         self.aes = None
         key = bytearray(
             [0x09, 0x76, 0x28, 0x34, 0x3f, 0xe9, 0x9e, 0x23, 0x76, 0x5c, 0x15, 0x13, 0xac, 0xcf, 0x8b, 0x02])
         self.update_aes(key)
 
-    def update_aes_pyaes(self, key):
-        self.aes = pyaes.AESModeOfOperationCBC(key, iv=bytes(self.iv))
-
-    def encrypt_pyaes(self, payload):
-        return b"".join([self.aes.encrypt(bytes(payload[i:i + 16])) for i in range(0, len(payload), 16)])
-
-    def decrypt_pyaes(self, payload):
-        return b"".join([self.aes.decrypt(bytes(payload[i:i + 16])) for i in range(0, len(payload), 16)])
-
-    def update_aes_crypto(self, key):
+    def update_aes(self, key):
         self.aes = Cipher(algorithms.AES(key), modes.CBC(self.iv),
                           backend=default_backend())
 
-    def encrypt_crypto(self, payload):
+    def encrypt(self, payload):
         encryptor = self.aes.encryptor()
         return encryptor.update(payload) + encryptor.finalize()
 
-    def decrypt_crypto(self, payload):
+    def decrypt(self, payload):
         decryptor = self.aes.decryptor()
         return decryptor.update(payload) + decryptor.finalize()
 
