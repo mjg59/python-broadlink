@@ -152,10 +152,6 @@ class device:
         self.iv = bytearray(
             [0x56, 0x2e, 0x17, 0x99, 0x6d, 0x09, 0x3d, 0x28, 0xdd, 0xb3, 0xba, 0x69, 0x5a, 0x2e, 0x6f, 0x58])
         self.id = bytearray([0, 0, 0, 0])
-        self.cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.cs.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        self.cs.bind(('', 0))
         self.type = "Unknown"
         self.lock = threading.Lock()
 
@@ -296,14 +292,19 @@ class device:
         start_time = time.time()
         with self.lock:
             while True:
+                cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 try:
-                    self.cs.sendto(packet, self.host)
-                    self.cs.settimeout(1)
-                    response = self.cs.recvfrom(2048)
+                    cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                    cs.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+                    cs.sendto(packet, self.host)
+                    cs.settimeout(1)
+                    response = cs.recvfrom(2048)
                     break
                 except socket.timeout:
                     if (time.time() - start_time) > self.timeout:
                         raise
+                finally:
+                    cs.close()
         return bytearray(response[0])
 
 
