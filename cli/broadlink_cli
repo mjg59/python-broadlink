@@ -223,6 +223,8 @@ if args.rfscanlearn:
         learned = format_durations(to_microseconds(bytearray(data))) \
             if args.durations \
             else ''.join(format(x, '02x') for x in bytearray(data))
+        decode_hex = codecs.getdecoder("hex_codec")
+        print("Base64: " + str(base64.b64encode(decode_hex(learned)[0])))
         if args.learnfile is None:
             print(learned)
         if args.learnfile is not None:
