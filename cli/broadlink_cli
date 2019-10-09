@@ -225,6 +225,8 @@ if args.rfscanlearn:
             else ''.join(format(x, '02x') for x in bytearray(data))
         if args.learnfile is None:
             print(learned)
+            decode_hex = codecs.getdecoder("hex_codec")
+            print("Base64: {}".format(str(base64.b64encode(decode_hex(learned)[0])).decode('utf8')))
         if args.learnfile is not None:
             print("Saving to {}".format(args.learnfile))
             with open(args.learnfile, "w") as text_file:
