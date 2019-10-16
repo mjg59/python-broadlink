@@ -358,7 +358,11 @@ class bg1(device):
         self.type = "BG1"
 
     def get_state(self):
-        """Get state of device"""
+        """Get state of device.
+        
+        Returns:
+            dict: Dictionary of current state
+            eg. `{"pwr":1,"pwr1":1,"pwr2":0,"maxworktime":60,"maxworktime1":60,"maxworktime2":0,"idcbrightness":50}`"""
         packet = self._encode(1, b'{}')
         response = self.send_packet(0x6a, packet)
         return self._decode(response)
