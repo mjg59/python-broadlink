@@ -85,6 +85,7 @@ parser.add_argument("--learnfile", help="save learned command to a specified fil
 parser.add_argument("--durations", action="store_true",
                     help="use durations in micro seconds instead of the Broadlink format")
 parser.add_argument("--convert", action="store_true", help="convert input data to durations")
+parser.add_argument("--joinwifi", nargs=2, help="Args are SSID PASSPHRASE to configure Broadlink device with");
 parser.add_argument("data", nargs='*', help="Data to send or convert")
 args = parser.parse_args()
 
@@ -101,6 +102,9 @@ elif args.mac:
 if args.host or args.device:
     dev = broadlink.gendevice(type, (host, 80), mac)
     dev.auth()
+
+if args.joinwifi:
+    broadlink.setup(args.joinwifi[0], args.joinwifi[1], 4)
 
 if args.convert:
     data = bytearray.fromhex(''.join(args.data))
