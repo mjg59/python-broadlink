@@ -128,8 +128,8 @@ if args.send_base64:
         codecs.getencoder("hex_codec")(base64.decodestring(d))[0]
         for d in args.data
     ]
-    data = durations_to_broadlink(parse_durations(' '.join(args.data))) \
-        if args.durations else bytearray.fromhex(''.join(args.data))
+    data = durations_to_broadlink(parse_durations(' '.join(data))) \
+        if args.durations else bytearray.fromhex(''.join(data))
     dev.send_data(data)
 if args.learn or args.learnfile:
     dev.enter_learning()
