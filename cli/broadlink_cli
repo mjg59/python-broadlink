@@ -62,6 +62,8 @@ def parse_durations(durations):
         for duration in durations.split()
     ]
 
+def base64_to_hex(base64_string):
+	return codecs.getencoder("hex_codec")(base64.decodestring(base64_string))[0]
 
 parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
 parser.add_argument("--device", help="device definition as 'type host mac'")
@@ -124,10 +126,7 @@ if args.send:
         if args.durations else bytearray.fromhex(''.join(args.data))
     dev.send_data(data)
 if args.send_base64:
-    data = [
-        codecs.getencoder("hex_codec")(base64.decodestring(d))[0]
-        for d in args.data
-    ]
+    data = [base64_to_hex(input_data) for input_data in args.data]
     data = durations_to_broadlink(parse_durations(' '.join(data))) \
         if args.durations else bytearray.fromhex(''.join(data))
     dev.send_data(data)
