@@ -877,7 +877,7 @@ class dooya(device):
 class wistar(device):
     def __init__(self, host, mac, devtype):
         device.__init__(self, host, mac, devtype)
-        self.type = "Wistart curtain"
+        self.type = "Wistar curtain"
 
     def _send(self, command, data):
         packet = bytearray([0, 0, 0xa5, 0xa5, 0x5a, 0x5a, 0, 0, 0, 0x0b])
@@ -903,7 +903,7 @@ class wistar(device):
         payload = self.decrypt(bytes(response[0x38:]))
         return payload
         
-    def get_status(self):
+    def get_position(self):
         response = self._send(0x01, [])
         position = ord(response[14])
         return position
