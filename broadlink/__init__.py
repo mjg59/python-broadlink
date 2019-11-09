@@ -48,7 +48,8 @@ def gendevice(devtype, host, mac):
               ],
         hysen: [0x4EAD],  # Hysen controller
         S1C: [0x2722],  # S1 (SmartOne Alarm Kit)
-        dooya: [0x4E4D]  # Dooya DT360E (DOOYA_CURTAIN_V2)
+        dooya: [0x4E4D],  # Dooya DT360E (DOOYA_CURTAIN_V2)
+        wistar: [0x4f6c]  # Wistart wi-fi curtain
     }
 
     # Look for the class associated to devtype in devices
@@ -873,6 +874,59 @@ class dooya(device):
                 current = self.get_percentage()
         self.stop()
 
+class wistar(device):
+    def __init__(self, host, mac, devtype):
+        device.__init__(self, host, mac, devtype)
+        self.type = "Wistart curtain"
+
+    def _send(self, command, data):
+        packet = bytearray([0, 0, 0xa5, 0xa5, 0x5a, 0x5a, 0, 0, 0, 0x0b])
+        packet[8] = command
+        packet.append(len(data))
+        packet.append(0)
+        packet.append(0)
+        packet.append(0)
+        packet += bytearray(data)
+        packet[0] = len(packet)-2
+
+        checksum = 0xbeaf
+        for i in range(2,len(packet)):
+            checksum += packet[i]
+            checksum = checksum & 0xffff
+
+        packet[6] = checksum&0xff
+        packet[7] = checksum>>8
+        response = self.send_packet(0x6a, packet)
+        err = response[0x22] | (response[0x23] << 8)
+        if err != 0:
+            return None
+        payload = self.decrypt(bytes(response[0x38:]))
+        return payload
+        
+    def get_status(self):
+        response = self._send(0x01, [])
+        position = ord(response[14])
+        return position
+
+    def open(self):
+        response = self._send(0x02, [0x4a, 0x31, 0xa0])
+        position = ord(response[14])
+        return position
+
+    def close(self):
+        response = self._send(0x02, [0x61, 0x32, 0xa0])
+        position = ord(response[14])
+        return position
+
+    def stop(self):
+        response = self._send(0x02, [0x4c, 0x73, 0xa0])
+        position = ord(response[14])
+        return position
+
+    def set(self, position):
+        response = self._send(0x02, [position, 0x70, 0xa0])
+        position = ord(response[14])
+        return position
 
 # Setup a new Broadlink device via AP Mode. Review the README to see how to enter AP Mode.
 # Only tested with Broadlink RM3 Mini (Blackbean)
