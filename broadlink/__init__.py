@@ -4,6 +4,8 @@ import codecs
 import random
 import socket
 import threading
+import json
+import struct
 import time
 from datetime import datetime
 
@@ -26,6 +28,7 @@ def gendevice(devtype, host, mac):
               0x7D0D,  # TMall OEM SPMini3
               0x2736  # SPMiniPlus
               ],
+        sp4: [0x7579], #SP4 (L-EU(AU/US?))
         rm: [0x2712,  # RM2
              0x2737,  # RM Mini
              0x273d,  # RM Pro Phicomm
@@ -283,6 +286,88 @@ class device:
                     if (time.time() - start_time) > self.timeout:
                         raise
         return bytearray(response[0])
+
+class sp4(device):
+    def __init__(self, host, mac, devtype):
+        device.__init__(self, host, mac, devtype)
+        self.type = "SP4"
+
+    def get_state(self):
+        """Get state of device"""
+        packet = self._encode(1, b'{}')
+        response = self.send_packet(0x6a, packet)
+        return self._decode(response)
+
+    def set_state(self, pwr=None, ntlight=None, indicator=None, ntlbrightness=None, maxworktime=None):
+        """Set state of device"""
+        data = {}
+        if pwr is not None:
+            data['pwr'] = int(bool(pwr))
+        if ntlight is not None:
+            data['ntlight'] = int(bool(ntlight))
+        if indicator is not None:
+            data['indicator'] = int(bool(indicator))
+        if ntlbrightness is not None:
+            data['ntlbrightness'] = ntlbrightness
+        if maxworktime is not None:
+            data['maxworktime'] = maxworktime
+
+        js = json.dumps(data).encode('utf8')
+        packet = self._encode(2, js)
+        response = self.send_packet(0x6a, packet)
+        return self._decode(response)
+
+    def set_power(self, state):
+        """Sets the power state of the smart plug"""
+        return self.set_state(pwr = int(bool(state)))
+
+    def set_nightlight(self, state):
+        """Sets the night light state of the smart plug"""
+        return self.set_state(ntlight = int(bool(state)))
+
+    def check_power(self):
+        """Returns the power state of the smart plug."""
+        state = self.get_state()
+        if(state):
+            return state["pwr"]
+
+    def check_nightlight(self):
+        """Returns the night light state of the smart plug."""
+        state = self.get_state()
+        if(state):
+            return state["ntlight"]
+
+
+    def _encode(self, flag, js):
+        # SP4 support added by Petter Olofsson
+        # packet format is:
+        # 0x00-0x03 header 0xa5a5, 0x5a5a
+        # 0x04-0x05 "0xbeaf" checksum
+        # 0x06 flag (1 for read or 2 write?)
+        # 0x07 unknown (0xb)
+        # 0x08-0x0b length of json
+        # 0x0c- json data
+        packet = bytearray(14)
+        struct.pack_into('<HHHBBI', packet, 0, 0xa5a5, 0x5a5a, 0x0000, flag, 0x0b, len(js))
+        for i in range(len(js)):
+            packet.append(js[i])
+
+        checksum = 0xbeaf
+        for c in packet:
+            checksum = (checksum + c) & 0xffff
+        packet[0x04] = checksum & 0xff
+        packet[0x05] = checksum >> 8
+        return packet
+
+    def _decode(self, response):
+        err = response[0x22] | (response[0x23] << 8)
+        if err != 0:
+            return None
+
+        payload = self.decrypt(bytes(response[0x38:]))
+        js_len = struct.unpack_from('<I', payload, 0x08)[0]
+        state = json.loads(payload[0x0c:0x0c+js_len])
+        return state
 
 
 class mp1(device):
