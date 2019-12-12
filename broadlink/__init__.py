@@ -5,6 +5,7 @@ import random
 import socket
 import threading
 import time
+import ipaddress, netifaces
 from datetime import datetime
 
 from cryptography.hazmat.backends import default_backend
@@ -114,7 +115,15 @@ def discover(timeout=None, local_ip_address=None):
     packet[0x20] = checksum & 0xff
     packet[0x21] = checksum >> 8
 
-    cs.sendto(packet, ('255.255.255.255', 80))
+    ip_ver = ipaddress.ip_address(local_ip_address).version
+    ifs = netifaces.interfaces()
+    for _ifs in ifs:
+        for _if in netifaces.ifaddresses(_ifs)[netifaces.AF_INET]:
+            if _if['addr'] == local_ip_address:
+                ifaddr = local_ip_address + '/' + _if['netmask']
+    dest_broadcast = ipaddress.ip_interface(ifaddr).network.broadcast_address.exploded
+
+    cs.sendto(packet, (dest_broadcast, 80))
     if timeout is None:
         response = cs.recvfrom(1024)
         responsepacket = bytearray(response[0])
