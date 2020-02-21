@@ -61,7 +61,7 @@ def gendevice(devtype, host, mac):
     return device_class(host=host, mac=mac, devtype=devtype)
 
 
-def discover(timeout=None, local_ip_address=None):
+def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.255.255'):
     if local_ip_address is None:
         local_ip_address = socket.gethostbyname(socket.gethostname())
     if local_ip_address.startswith('127.'):
@@ -117,7 +117,7 @@ def discover(timeout=None, local_ip_address=None):
     packet[0x20] = checksum & 0xff
     packet[0x21] = checksum >> 8
 
-    cs.sendto(packet, ('255.255.255.255', 80))
+    cs.sendto(packet, (discover_ip_address, 80))
     if timeout is None:
         response = cs.recvfrom(1024)
         responsepacket = bytearray(response[0])
