@@ -8,8 +8,10 @@ import struct
 import threading
 import time
 from datetime import datetime
+from zlib import adler32
 
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 
@@ -109,11 +111,8 @@ def discover(timeout=None, local_ip_address=None):
     packet[0x1c] = port & 0xff
     packet[0x1d] = port >> 8
     packet[0x26] = 6
-    checksum = 0xbeaf
 
-    for i in range(len(packet)):
-        checksum += packet[i]
-    checksum = checksum & 0xffff
+    checksum = adler32(packet, 0xbeaf) & 0xffff
     packet[0x20] = checksum & 0xff
     packet[0x21] = checksum >> 8
 
@@ -249,16 +248,9 @@ class device:
         packet[0x32] = self.id[2]
         packet[0x33] = self.id[3]
 
-        # pad the payload for AES encryption
-        if payload:
-            numpad = (len(payload) // 16 + 1) * 16
-            payload = payload.ljust(numpad, b"\x00")
-
-        checksum = 0xbeaf
-        for i in range(len(payload)):
-            checksum += payload[i]
-            checksum = checksum & 0xffff
-
+        padder = padding.PKCS7(128).padder()
+        payload = padder.update(bytes(payload)) + padder.finalize()
+        checksum = adler32(payload, 0xbeaf) & 0xffff
         payload = self.encrypt(payload)
 
         packet[0x34] = checksum & 0xff
@@ -267,10 +259,7 @@ class device:
         for i in range(len(payload)):
             packet.append(payload[i])
 
-        checksum = 0xbeaf
-        for i in range(len(packet)):
-            checksum += packet[i]
-            checksum = checksum & 0xffff
+        checksum = adler32(packet, 0xbeaf) & 0xffff
         packet[0x20] = checksum & 0xff
         packet[0x21] = checksum >> 8
 
@@ -403,9 +392,7 @@ class bg1(device):
         for i in range(len(js)):
             packet.append(js[i])
 
-        checksum = 0xc0ad
-        for c in packet[0x08:]:
-            checksum = (checksum + c) & 0xffff
+        checksum = adler32(packet[0x08:], 0xc0ad) & 0xffff
         packet[0x06] = checksum & 0xff
         packet[0x07] = checksum >> 8
 
@@ -969,11 +956,7 @@ def setup(ssid, password, security_mode):
     payload[0x85] = pass_length  # Character length of password
     payload[0x86] = security_mode  # Type of encryption (00 - none, 01 = WEP, 02 = WPA1, 03 = WPA2, 04 = WPA1/2)
 
-    checksum = 0xbeaf
-    for i in range(len(payload)):
-        checksum += payload[i]
-        checksum = checksum & 0xffff
-
+    checksum = adler32(payload, 0xbeaf) & 0xffff
     payload[0x20] = checksum & 0xff  # Checksum 1 position
     payload[0x21] = checksum >> 8  # Checksum 2 position
 
