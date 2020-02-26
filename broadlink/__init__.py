@@ -42,7 +42,8 @@ def gendevice(devtype, host, mac):
              0x27a1,  # RM2 Pro Plus R1
              0x27a6,  # RM2 Pro PP
              0x278f,  # RM Mini Shate
-             0x27c2  # RM Mini 3
+             0x27c2,  # RM Mini 3
+             0x27de   # RM Mini 3 (C)
              ],
         a1: [0x2714],  # A1
         mp1: [0x4EB5,  # MP1
