@@ -251,11 +251,10 @@ class device:
         padder = padding.PKCS7(128).padder()
         payload = padder.update(bytes(payload)) + padder.finalize()
         checksum = adler32(payload, 0xbeaf) & 0xffff
-        payload = self.encrypt(payload)
-
         packet[0x34] = checksum & 0xff
         packet[0x35] = checksum >> 8
 
+        payload = self.encrypt(payload)
         for i in range(len(payload)):
             packet.append(payload[i])
 
