@@ -1,17 +1,16 @@
 #!/usr/bin/python
 
 import codecs
+import json
 import random
 import socket
+import struct
 import threading
 import time
 from datetime import datetime
 
-try:
-    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-    from cryptography.hazmat.backends import default_backend
-except ImportError:
-    import pyaes
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 
 def gendevice(devtype, host, mac):
@@ -51,7 +50,8 @@ def gendevice(devtype, host, mac):
               ],
         hysen: [0x4EAD],  # Hysen controller
         S1C: [0x2722],  # S1 (SmartOne Alarm Kit)
-        dooya: [0x4E4D]  # Dooya DT360E (DOOYA_CURTAIN_V2)
+        dooya: [0x4E4D],  # Dooya DT360E (DOOYA_CURTAIN_V2)
+        bg1: [0x51E3] # BG Electrical Smart Power Socket
     }
 
     # Look for the class associated to devtype in devices
@@ -65,9 +65,9 @@ def discover(timeout=None, local_ip_address=None):
     if local_ip_address is None:
         local_ip_address = socket.gethostbyname(socket.gethostname())
     if local_ip_address.startswith('127.'):
-         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-         s.connect(('8.8.8.8', 53))  # connecting to a UDP address doesn't send packets
-         local_ip_address = s.getsockname()[0]
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 53))  # connecting to a UDP address doesn't send packets
+        local_ip_address = s.getsockname()[0]
     address = local_ip_address.split('.')
     cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -159,39 +159,20 @@ class device:
         self.type = "Unknown"
         self.lock = threading.Lock()
 
-        if 'pyaes' in globals():
-            self.encrypt = self.encrypt_pyaes
-            self.decrypt = self.decrypt_pyaes
-            self.update_aes = self.update_aes_pyaes
-
-        else:
-            self.encrypt = self.encrypt_crypto
-            self.decrypt = self.decrypt_crypto
-            self.update_aes = self.update_aes_crypto
-
         self.aes = None
         key = bytearray(
             [0x09, 0x76, 0x28, 0x34, 0x3f, 0xe9, 0x9e, 0x23, 0x76, 0x5c, 0x15, 0x13, 0xac, 0xcf, 0x8b, 0x02])
         self.update_aes(key)
 
-    def update_aes_pyaes(self, key):
-        self.aes = pyaes.AESModeOfOperationCBC(key, iv=bytes(self.iv))
-
-    def encrypt_pyaes(self, payload):
-        return b"".join([self.aes.encrypt(bytes(payload[i:i + 16])) for i in range(0, len(payload), 16)])
-
-    def decrypt_pyaes(self, payload):
-        return b"".join([self.aes.decrypt(bytes(payload[i:i + 16])) for i in range(0, len(payload), 16)])
-
-    def update_aes_crypto(self, key):
+    def update_aes(self, key):
         self.aes = Cipher(algorithms.AES(key), modes.CBC(self.iv),
                           backend=default_backend())
 
-    def encrypt_crypto(self, payload):
+    def encrypt(self, payload):
         encryptor = self.aes.encryptor()
         return encryptor.update(payload) + encryptor.finalize()
 
-    def decrypt_crypto(self, payload):
+    def decrypt(self, payload):
         decryptor = self.aes.decryptor()
         return decryptor.update(payload) + decryptor.finalize()
 
@@ -370,6 +351,75 @@ class mp1(device):
         data['s4'] = bool(state & 0x08)
         return data
 
+
+class bg1(device):
+    def __init__(self, host, mac, devtype):
+        device.__init__(self, host, mac, devtype)
+        self.type = "BG1"
+
+    def get_state(self):
+        """Get state of device.
+        
+        Returns:
+            dict: Dictionary of current state
+            eg. `{"pwr":1,"pwr1":1,"pwr2":0,"maxworktime":60,"maxworktime1":60,"maxworktime2":0,"idcbrightness":50}`"""
+        packet = self._encode(1, b'{}')
+        response = self.send_packet(0x6a, packet)
+        return self._decode(response)
+
+    def set_state(self, pwr=None, pwr1=None, pwr2=None, maxworktime=None, maxworktime1=None, maxworktime2=None, idcbrightness=None):
+        data = {}
+        if pwr is not None:
+            data['pwr'] = int(bool(pwr))
+        if pwr1 is not None:
+            data['pwr1'] = int(bool(pwr1))
+        if pwr2 is not None:
+            data['pwr2'] = int(bool(pwr2))
+        if maxworktime is not None:
+            data['maxworktime'] = maxworktime
+        if maxworktime1 is not None:
+            data['maxworktime1'] = maxworktime1
+        if maxworktime2 is not None:
+            data['maxworktime2'] = maxworktime2
+        if idcbrightness is not None:
+            data['idcbrightness'] = idcbrightness
+        js = json.dumps(data).encode('utf8')
+        packet = self._encode(2, js)
+        response = self.send_packet(0x6a, packet)
+        return self._decode(response)
+
+    def _encode(self, flag, js):
+        # packet format is:
+        # 0x00-0x01 length
+        # 0x02-0x05 header
+        # 0x06-0x07 00
+        # 0x08 flag (1 for read or 2 write?)
+        # 0x09 unknown (0xb)
+        # 0x0a-0x0d length of json
+        # 0x0e- json data
+        packet = bytearray(14)
+        length = 4 + 2 + 2 + 4 + len(js)
+        struct.pack_into('<HHHHBBI', packet, 0, length, 0xa5a5, 0x5a5a, 0x0000, flag, 0x0b, len(js))
+        for i in range(len(js)):
+            packet.append(js[i])
+
+        checksum = 0xc0ad
+        for c in packet[0x08:]:
+            checksum = (checksum + c) & 0xffff
+        packet[0x06] = checksum & 0xff
+        packet[0x07] = checksum >> 8
+
+        return packet
+
+    def _decode(self, response):
+        err = response[0x22] | (response[0x23] << 8)
+        if err != 0:
+            return None
+    
+        payload = self.decrypt(bytes(response[0x38:]))
+        js_len = struct.unpack_from('<I', payload, 0x0a)[0]
+        state = json.loads(payload[0x0e:0x0e+js_len])
+        return state
 
 class sp1(device):
     def __init__(self, host, mac, devtype):

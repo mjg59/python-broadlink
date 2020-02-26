@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
-import broadlink
-import sys
 import argparse
-import time
 import base64
 import codecs
+import time
+
+import broadlink
 
 TICK = 32.84
 IR_TOKEN = 0x26
@@ -18,7 +18,6 @@ def auto_int(x):
 def to_microseconds(bytes):
     result = []
     #  print bytes[0] # 0x26 = 38for IR
-    length = bytes[2] + 256 * bytes[3]  # presently ignored
     index = 4
     while index < len(bytes):
         chunk = bytes[index]
@@ -27,7 +26,7 @@ def to_microseconds(bytes):
             chunk = bytes[index]
             chunk = 256 * chunk + bytes[index + 1]
             index += 2
-        result.append(int(round(chunk*TICK)))
+        result.append(int(round(chunk * TICK)))
         if chunk == 0x0d05:
             break
     return result
@@ -40,7 +39,7 @@ def durations_to_broadlink(durations):
     result.append(len(durations) % 256)
     result.append(len(durations) / 256)
     for dur in durations:
-        num = int(round(dur/TICK))
+        num = int(round(dur / TICK))
         if num > 255:
             result.append(0)
             result.append(num / 256)
@@ -69,8 +68,8 @@ parser.add_argument("--device", help="device definition as 'type host mac'")
 parser.add_argument("--type", type=auto_int, default=0x2712, help="type of device")
 parser.add_argument("--host", help="host address")
 parser.add_argument("--mac", help="mac address (hex reverse), as used by python-broadlink library")
-parser.add_argument("--temperature",action="store_true", help="request temperature from device")
-parser.add_argument("--energy",action="store_true", help="request energy consumption from device")
+parser.add_argument("--temperature", action="store_true", help="request temperature from device")
+parser.add_argument("--energy", action="store_true", help="request energy consumption from device")
 parser.add_argument("--check", action="store_true", help="check current power state")
 parser.add_argument("--checknl", action="store_true", help="check current nightlight state")
 parser.add_argument("--turnon", action="store_true", help="turn on device")
@@ -83,14 +82,15 @@ parser.add_argument("--sensors", action="store_true", help="check all sensors")
 parser.add_argument("--learn", action="store_true", help="learn command")
 parser.add_argument("--rfscanlearn", action="store_true", help="rf scan learning")
 parser.add_argument("--learnfile", help="save learned command to a specified file")
-parser.add_argument("--durations", action="store_true", help="use durations in micro seconds instead of the Broadlink format")
+parser.add_argument("--durations", action="store_true",
+                    help="use durations in micro seconds instead of the Broadlink format")
 parser.add_argument("--convert", action="store_true", help="convert input data to durations")
 parser.add_argument("data", nargs='*', help="Data to send or convert")
 args = parser.parse_args()
 
 if args.device:
     values = args.device.split()
-    type = int(values[0],0)
+    type = int(values[0], 0)
     host = values[1]
     mac = bytearray.fromhex(values[2])
 elif args.mac:
@@ -115,7 +115,7 @@ if args.sensors:
         data = dev.check_sensors()
     except:
         data = {}
-        data['temperature'] =  dev.check_temperature()
+        data['temperature'] = dev.check_temperature()
     for key in data:
         print("{} {}".format(key, data[key]))
 if args.send:
@@ -225,6 +225,8 @@ if args.rfscanlearn:
             else ''.join(format(x, '02x') for x in bytearray(data))
         if args.learnfile is None:
             print(learned)
+            decode_hex = codecs.getdecoder("hex_codec")
+            print("Base64: {}".format(str(base64.b64encode(decode_hex(learned)[0])).decode('utf8')))
         if args.learnfile is not None:
             print("Saving to {}".format(args.learnfile))
             with open(args.learnfile, "w") as text_file:
