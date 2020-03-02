@@ -11,7 +11,6 @@ from datetime import datetime
 from zlib import adler32
 
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 
@@ -248,8 +247,10 @@ class device:
         packet[0x32] = self.id[2]
         packet[0x33] = self.id[3]
 
-        padder = padding.PKCS7(128).padder()
-        payload = padder.update(bytes(payload)) + padder.finalize()
+        # pad the payload for AES encryption
+        if payload:
+            payload += bytearray(((len(payload)-1)//16+1)*16 - len(payload))
+        
         checksum = adler32(payload, 0xbeaf) & 0xffff
         packet[0x34] = checksum & 0xff
         packet[0x35] = checksum >> 8
