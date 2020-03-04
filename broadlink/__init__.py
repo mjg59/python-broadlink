@@ -1,11 +1,14 @@
 #!/usr/bin/python
 
 import codecs
+import json
 import random
 import socket
+import struct
 import threading
 import time
 from datetime import datetime
+from zlib import adler32
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -41,7 +44,8 @@ def gendevice(devtype, host, mac):
              0x27a6,  # RM2 Pro PP
              0x278f,  # RM Mini Shate
              0x27c2,  # RM Mini 3
-             0x27d1 #new RM Mini3
+             0x27d1, #new RM Mini3
+             0x27de,   # RM Mini 3 (C)
              ],
         a1: [0x2714],  # A1
         mp1: [0x4EB5,  # MP1
@@ -49,7 +53,8 @@ def gendevice(devtype, host, mac):
               ],
         hysen: [0x4EAD],  # Hysen controller
         S1C: [0x2722],  # S1 (SmartOne Alarm Kit)
-        dooya: [0x4E4D]  # Dooya DT360E (DOOYA_CURTAIN_V2)
+        dooya: [0x4E4D],  # Dooya DT360E (DOOYA_CURTAIN_V2)
+        bg1: [0x51E3] # BG Electrical Smart Power Socket
     }
 
     # Look for the class associated to devtype in devices
@@ -59,7 +64,7 @@ def gendevice(devtype, host, mac):
     return device_class(host=host, mac=mac, devtype=devtype)
 
 
-def discover(timeout=None, local_ip_address=None):
+def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.255.255'):
     if local_ip_address is None:
         local_ip_address = socket.gethostbyname(socket.gethostname())
     if local_ip_address.startswith('127.'):
@@ -107,15 +112,12 @@ def discover(timeout=None, local_ip_address=None):
     packet[0x1c] = port & 0xff
     packet[0x1d] = port >> 8
     packet[0x26] = 6
-    checksum = 0xbeaf
 
-    for i in range(len(packet)):
-        checksum += packet[i]
-    checksum = checksum & 0xffff
+    checksum = adler32(packet, 0xbeaf) & 0xffff
     packet[0x20] = checksum & 0xff
     packet[0x21] = checksum >> 8
 
-    cs.sendto(packet, ('255.255.255.255', 80))
+    cs.sendto(packet, (discover_ip_address, 80))
     if timeout is None:
         response = cs.recvfrom(1024)
         responsepacket = bytearray(response[0])
@@ -249,26 +251,17 @@ class device:
 
         # pad the payload for AES encryption
         if payload:
-            numpad = (len(payload) // 16 + 1) * 16
-            payload = payload.ljust(numpad, b"\x00")
-
-        checksum = 0xbeaf
-        for i in range(len(payload)):
-            checksum += payload[i]
-            checksum = checksum & 0xffff
-
-        payload = self.encrypt(payload)
-
+            payload += bytearray(((len(payload)-1)//16+1)*16 - len(payload))
+        
+        checksum = adler32(payload, 0xbeaf) & 0xffff
         packet[0x34] = checksum & 0xff
         packet[0x35] = checksum >> 8
 
+        payload = self.encrypt(payload)
         for i in range(len(payload)):
             packet.append(payload[i])
 
-        checksum = 0xbeaf
-        for i in range(len(packet)):
-            checksum += packet[i]
-            checksum = checksum & 0xffff
+        checksum = adler32(packet, 0xbeaf) & 0xffff
         packet[0x20] = checksum & 0xff
         packet[0x21] = checksum >> 8
 
@@ -349,6 +342,73 @@ class mp1(device):
         data['s4'] = bool(state & 0x08)
         return data
 
+
+class bg1(device):
+    def __init__(self, host, mac, devtype):
+        device.__init__(self, host, mac, devtype)
+        self.type = "BG1"
+
+    def get_state(self):
+        """Get state of device.
+        
+        Returns:
+            dict: Dictionary of current state
+            eg. `{"pwr":1,"pwr1":1,"pwr2":0,"maxworktime":60,"maxworktime1":60,"maxworktime2":0,"idcbrightness":50}`"""
+        packet = self._encode(1, b'{}')
+        response = self.send_packet(0x6a, packet)
+        return self._decode(response)
+
+    def set_state(self, pwr=None, pwr1=None, pwr2=None, maxworktime=None, maxworktime1=None, maxworktime2=None, idcbrightness=None):
+        data = {}
+        if pwr is not None:
+            data['pwr'] = int(bool(pwr))
+        if pwr1 is not None:
+            data['pwr1'] = int(bool(pwr1))
+        if pwr2 is not None:
+            data['pwr2'] = int(bool(pwr2))
+        if maxworktime is not None:
+            data['maxworktime'] = maxworktime
+        if maxworktime1 is not None:
+            data['maxworktime1'] = maxworktime1
+        if maxworktime2 is not None:
+            data['maxworktime2'] = maxworktime2
+        if idcbrightness is not None:
+            data['idcbrightness'] = idcbrightness
+        js = json.dumps(data).encode('utf8')
+        packet = self._encode(2, js)
+        response = self.send_packet(0x6a, packet)
+        return self._decode(response)
+
+    def _encode(self, flag, js):
+        # packet format is:
+        # 0x00-0x01 length
+        # 0x02-0x05 header
+        # 0x06-0x07 00
+        # 0x08 flag (1 for read or 2 write?)
+        # 0x09 unknown (0xb)
+        # 0x0a-0x0d length of json
+        # 0x0e- json data
+        packet = bytearray(14)
+        length = 4 + 2 + 2 + 4 + len(js)
+        struct.pack_into('<HHHHBBI', packet, 0, length, 0xa5a5, 0x5a5a, 0x0000, flag, 0x0b, len(js))
+        for i in range(len(js)):
+            packet.append(js[i])
+
+        checksum = adler32(packet[0x08:], 0xc0ad) & 0xffff
+        packet[0x06] = checksum & 0xff
+        packet[0x07] = checksum >> 8
+
+        return packet
+
+    def _decode(self, response):
+        err = response[0x22] | (response[0x23] << 8)
+        if err != 0:
+            return None
+    
+        payload = self.decrypt(bytes(response[0x38:]))
+        js_len = struct.unpack_from('<I', payload, 0x0a)[0]
+        state = json.loads(payload[0x0e:0x0e+js_len])
+        return state
 
 class sp1(device):
     def __init__(self, host, mac, devtype):
@@ -898,11 +958,7 @@ def setup(ssid, password, security_mode):
     payload[0x85] = pass_length  # Character length of password
     payload[0x86] = security_mode  # Type of encryption (00 - none, 01 = WEP, 02 = WPA1, 03 = WPA2, 04 = WPA1/2)
 
-    checksum = 0xbeaf
-    for i in range(len(payload)):
-        checksum += payload[i]
-        checksum = checksum & 0xffff
-
+    checksum = adler32(payload, 0xbeaf) & 0xffff
     payload[0x20] = checksum & 0xff  # Checksum 1 position
     payload[0x21] = checksum >> 8  # Checksum 2 position
 
