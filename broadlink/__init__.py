@@ -44,9 +44,10 @@ def gendevice(devtype, host, mac):
              0x27a6,  # RM2 Pro PP
              0x278f,  # RM Mini Shate
              0x27c2,  # RM Mini 3
-             0x27d1, #new RM Mini3
-             0x27de,   # RM Mini 3 (C)
-             ],
+             0x27d1,  # new RM Mini3
+             0x27de,  # RM Mini 3 (C)
+             0x5f36  # RM Mini 3
+             ],  
         a1: [0x2714],  # A1
         mp1: [0x4EB5,  # MP1
               0x4EF7  # Honyar oem mp1
@@ -233,8 +234,8 @@ class device:
         packet[0x05] = 0xa5
         packet[0x06] = 0xaa
         packet[0x07] = 0x55
-        packet[0x24] = 0x2a
-        packet[0x25] = 0x27
+        packet[0x24] = self.devtype & 0xff
+        packet[0x25] = self.devtype >> 8
         packet[0x26] = command
         packet[0x28] = self.count & 0xff
         packet[0x29] = self.count >> 8
@@ -251,8 +252,8 @@ class device:
 
         # pad the payload for AES encryption
         if payload:
-            payload += bytearray(((len(payload)-1)//16+1)*16 - len(payload))
-        
+            payload += bytearray(16 - len(payload)%16)
+
         checksum = adler32(payload, 0xbeaf) & 0xffff
         packet[0x34] = checksum & 0xff
         packet[0x35] = checksum >> 8
@@ -571,73 +572,79 @@ class rm(device):
     def __init__(self, host, mac, devtype):
         device.__init__(self, host, mac, devtype)
         self.type = "RM2"
+        if devtype == 0x5f36:
+            self._request_header = b'\x04\x00'
+        else:
+            self._request_header = b''
 
     def check_data(self):
-        packet = bytearray(16)
-        packet[0] = 4
+        packet = bytearray() + self._request_header
+        packet.append(0x04)
         response = self.send_packet(0x6a, packet)
         err = response[0x22] | (response[0x23] << 8)
         if err != 0:
             return None
         payload = self.decrypt(bytes(response[0x38:]))
-        return payload[0x04:]
+        return payload[len(self._request_header) + 4:]
 
     def send_data(self, data):
-        packet = bytearray([0x02, 0x00, 0x00, 0x00])
+        packet = bytearray() + self._request_header
+        packet += bytes([0x02, 0x00, 0x00, 0x00])
         packet += data
         self.send_packet(0x6a, packet)
 
     def enter_learning(self):
-        packet = bytearray(16)
-        packet[0] = 3
+        packet = bytearray() + self._request_header
+        packet.append(0x03)
         self.send_packet(0x6a, packet)
 
     def sweep_frequency(self):
-        packet = bytearray(16)
-        packet[0] = 0x19
+        packet = bytearray() + self._request_header
+        packet.append(0x19)
         self.send_packet(0x6a, packet)
 
     def cancel_sweep_frequency(self):
-        packet = bytearray(16)
-        packet[0] = 0x1e
+        packet = bytearray() + self._request_header
+        packet.append(0x1e)
         self.send_packet(0x6a, packet)
 
     def check_frequency(self):
-        packet = bytearray(16)
-        packet[0] = 0x1a
+        packet = bytearray() + self._request_header
+        packet.append(0x1a)
         response = self.send_packet(0x6a, packet)
         err = response[0x22] | (response[0x23] << 8)
         if err != 0:
             return False
         payload = self.decrypt(bytes(response[0x38:]))
-        if payload[0x04] == 1:
+        if payload[len(self._request_header) + 4] == 1:
             return True
         return False
 
     def find_rf_packet(self):
-        packet = bytearray(16)
-        packet[0] = 0x1b
+        packet = bytearray() + self._request_header
+        packet.append(0x1b)
         response = self.send_packet(0x6a, packet)
         err = response[0x22] | (response[0x23] << 8)
         if err != 0:
             return False
         payload = self.decrypt(bytes(response[0x38:]))
-        if payload[0x04] == 1:
+        if payload[len(self._request_header) + 4] == 1:
             return True
         return False
 
     def check_temperature(self):
-        packet = bytearray(16)
-        packet[0] = 1
+        packet = bytearray() + self._request_header
+        packet.append(0x01)
         response = self.send_packet(0x6a, packet)
         err = response[0x22] | (response[0x23] << 8)
         if err != 0:
             return False
         payload = self.decrypt(bytes(response[0x38:]))
-        if isinstance(payload[0x4], int):
-            temp = (payload[0x4] * 10 + payload[0x5]) / 10.0
+        temp_pos = len(self._request_header) + 4
+        if isinstance(payload[temp_pos], int):
+            temp = (payload[temp_pos] * 10 + payload[temp_pos+1]) / 10.0
         else:
-            temp = (ord(payload[0x4]) * 10 + ord(payload[0x5])) / 10.0
+            temp = (ord(payload[temp_pos]) * 10 + ord(payload[temp_pos+1])) / 10.0
         return temp
 
 
