@@ -574,8 +574,10 @@ class rm(device):
         self.type = "RM2"
         if devtype == 0x5f36:
             self._request_header = b'\x04\x00'
+            self._code_sending_header = b'\xd0\x00'
         else:
             self._request_header = b''
+            self._code_sending_header = b''
 
     def check_data(self):
         packet = bytearray(self._request_header)
@@ -588,7 +590,7 @@ class rm(device):
         return payload[len(self._request_header) + 4:]
 
     def send_data(self, data):
-        packet = bytearray(self._request_header)
+        packet = bytearray(self._code_sending_header)
         packet += bytes([0x02, 0x00, 0x00, 0x00])
         packet += data
         self.send_packet(0x6a, packet)
