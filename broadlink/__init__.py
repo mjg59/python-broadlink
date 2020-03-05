@@ -205,11 +205,11 @@ class device:
         payload[0x36] = ord('1')
 
         response = self.send_packet(0x65, payload)
-
-        payload = self.decrypt(response[0x38:])
-
-        if not payload:
+        
+        if any(response[0x22:0x24]):
             return False
+        
+        payload = self.decrypt(response[0x38:])
 
         key = payload[0x04:0x14]
         if len(key) % 16 != 0:
