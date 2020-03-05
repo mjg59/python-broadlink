@@ -578,7 +578,7 @@ class rm(device):
             self._request_header = b''
 
     def check_data(self):
-        packet = bytearray() + self._request_header
+        packet = bytearray(self._request_header)
         packet.append(0x04)
         response = self.send_packet(0x6a, packet)
         err = response[0x22] | (response[0x23] << 8)
@@ -588,28 +588,28 @@ class rm(device):
         return payload[len(self._request_header) + 4:]
 
     def send_data(self, data):
-        packet = bytearray() + self._request_header
+        packet = bytearray(self._request_header)
         packet += bytes([0x02, 0x00, 0x00, 0x00])
         packet += data
         self.send_packet(0x6a, packet)
 
     def enter_learning(self):
-        packet = bytearray() + self._request_header
+        packet = bytearray(self._request_header)
         packet.append(0x03)
         self.send_packet(0x6a, packet)
 
     def sweep_frequency(self):
-        packet = bytearray() + self._request_header
+        packet = bytearray(self._request_header)
         packet.append(0x19)
         self.send_packet(0x6a, packet)
 
     def cancel_sweep_frequency(self):
-        packet = bytearray() + self._request_header
+        packet = bytearray(self._request_header)
         packet.append(0x1e)
         self.send_packet(0x6a, packet)
 
     def check_frequency(self):
-        packet = bytearray() + self._request_header
+        packet = bytearray(self._request_header)
         packet.append(0x1a)
         response = self.send_packet(0x6a, packet)
         err = response[0x22] | (response[0x23] << 8)
@@ -621,7 +621,7 @@ class rm(device):
         return False
 
     def find_rf_packet(self):
-        packet = bytearray() + self._request_header
+        packet = bytearray(self._request_header)
         packet.append(0x1b)
         response = self.send_packet(0x6a, packet)
         err = response[0x22] | (response[0x23] << 8)
@@ -633,7 +633,7 @@ class rm(device):
         return False
 
     def check_temperature(self):
-        packet = bytearray() + self._request_header
+        packet = bytearray(self._request_header)
         packet.append(0x01)
         response = self.send_packet(0x6a, packet)
         err = response[0x22] | (response[0x23] << 8)
