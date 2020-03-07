@@ -147,7 +147,7 @@ class device:
     def __init__(self, host, mac, devtype, timeout=10):
         self.host = host
         self.mac = mac.encode() if isinstance(mac, str) else mac
-        self.devtype = devtype
+        self.devtype = devtype if devtype is not None else 0x272a
         self.timeout = timeout
         self.count = random.randrange(0xffff)
         self.iv = bytearray(
@@ -234,14 +234,8 @@ class device:
         packet[0x05] = 0xa5
         packet[0x06] = 0xaa
         packet[0x07] = 0x55
-
-        if self.devtype is None:
-            packet[0x24] = 0x2a
-            packet[0x25] = 0x27
-        else:
-            packet[0x24] = self.devtype & 0xff
-            packet[0x25] = self.devtype >> 8
-
+        packet[0x24] = self.devtype & 0xff
+        packet[0x25] = self.devtype >> 8
         packet[0x26] = command
         packet[0x28] = self.count & 0xff
         packet[0x29] = self.count >> 8
