@@ -46,7 +46,9 @@ def gendevice(devtype, host, mac):
              0x27c2,  # RM Mini 3
              0x27d1,  # new RM Mini3
              0x27de,  # RM Mini 3 (C)
-             0x5f36  # RM Mini 3
+             0x51da,  # RM4b
+             0x5f36,  # RM Mini 3
+             0x610f  # RM4c
              ],  
         a1: [0x2714],  # A1
         mp1: [0x4EB5,  # MP1
@@ -572,7 +574,7 @@ class rm(device):
     def __init__(self, host, mac, devtype):
         device.__init__(self, host, mac, devtype)
         self.type = "RM2"
-        if devtype == 0x5f36:
+        if devtype in [0x51da, 0x5f36, 0x610f]:
             self._request_header = b'\x04\x00'
             self._code_sending_header = b'\xd0\x00'
         else:
