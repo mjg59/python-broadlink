@@ -45,7 +45,7 @@ def gendevice(devtype, host, mac):
              0x278f,  # RM Mini Shate
              0x27c2,  # RM Mini 3
              0x27d1,  # new RM Mini3
-             0x27de,  # RM Mini 3 (C)
+             0x27de  # RM Mini 3 (C)
              ],
         rm4: [0x51da,  # RM4b
               0x5f36,  # RM Mini 3
