@@ -14,7 +14,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 
-def gendevice(devtype, host, mac):
+def gendevice(devtype, host, mac, name=None, cloud=None):
     devices = {
         sp1: [0],
         sp2: [0x2711,  # SP2
@@ -66,8 +66,8 @@ def gendevice(devtype, host, mac):
     # Look for the class associated to devtype in devices
     [device_class] = [dev for dev in devices if devtype in devices[dev]] or [None]
     if device_class is None:
-        return device(host=host, mac=mac, devtype=devtype)
-    return device_class(host=host, mac=mac, devtype=devtype)
+        return device(host, mac, devtype, name=name, cloud=cloud)
+    return device_class(host, mac, devtype, name=name, cloud=cloud)
 
 
 def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.255.255'):
@@ -128,10 +128,12 @@ def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.2
         response = cs.recvfrom(1024)
         responsepacket = bytearray(response[0])
         host = response[1]
-        mac = responsepacket[0x3a:0x40]
         devtype = responsepacket[0x34] | responsepacket[0x35] << 8
-
-        return gendevice(devtype, host, mac)
+        mac = responsepacket[0x3a:0x40]
+        name = responsepacket[0x40:].split(b'\x00')[0].decode('utf-8')
+        cloud = bool(responsepacket[-1])
+        device = gendevice(devtype, host, mac, name=name, cloud=cloud)
+        return device
 
     while (time.time() - starttime) < timeout:
         cs.settimeout(timeout - (time.time() - starttime))
@@ -143,16 +145,20 @@ def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.2
         host = response[1]
         devtype = responsepacket[0x34] | responsepacket[0x35] << 8
         mac = responsepacket[0x3a:0x40]
-        dev = gendevice(devtype, host, mac)
-        devices.append(dev)
+        name = responsepacket[0x40:].split(b'\x00')[0].decode('utf-8')
+        cloud = bool(responsepacket[-1])
+        device = gendevice(devtype, host, mac, name=name, cloud=cloud)
+        devices.append(device)
     return devices
 
 
 class device:
-    def __init__(self, host, mac, devtype, timeout=10):
+    def __init__(self, host, mac, devtype, timeout=10, name=None, cloud=None):
         self.host = host
         self.mac = mac.encode() if isinstance(mac, str) else mac
         self.devtype = devtype if devtype is not None else 0x272a
+        self.name = name
+        self.cloud = cloud
         self.timeout = timeout
         self.count = random.randrange(0xffff)
         self.iv = bytearray(
@@ -286,8 +292,8 @@ class device:
 
 
 class mp1(device):
-    def __init__(self, host, mac, devtype):
-        device.__init__(self, host, mac, devtype)
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
         self.type = "MP1"
 
     def set_power_mask(self, sid_mask, state):
@@ -350,8 +356,8 @@ class mp1(device):
 
 
 class bg1(device):
-    def __init__(self, host, mac, devtype):
-        device.__init__(self, host, mac, devtype)
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
         self.type = "BG1"
 
     def get_state(self):
@@ -417,8 +423,8 @@ class bg1(device):
         return state
 
 class sp1(device):
-    def __init__(self, host, mac, devtype):
-        device.__init__(self, host, mac, devtype)
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
         self.type = "SP1"
 
     def set_power(self, state):
@@ -428,8 +434,8 @@ class sp1(device):
 
 
 class sp2(device):
-    def __init__(self, host, mac, devtype):
-        device.__init__(self, host, mac, devtype)
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
         self.type = "SP2"
 
     def set_power(self, state):
@@ -494,8 +500,8 @@ class sp2(device):
 
 
 class a1(device):
-    def __init__(self, host, mac, devtype):
-        device.__init__(self, host, mac, devtype)
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
         self.type = "A1"
 
     def check_sensors(self):
@@ -574,8 +580,8 @@ class a1(device):
 
 
 class rm(device):
-    def __init__(self, host, mac, devtype):
-        device.__init__(self, host, mac, devtype)
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
         self.type = "RM2"
         self._request_header = bytes()
         self._code_sending_header = bytes()
@@ -652,8 +658,8 @@ class rm(device):
 
 
 class rm4(rm):
-    def __init__(self, host, mac, devtype):
-        device.__init__(self, host, mac, devtype)
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
         self.type = "RM4"
         self._request_header = b'\x04\x00'
         self._code_sending_header = b'\xd0\x00'
@@ -671,8 +677,8 @@ class rm2(rm):
 
 
 class hysen(device):
-    def __init__(self, host, mac, devtype):
-        device.__init__(self, host, mac, devtype)
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
         self.type = "Hysen heating controller"
 
     # Send a request
@@ -860,8 +866,8 @@ class S1C(device):
     Its VERY VERY VERY DIRTY IMPLEMENTATION of S1C
     """
 
-    def __init__(self, host, mac, devtype):
-        device.__init__(self, host, mac, devtype)
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
         self.type = 'S1C'
 
     def get_sensors_status(self):
@@ -906,8 +912,8 @@ class S1C(device):
 
 
 class dooya(device):
-    def __init__(self, host, mac, devtype):
-        device.__init__(self, host, mac, devtype)
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
         self.type = "Dooya DT360E"
 
     def _send(self, magic1, magic2):
