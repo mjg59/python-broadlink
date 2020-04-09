@@ -700,7 +700,7 @@ class hysen(device):
     # New behaviour: raises a ValueError if the device response indicates an error or CRC check fails
     # The function prepends length (2 bytes) and appends CRC
 
-    def calculate_crc16(input_data):
+    def calculate_crc16(self, input_data):
         from ctypes import c_ushort
         crc16_tab = []
         crc16_constant = 0xA001
