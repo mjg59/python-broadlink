@@ -760,7 +760,7 @@ class hysen(device):
         response_payload_len = response_payload[0]
         if response_payload_len + 2 > len(response_payload):
             raise ValueError('hysen_response_error', 'first byte of response is not length')
-        crc = CRC16(modbus_flag=True).calculate(bytes(response_payload[2:response_payload_len]))
+        crc = calculate_crc16(bytes(response_payload[2:response_payload_len]))
         if (response_payload[response_payload_len] == crc & 0xFF) and (
                 response_payload[response_payload_len + 1] == (crc >> 8) & 0xFF):
             return response_payload[2:response_payload_len]
