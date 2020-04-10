@@ -701,10 +701,44 @@ class hysen(device):
     # Returns decrypted payload
     # New behaviour: raises a ValueError if the device response indicates an error or CRC check fails
     # The function prepends length (2 bytes) and appends CRC
+
+    def calculate_crc16(self, input_data):
+        from ctypes import c_ushort
+        crc16_tab = []
+        crc16_constant = 0xA001
+
+        for i in range(0, 256):
+            crc = c_ushort(i).value
+            for j in range(0, 8):
+                if (crc & 0x0001):
+                    crc = c_ushort(crc >> 1).value ^ crc16_constant
+                else:
+                    crc = c_ushort(crc >> 1).value
+            crc16_tab.append(hex(crc))
+
+        try:
+            is_string = isinstance(input_data, str)
+            is_bytes = isinstance(input_data, bytes)
+
+            if not is_string and not is_bytes:
+                raise Exception("Please provide a string or a byte sequence "
+                                "as argument for calculation.")
+
+            crcValue = 0xffff
+
+            for c in input_data:
+                d = ord(c) if is_string else c
+                tmp = crcValue ^ d
+                rotated = c_ushort(crcValue >> 8).value
+                crcValue = rotated ^ int(crc16_tab[(tmp & 0x00ff)], 0)
+
+            return crcValue
+        except Exception as e:
+            print("EXCEPTION(calculate): {}".format(e))
+
     def send_request(self, input_payload):
 
-        from PyCRC.CRC16 import CRC16
-        crc = CRC16(modbus_flag=True).calculate(bytes(input_payload))
+        crc = calculate_crc16(bytes(input_payload))
 
         # first byte is length, +2 for CRC16
         request_payload = bytearray([len(input_payload) + 2, 0x00])
@@ -728,7 +762,7 @@ class hysen(device):
         response_payload_len = response_payload[0]
         if response_payload_len + 2 > len(response_payload):
             raise ValueError('hysen_response_error', 'first byte of response is not length')
-        crc = CRC16(modbus_flag=True).calculate(bytes(response_payload[2:response_payload_len]))
+        crc = calculate_crc16(bytes(response_payload[2:response_payload_len]))
         if (response_payload[response_payload_len] == crc & 0xFF) and (
                 response_payload[response_payload_len + 1] == (crc >> 8) & 0xFF):
             return response_payload[2:response_payload_len]
