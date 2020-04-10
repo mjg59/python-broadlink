@@ -1,11 +1,12 @@
-Python control for Broadlink RM2 IR controllers
+Python control for Broadlink RM2, RM3 and RM4 series controllers
 ===============================================
 
-A simple Python API for controlling IR controllers from [Broadlink](http://www.ibroadlink.com/rm/). At present, the following devices are currently supported:
+A simple Python API for controlling IR/RF controllers from [Broadlink](http://www.ibroadlink.com/rm/). At present, the following devices are currently supported:
 
 * RM Pro (referred to as RM2 in the codebase)
 * A1 sensor platform devices are supported
 * RM3 mini IR blaster
+* RM4 and RM4C mini blasters
 
 There is currently no support for the cloud API.
 
