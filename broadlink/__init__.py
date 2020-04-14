@@ -265,7 +265,7 @@ class device:
 
         # pad the payload for AES encryption
         if payload:
-            payload += bytearray(16 - len(payload)%16)
+            payload += bytearray((16 - len(payload)) % 16)
 
         checksum = adler32(payload, 0xbeaf) & 0xffff
         packet[0x34] = checksum & 0xff
