@@ -49,9 +49,10 @@ def gendevice(devtype, host, mac, name=None, cloud=None):
              ],
         rm4: [0x51da,  # RM4b
               0x5f36,  # RM Mini 3
-              0x610e,  # RM4 mini
+              0x6026,  # RM4 Pro
+              0x610e,  # RM4 Mini
               0x610f,  # RM4c
-              0x62bc,  # RM4 mini
+              0x62bc,  # RM4 Mini
               0x62be  # RM4c
               ],
         a1: [0x2714],  # A1
