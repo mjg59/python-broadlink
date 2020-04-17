@@ -63,7 +63,7 @@ def gendevice(devtype, host, mac, name=None, cloud=None):
         S1C: [0x2722],  # S1 (SmartOne Alarm Kit)
         dooya: [0x4E4D],  # Dooya DT360E (DOOYA_CURTAIN_V2)
         bg1: [0x51E3], # BG Electrical Smart Power Socket
-        lb1 : [0x60c8]   # RGB Smart Bulb
+        lb1 : [0x60c7,0x60c8]   # White and RGB Smart Bulb
     }
 
     # Look for the class associated to devtype in devices
