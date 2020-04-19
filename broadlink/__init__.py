@@ -1047,7 +1047,7 @@ class lb1(device):
 
         checksum = 0xbeaf
         for b in packet:
-            checksum += (checksum + b) & 0xffff
+            checksum = (checksum + b) & 0xffff
 
         packet[0x00] = (0x0c + len(command)) & 0xff
         packet[0x06] = checksum & 0xff  # Checksum 1 position
@@ -1106,7 +1106,7 @@ def setup(ssid, password, security_mode):
 
     checksum = 0xbeaf
     for b in payload:
-        checksum += (checksum + b) & 0xffff
+        checksum = (checksum + b) & 0xffff
 
     payload[0x20] = checksum & 0xff  # Checksum 1 position
     payload[0x21] = checksum >> 8  # Checksum 2 position
