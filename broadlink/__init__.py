@@ -70,7 +70,7 @@ def gendevice(devtype, host, mac, name=None, cloud=None):
     [device_class] = [dev for dev in devices if devtype in devices[dev]] or [None]
     if device_class is None:
         return device(host, mac, devtype, name=name, cloud=cloud)
-    return device_class(host, mac, devtype) #,name=name, cloud=cloud)
+    return device_class(host, mac, devtype, name=name, cloud=cloud)
 
 
 def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.255.255'):
