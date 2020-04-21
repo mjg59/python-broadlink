@@ -1067,12 +1067,12 @@ class lb1(device):
         cmd = '{"brightness":%d}' % state
         self.send_command(cmd)
 
-    def set_power(self, state): #santox
+    def set_power(self, state):
         self.set_brightness(100)
         self.set_state(state)
 
-    def check_power(self): #santox
-        print("state",self.get_state())
+    def check_power(self):
+        return self.get_state()
 
 
     def get_state(self):
