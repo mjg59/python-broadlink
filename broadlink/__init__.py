@@ -63,7 +63,7 @@ def gendevice(devtype, host, mac, name=None, cloud=None):
         dooya: [0x4E4D],  # Dooya DT360E (DOOYA_CURTAIN_V2)
         bg1: [0x51E3], # BG Electrical Smart Power Socket
         lb1 : [0x60c8], # RGB Smart Bulb
-        bsl1 : [0x5043] # BSL1 Smart Bulb, tested on Clas Ohlson branded device
+        bsl1 : [0x5043] # OEM branded BSL1
                
     }
 
@@ -1082,8 +1082,7 @@ class lb1(device):
         cmd = "{}"
         self.send_command(cmd)
         return self.state_dict
-
-# BSL1 Smart Bulb, tested on a Clas Ohlson branded product    
+  
 class bsl1(device):
     state_dict = []
 
