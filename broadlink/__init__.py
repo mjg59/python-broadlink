@@ -49,7 +49,6 @@ def gendevice(devtype, host, mac, name=None, cloud=None):
         rm4: [0x51da,  # RM4 Mini
               0x5f36,  # RM Mini 3
               0x6026,  # RM4 Pro
-              0x6070,  # RM4c Mini
               0x610e,  # RM4 Mini
               0x610f,  # RM4c
               0x62bc,  # RM4 Mini
@@ -63,7 +62,9 @@ def gendevice(devtype, host, mac, name=None, cloud=None):
         S1C: [0x2722],  # S1 (SmartOne Alarm Kit)
         dooya: [0x4E4D],  # Dooya DT360E (DOOYA_CURTAIN_V2)
         bg1: [0x51E3], # BG Electrical Smart Power Socket
-        lb1 : [0x60c8]   # RGB Smart Bulb
+        lb1 : [0x60c8, # RGB Smart Bulb
+                0x5043 # Clas Ohlson branded Smart Bulb
+              ]   
     }
 
     # Look for the class associated to devtype in devices
@@ -139,7 +140,6 @@ def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.2
         name = responsepacket[0x40:].split(b'\x00')[0].decode('utf-8')
         cloud = bool(responsepacket[-1])
         device = gendevice(devtype, host, mac, name=name, cloud=cloud)
-        cs.close()
         return device
 
     while (time.time() - starttime) < timeout:
@@ -147,7 +147,6 @@ def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.2
         try:
             response = cs.recvfrom(1024)
         except socket.timeout:
-            cs.close()
             return devices
         responsepacket = bytearray(response[0])
         host = response[1]
@@ -157,7 +156,6 @@ def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.2
         cloud = bool(responsepacket[-1])
         device = gendevice(devtype, host, mac, name=name, cloud=cloud)
         devices.append(device)
-    cs.close()
     return devices
 
 
@@ -173,6 +171,10 @@ class device:
         self.iv = bytearray(
             [0x56, 0x2e, 0x17, 0x99, 0x6d, 0x09, 0x3d, 0x28, 0xdd, 0xb3, 0xba, 0x69, 0x5a, 0x2e, 0x6f, 0x58])
         self.id = bytearray([0, 0, 0, 0])
+        self.cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.cs.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        self.cs.bind(('', 0))
         self.type = "Unknown"
         self.lock = threading.Lock()
 
@@ -290,20 +292,15 @@ class device:
 
         start_time = time.time()
         with self.lock:
-            cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
             while True:
                 try:
-                    cs.sendto(packet, self.host)
-                    cs.settimeout(1)
-                    response = cs.recvfrom(2048)
+                    self.cs.sendto(packet, self.host)
+                    self.cs.settimeout(1)
+                    response = self.cs.recvfrom(2048)
                     break
                 except socket.timeout:
                     if (time.time() - start_time) > self.timeout:
                         raise
-                finally:
-                    cs.close()
         return bytearray(response[0])
 
 
@@ -1035,7 +1032,7 @@ class lb1(device):
                         'color jumping' : 6,
                         'multicolor jumping' : 7 }
 
-    def __init__(self, host, mac, devtype):
+    def __init__(self, host, mac, devtype, name, cloud):
         device.__init__(self, host, mac, devtype)
         self.type = "SmartBulb"
 
@@ -1080,7 +1077,11 @@ class lb1(device):
     def set_state(self, state):
         cmd = '{"pwr":%d}' % (1 if state == "ON" or state == 1 else 0)
         self.send_command(cmd)
-
+#################################
+    def set_cmd(self, key, state):
+        cmd = '{"%s":%d}' % (key,state)
+        self.send_command(cmd)
+###################################
     def get_state(self):
         cmd = "{}"
         self.send_command(cmd)
@@ -1121,4 +1122,3 @@ def setup(ssid, password, security_mode):
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     sock.sendto(payload, ('255.255.255.255', 80))
-    sock.close()
