@@ -116,22 +116,22 @@ Check power state on a Clas Ohlson SmartBulb:
 state = devices[0].get_state().get("pwr")
 ```
 
-Check the over all state on a Clas Ohlson SmartBulb:
+Check the over all state on a BSL1 SmartBulb:
 ```
 state = devices[0].get_state()
 ```
 
-Toggle power state on a CO SmartBulb:
+Toggle power state on a BSL1:
 ```
 devices[0].set_state(1) # to turn on
 devices[0].set_state(0) # to turn off
 ```
 
-Change brightness state on a CO SmartBubl (from 1 to 100):
+Change brightness state on a BSL1 (from 1 to 100):
 ```
 devices[0].set_cmd("brightness",40)
 ```
-Change color temperature state on a CO SmartBubl (from 2700 to 6500):
+Change color temperature state on a BSL1 (from 2700 to 6500):
 ```
 devices[0].set_cmd("colortemp",3500)
 ```
