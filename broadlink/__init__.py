@@ -62,9 +62,9 @@ def gendevice(devtype, host, mac, name=None, cloud=None):
         S1C: [0x2722],  # S1 (SmartOne Alarm Kit)
         dooya: [0x4E4D],  # Dooya DT360E (DOOYA_CURTAIN_V2)
         bg1: [0x51E3], # BG Electrical Smart Power Socket
-        lb1 : [0x60c8, # RGB Smart Bulb
-                0x5043 # Clas Ohlson branded Smart Bulb
-              ]   
+        lb1 : [0x60c8], # RGB Smart Bulb
+        bsl1 : [0x5043] # BSL1 Smart Bulb, tested on Clas Ohlson branded device
+               
     }
 
     # Look for the class associated to devtype in devices
@@ -1032,7 +1032,7 @@ class lb1(device):
                         'color jumping' : 6,
                         'multicolor jumping' : 7 }
 
-    def __init__(self, host, mac, devtype, name, cloud):
+    def __init__(self, host, mac, devtype):
         device.__init__(self, host, mac, devtype)
         self.type = "SmartBulb"
 
@@ -1077,16 +1077,63 @@ class lb1(device):
     def set_state(self, state):
         cmd = '{"pwr":%d}' % (1 if state == "ON" or state == 1 else 0)
         self.send_command(cmd)
-#################################
-    def set_cmd(self, key, state):
-        cmd = '{"%s":%d}' % (key,state)
-        self.send_command(cmd)
-###################################
+
     def get_state(self):
         cmd = "{}"
         self.send_command(cmd)
         return self.state_dict
 
+# BSL1 Smart Bulb, tested on a Clas Ohlson branded product    
+class bsl1(device):
+    state_dict = []
+
+    def __init__(self, host, mac, devtype, name, cloud):
+        device.__init__(self, host, mac, devtype)
+        self.type = "BSL1"
+
+    def send_command(self,command, type = 'set'):
+        packet = bytearray(16+(int(len(command)/16) + 1)*16)
+        packet[0x02] = 0xa5
+        packet[0x03] = 0xa5
+        packet[0x04] = 0x5a
+        packet[0x05] = 0x5a
+        packet[0x08] = 0x02 if type == "set" else 0x01 # 0x01 => query, # 0x02 => set
+        packet[0x09] = 0x0b
+        packet[0x0a] = len(command)
+        packet[0x0e:] = map(ord, command)
+
+        checksum = 0xbeaf
+        for b in packet:
+            checksum = (checksum + b) & 0xffff
+
+        packet[0x00] = (0x0c + len(command)) & 0xff
+        packet[0x06] = checksum & 0xff  # Checksum 1 position
+        packet[0x07] = checksum >> 8  # Checksum 2 position
+
+        response = self.send_packet(0x6a, packet)
+
+        err = response[0x36] | (response[0x37] << 8)
+        if err != 0:
+            return None
+        payload = self.decrypt(bytes(response[0x38:]))
+
+        responseLength = int(payload[0x0a]) | (int(payload[0x0b]) << 8)
+        if responseLength > 0:
+            self.state_dict = json.loads(payload[0x0e:0x0e+responseLength])
+
+    def set_state(self, state):
+        cmd = '{"pwr":%d}' % (1 if state == "ON" or state == 1 else 0)
+        self.send_command(cmd)
+
+    def set_cmd(self, key, state):
+        cmd = '{"%s":%d}' % (key,state)
+        self.send_command(cmd)
+
+    def get_state(self):
+        cmd = "{}"
+        self.send_command(cmd)
+        return self.state_dict
+    
 # Setup a new Broadlink device via AP Mode. Review the README to see how to enter AP Mode.
 # Only tested with Broadlink RM3 Mini (Blackbean)
 def setup(ssid, password, security_mode):
