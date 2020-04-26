@@ -111,12 +111,12 @@ Check power state on a SmartPowerStrip:
 state = devices[0].check_power()
 ```
 
-Check power state on a Clas Ohlson SmartBulb:
+Check power state on a OEM BSL1 SmartBulb:
 ```
 state = devices[0].get_state().get("pwr")
 ```
 
-Check the over all state on a BSL1 SmartBulb:
+Check the over all state on a BSL1:
 ```
 state = devices[0].get_state()
 ```
