@@ -140,6 +140,7 @@ def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.2
         name = responsepacket[0x40:].split(b'\x00')[0].decode('utf-8')
         cloud = bool(responsepacket[-1])
         device = gendevice(devtype, host, mac, name=name, cloud=cloud)
+        cs.close()
         return device
 
     while (time.time() - starttime) < timeout:
@@ -147,6 +148,7 @@ def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.2
         try:
             response = cs.recvfrom(1024)
         except socket.timeout:
+            cs.close
             return devices
         responsepacket = bytearray(response[0])
         host = response[1]
@@ -156,6 +158,7 @@ def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.2
         cloud = bool(responsepacket[-1])
         device = gendevice(devtype, host, mac, name=name, cloud=cloud)
         devices.append(device)
+    cs.close()
     return devices
 
 
@@ -292,8 +295,13 @@ class device:
 
         start_time = time.time()
         with self.lock:
+            cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             while True:
                 try:
+                    cs.sendto(packet, self.host)
+                    cs.settimeout(1)
+                    response = cs.recvfrom(2048)
                     self.cs.sendto(packet, self.host)
                     self.cs.settimeout(1)
                     response = self.cs.recvfrom(2048)
@@ -301,6 +309,8 @@ class device:
                 except socket.timeout:
                     if (time.time() - start_time) > self.timeout:
                         raise
+                finally:
+                    cs.close()
         return bytearray(response[0])
 
 
@@ -1168,3 +1178,4 @@ def setup(ssid, password, security_mode):
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     sock.sendto(payload, ('255.255.255.255', 80))
+    sock.close()
