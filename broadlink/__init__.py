@@ -148,7 +148,7 @@ def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.2
         try:
             response = cs.recvfrom(1024)
         except socket.timeout:
-            cs.close
+            cs.close()
             return devices
         responsepacket = bytearray(response[0])
         host = response[1]
