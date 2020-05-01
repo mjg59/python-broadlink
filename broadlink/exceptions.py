@@ -2,7 +2,7 @@
 
 
 class BroadlinkException(Exception):
-    """Common base class for all Broadllink exceptions."""
+    """Common base class for all Broadlink exceptions."""
     pass
 
 
