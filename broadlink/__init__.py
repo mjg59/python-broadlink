@@ -1033,7 +1033,7 @@ class lb1(device):
         packet[0x07] = checksum >> 8  # Checksum 2 position
 
         response = self.send_packet(0x6a, packet)
-        check_error(response[0x36:0x37])
+        check_error(response[0x36:0x38])
         payload = self.decrypt(bytes(response[0x38:]))
 
         responseLength = int(payload[0x0a]) | (int(payload[0x0b]) << 8)
