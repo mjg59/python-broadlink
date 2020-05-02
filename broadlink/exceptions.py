@@ -93,6 +93,5 @@ def exception(error_code):
 def check_error(error):
     """Raise exception if an error occurred."""
     error_code = error[0] | (error[1] << 8)
-    if not error_code:
-        return
-    raise exception(error_code)
+    if error_code:
+        raise exception(error_code)
