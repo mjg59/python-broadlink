@@ -86,7 +86,7 @@ def exception(error_code):
     try:
         exc, msg = FIRMWARE_ERRORS[error_code]
         return exc(msg)
-    except IndexError:
+    except KeyError:
         return UnknownError("Unknown error: " + hex(error_code))
 
 
