@@ -301,9 +301,9 @@ class device:
                     break
                 except socket.timeout:
                     if (time.time() - start_time) > self.timeout:
+                        cs.close()
                         raise
-                finally:
-                    cs.close()
+            cs.close()
         return bytearray(response[0])
 
 
