@@ -1000,8 +1000,8 @@ class dooya(device):
         self.stop()
 
 class wistar(device):
-    def __init__(self, host, mac, devtype):
-        device.__init__(self, host, mac, devtype)
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
         self.type = "Wistar curtain"
 
     def _send(self, command, data):
@@ -1028,7 +1028,7 @@ class wistar(device):
         payload = self.decrypt(bytes(response[0x38:]))
         return payload
         
-    def get_position(self):
+    def get_percentage(self):
         response = self._send(0x01, [])
         position = ord(response[14])
         return position
@@ -1048,10 +1048,25 @@ class wistar(device):
         position = ord(response[14])
         return position
 
-    def set(self, position):
+    def set_percentage(self, position):
         response = self._send(0x02, [position, 0x70, 0xa0])
         position = ord(response[14])
         return position
+
+    def set_percentage_and_wait(self, new_percentage):
+        current = self.get_percentage()
+        if current > new_percentage:
+            self.set_percentage(new_percentage)
+            while current is not None and current > new_percentage:
+                time.sleep(0.2)
+                current = self.get_percentage()
+
+        elif current < new_percentage:
+            self.set_percentage(new_percentage)
+            while current is not None and current < new_percentage:
+                time.sleep(0.2)
+                current = self.get_percentage()
+        self.stop()
 
 class lb1(device):
     state_dict = []
