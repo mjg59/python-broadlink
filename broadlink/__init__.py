@@ -1052,7 +1052,7 @@ class wistar(device):
         response = self._send(0x02, [position, 0x70, 0xa0])
         position = ord(response[14])
         return position
-=======
+
 class lb1(device):
     state_dict = []
     effect_map_dict = { 'lovely color' : 0,
