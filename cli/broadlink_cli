@@ -6,6 +6,7 @@ import codecs
 import time
 
 import broadlink
+from broadlink.exceptions import ReadError
 
 TICK = 32.84
 IR_TOKEN = 0x26
@@ -85,7 +86,7 @@ parser.add_argument("--learnfile", help="save learned command to a specified fil
 parser.add_argument("--durations", action="store_true",
                     help="use durations in micro seconds instead of the Broadlink format")
 parser.add_argument("--convert", action="store_true", help="convert input data to durations")
-parser.add_argument("--joinwifi", nargs=2, help="Args are SSID PASSPHRASE to configure Broadlink device with");
+parser.add_argument("--joinwifi", nargs=2, help="Args are SSID PASSPHRASE to configure Broadlink device with")
 parser.add_argument("data", nargs='*', help="Data to send or convert")
 args = parser.parse_args()
 
@@ -131,10 +132,14 @@ if args.learn or args.learnfile:
     data = None
     print("Learning...")
     timeout = 30
-    while (data is None) and (timeout > 0):
-        time.sleep(2)
-        timeout -= 2
-        data = dev.check_data()
+    while (timeout > 0):
+        try:
+            data = dev.check_data()
+        except ReadError:
+            time.sleep(2)
+            timeout -= 2
+        else:
+            break
     if data:
         learned = format_durations(to_microseconds(bytearray(data))) \
             if args.durations \
@@ -217,10 +222,14 @@ if args.rfscanlearn:
     data = None
     timeout = 20
 
-    while (data is None) and (timeout > 0):
-        time.sleep(1)
-        timeout -= 1
-        data = dev.check_data()
+    while (timeout > 0):
+        try:
+            data = dev.check_data()
+        except ReadError:
+            time.sleep(1)
+            timeout -= 1
+        else:
+            break
 
     if data:
         print("Found RF Frequency - 2 of 2!")
