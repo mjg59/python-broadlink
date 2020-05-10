@@ -1,8 +1,10 @@
 #!/usr/bin/python
 
 import codecs
+import json
 import random
 import socket
+import struct
 import threading
 import time
 from datetime import datetime
@@ -10,8 +12,9 @@ from datetime import datetime
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
+from .exceptions import check_error, exception
 
-def gendevice(devtype, host, mac):
+def gendevice(devtype, host, mac, name=None, cloud=None):
     devices = {
         sp1: [0],
         sp2: [0x2711,  # SP2
@@ -40,8 +43,19 @@ def gendevice(devtype, host, mac):
              0x27a1,  # RM2 Pro Plus R1
              0x27a6,  # RM2 Pro PP
              0x278f,  # RM Mini Shate
-             0x27c2  # RM Mini 3
+             0x27c2,  # RM Mini 3
+             0x27d1,  # new RM Mini3
+             0x27de  # RM Mini 3 (C)
              ],
+        rm4: [0x51da,  # RM4 Mini
+              0x5f36,  # RM Mini 3
+              0x6026,  # RM4 Pro
+              0x6070,  # RM4c Mini
+              0x610e,  # RM4 Mini
+              0x610f,  # RM4c
+              0x62bc,  # RM4 Mini
+              0x62be  # RM4c Mini
+              ],
         a1: [0x2714],  # A1
         mp1: [0x4EB5,  # MP1
               0x4EF7  # Honyar oem mp1
@@ -49,17 +63,19 @@ def gendevice(devtype, host, mac):
         hysen: [0x4EAD],  # Hysen controller
         S1C: [0x2722],  # S1 (SmartOne Alarm Kit)
         dooya: [0x4E4D],  # Dooya DT360E (DOOYA_CURTAIN_V2)
-        wistar: [0x4f6c]  # Wistart wi-fi curtain
+        wistar: [0x4f6c],  # Wistart wi-fi curtain
+        bg1: [0x51E3], # BG Electrical Smart Power Socket
+        lb1 : [0x60c8]   # RGB Smart Bulb
     }
 
     # Look for the class associated to devtype in devices
     [device_class] = [dev for dev in devices if devtype in devices[dev]] or [None]
     if device_class is None:
-        return device(host=host, mac=mac, devtype=devtype)
-    return device_class(host=host, mac=mac, devtype=devtype)
+        return device(host, mac, devtype, name=name, cloud=cloud)
+    return device_class(host, mac, devtype, name=name, cloud=cloud)
 
 
-def discover(timeout=None, local_ip_address=None):
+def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.255.255'):
     if local_ip_address is None:
         local_ip_address = socket.gethostbyname(socket.gethostname())
     if local_ip_address.startswith('127.'):
@@ -107,53 +123,58 @@ def discover(timeout=None, local_ip_address=None):
     packet[0x1c] = port & 0xff
     packet[0x1d] = port >> 8
     packet[0x26] = 6
+    
     checksum = 0xbeaf
+    for b in packet:
+        checksum = (checksum + b) & 0xffff
 
-    for i in range(len(packet)):
-        checksum += packet[i]
-    checksum = checksum & 0xffff
     packet[0x20] = checksum & 0xff
     packet[0x21] = checksum >> 8
 
-    cs.sendto(packet, ('255.255.255.255', 80))
+    cs.sendto(packet, (discover_ip_address, 80))
     if timeout is None:
         response = cs.recvfrom(1024)
         responsepacket = bytearray(response[0])
         host = response[1]
-        mac = responsepacket[0x3a:0x40]
         devtype = responsepacket[0x34] | responsepacket[0x35] << 8
-
-        return gendevice(devtype, host, mac)
+        mac = responsepacket[0x3a:0x40]
+        name = responsepacket[0x40:].split(b'\x00')[0].decode('utf-8')
+        cloud = bool(responsepacket[-1])
+        device = gendevice(devtype, host, mac, name=name, cloud=cloud)
+        cs.close()
+        return device
 
     while (time.time() - starttime) < timeout:
         cs.settimeout(timeout - (time.time() - starttime))
         try:
             response = cs.recvfrom(1024)
         except socket.timeout:
+            cs.close()
             return devices
         responsepacket = bytearray(response[0])
         host = response[1]
         devtype = responsepacket[0x34] | responsepacket[0x35] << 8
         mac = responsepacket[0x3a:0x40]
-        dev = gendevice(devtype, host, mac)
-        devices.append(dev)
+        name = responsepacket[0x40:].split(b'\x00')[0].decode('utf-8')
+        cloud = bool(responsepacket[-1])
+        device = gendevice(devtype, host, mac, name=name, cloud=cloud)
+        devices.append(device)
+    cs.close()
     return devices
 
 
 class device:
-    def __init__(self, host, mac, devtype, timeout=10):
+    def __init__(self, host, mac, devtype, timeout=10, name=None, cloud=None):
         self.host = host
         self.mac = mac.encode() if isinstance(mac, str) else mac
-        self.devtype = devtype
+        self.devtype = devtype if devtype is not None else 0x272a
+        self.name = name
+        self.cloud = cloud
         self.timeout = timeout
         self.count = random.randrange(0xffff)
         self.iv = bytearray(
             [0x56, 0x2e, 0x17, 0x99, 0x6d, 0x09, 0x3d, 0x28, 0xdd, 0xb3, 0xba, 0x69, 0x5a, 0x2e, 0x6f, 0x58])
         self.id = bytearray([0, 0, 0, 0])
-        self.cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.cs.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        self.cs.bind(('', 0))
         self.type = "Unknown"
         self.lock = threading.Lock()
 
@@ -202,11 +223,8 @@ class device:
         payload[0x36] = ord('1')
 
         response = self.send_packet(0x65, payload)
-
+        check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
-
-        if not payload:
-            return False
 
         key = payload[0x04:0x14]
         if len(key) % 16 != 0:
@@ -231,8 +249,8 @@ class device:
         packet[0x05] = 0xa5
         packet[0x06] = 0xaa
         packet[0x07] = 0x55
-        packet[0x24] = 0x2a
-        packet[0x25] = 0x27
+        packet[0x24] = self.devtype & 0xff
+        packet[0x25] = self.devtype >> 8
         packet[0x26] = command
         packet[0x28] = self.count & 0xff
         packet[0x29] = self.count >> 8
@@ -249,46 +267,48 @@ class device:
 
         # pad the payload for AES encryption
         if payload:
-            numpad = (len(payload) // 16 + 1) * 16
-            payload = payload.ljust(numpad, b"\x00")
+            payload += bytearray((16 - len(payload)) % 16)
 
         checksum = 0xbeaf
-        for i in range(len(payload)):
-            checksum += payload[i]
-            checksum = checksum & 0xffff
-
-        payload = self.encrypt(payload)
+        for b in payload:
+            checksum = (checksum + b) & 0xffff
 
         packet[0x34] = checksum & 0xff
         packet[0x35] = checksum >> 8
 
+        payload = self.encrypt(payload)
         for i in range(len(payload)):
             packet.append(payload[i])
 
         checksum = 0xbeaf
-        for i in range(len(packet)):
-            checksum += packet[i]
-            checksum = checksum & 0xffff
+        for b in packet:
+            checksum = (checksum + b) & 0xffff
+
         packet[0x20] = checksum & 0xff
         packet[0x21] = checksum >> 8
 
         start_time = time.time()
         with self.lock:
+            cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
             while True:
                 try:
-                    self.cs.sendto(packet, self.host)
-                    self.cs.settimeout(1)
-                    response = self.cs.recvfrom(2048)
+                    cs.sendto(packet, self.host)
+                    cs.settimeout(1)
+                    response = cs.recvfrom(2048)
                     break
                 except socket.timeout:
                     if (time.time() - start_time) > self.timeout:
-                        raise
+                        cs.close()
+                        raise exception(0xfffd)
+            cs.close()
         return bytearray(response[0])
 
 
 class mp1(device):
-    def __init__(self, host, mac, devtype):
-        device.__init__(self, host, mac, devtype)
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
         self.type = "MP1"
 
     def set_power_mask(self, sid_mask, state):
@@ -307,7 +327,8 @@ class mp1(device):
         packet[0x0d] = sid_mask
         packet[0x0e] = sid_mask if state else 0
 
-        self.send_packet(0x6a, packet)
+        response = self.send_packet(0x6a, packet)
+        check_error(response[0x22:0x24])
 
     def set_power(self, sid, state):
         """Sets the power state of the smart power strip."""
@@ -327,9 +348,7 @@ class mp1(device):
         packet[0x08] = 0x01
 
         response = self.send_packet(0x6a, packet)
-        err = response[0x22] | (response[0x23] << 8)
-        if err != 0:
-            return None
+        check_error(response[0x22:0x24])
         payload = self.decrypt(bytes(response[0x38:]))
         if isinstance(payload[0x4], int):
             state = payload[0x0e]
@@ -350,20 +369,89 @@ class mp1(device):
         return data
 
 
+class bg1(device):
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
+        self.type = "BG1"
+
+    def get_state(self):
+        """Get state of device.
+        
+        Returns:
+            dict: Dictionary of current state
+            eg. `{"pwr":1,"pwr1":1,"pwr2":0,"maxworktime":60,"maxworktime1":60,"maxworktime2":0,"idcbrightness":50}`"""
+        packet = self._encode(1, b'{}')
+        response = self.send_packet(0x6a, packet)
+        check_error(response[0x22:0x24])
+        return self._decode(response)
+
+    def set_state(self, pwr=None, pwr1=None, pwr2=None, maxworktime=None, maxworktime1=None, maxworktime2=None, idcbrightness=None):
+        data = {}
+        if pwr is not None:
+            data['pwr'] = int(bool(pwr))
+        if pwr1 is not None:
+            data['pwr1'] = int(bool(pwr1))
+        if pwr2 is not None:
+            data['pwr2'] = int(bool(pwr2))
+        if maxworktime is not None:
+            data['maxworktime'] = maxworktime
+        if maxworktime1 is not None:
+            data['maxworktime1'] = maxworktime1
+        if maxworktime2 is not None:
+            data['maxworktime2'] = maxworktime2
+        if idcbrightness is not None:
+            data['idcbrightness'] = idcbrightness
+        js = json.dumps(data).encode('utf8')
+        packet = self._encode(2, js)
+        response = self.send_packet(0x6a, packet)
+        check_error(response[0x22:0x24])
+        return self._decode(response)
+
+    def _encode(self, flag, js):
+        # packet format is:
+        # 0x00-0x01 length
+        # 0x02-0x05 header
+        # 0x06-0x07 00
+        # 0x08 flag (1 for read or 2 write?)
+        # 0x09 unknown (0xb)
+        # 0x0a-0x0d length of json
+        # 0x0e- json data
+        packet = bytearray(14)
+        length = 4 + 2 + 2 + 4 + len(js)
+        struct.pack_into('<HHHHBBI', packet, 0, length, 0xa5a5, 0x5a5a, 0x0000, flag, 0x0b, len(js))
+        for i in range(len(js)):
+            packet.append(js[i])
+
+        checksum = 0xc0ad
+        for b in packet[0x08:]:
+            checksum = (checksum + b) & 0xffff
+
+        packet[0x06] = checksum & 0xff
+        packet[0x07] = checksum >> 8
+
+        return packet
+
+    def _decode(self, response):
+        payload = self.decrypt(bytes(response[0x38:]))
+        js_len = struct.unpack_from('<I', payload, 0x0a)[0]
+        state = json.loads(payload[0x0e:0x0e+js_len])
+        return state
+
 class sp1(device):
-    def __init__(self, host, mac, devtype):
-        device.__init__(self, host, mac, devtype)
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
         self.type = "SP1"
 
     def set_power(self, state):
         packet = bytearray(4)
         packet[0] = state
-        self.send_packet(0x66, packet)
+        response = self.send_packet(0x66, packet)
+        check_error(response[0x22:0x24])
 
 
 class sp2(device):
-    def __init__(self, host, mac, devtype):
-        device.__init__(self, host, mac, devtype)
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
         self.type = "SP2"
 
     def set_power(self, state):
@@ -374,7 +462,8 @@ class sp2(device):
             packet[4] = 3 if state else 2
         else:
             packet[4] = 1 if state else 0
-        self.send_packet(0x6a, packet)
+        response = self.send_packet(0x6a, packet)
+        check_error(response[0x22:0x24])
 
     def set_nightlight(self, state):
         """Sets the night light state of the smart plug"""
@@ -384,16 +473,15 @@ class sp2(device):
             packet[4] = 3 if state else 1
         else:
             packet[4] = 2 if state else 0
-        self.send_packet(0x6a, packet)
+        response = self.send_packet(0x6a, packet)
+        check_error(response[0x22:0x24])
 
     def check_power(self):
         """Returns the power state of the smart plug."""
         packet = bytearray(16)
         packet[0] = 1
         response = self.send_packet(0x6a, packet)
-        err = response[0x22] | (response[0x23] << 8)
-        if err != 0:
-            return None
+        check_error(response[0x22:0x24])
         payload = self.decrypt(bytes(response[0x38:]))
         if isinstance(payload[0x4], int):
             return bool(payload[0x4] == 1 or payload[0x4] == 3 or payload[0x4] == 0xFD)
@@ -404,9 +492,7 @@ class sp2(device):
         packet = bytearray(16)
         packet[0] = 1
         response = self.send_packet(0x6a, packet)
-        err = response[0x22] | (response[0x23] << 8)
-        if err != 0:
-            return None
+        check_error(response[0x22:0x24])
         payload = self.decrypt(bytes(response[0x38:]))
         if isinstance(payload[0x4], int):
             return bool(payload[0x4] == 2 or payload[0x4] == 3 or payload[0x4] == 0xFF)
@@ -415,9 +501,7 @@ class sp2(device):
     def get_energy(self):
         packet = bytearray([8, 0, 254, 1, 5, 1, 0, 0, 0, 45])
         response = self.send_packet(0x6a, packet)
-        err = response[0x22] | (response[0x23] << 8)
-        if err != 0:
-            return None
+        check_error(response[0x22:0x24])
         payload = self.decrypt(bytes(response[0x38:]))
         if isinstance(payload[0x7], int):
             energy = int(hex(payload[0x07] * 256 + payload[0x06])[2:]) + int(hex(payload[0x05])[2:]) / 100.0
@@ -428,17 +512,15 @@ class sp2(device):
 
 
 class a1(device):
-    def __init__(self, host, mac, devtype):
-        device.__init__(self, host, mac, devtype)
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
         self.type = "A1"
 
     def check_sensors(self):
         packet = bytearray(16)
         packet[0] = 1
         response = self.send_packet(0x6a, packet)
-        err = response[0x22] | (response[0x23] << 8)
-        if err != 0:
-            return None
+        check_error(response[0x22:0x24])
         data = {}
         payload = self.decrypt(bytes(response[0x38:]))
         if isinstance(payload[0x4], int):
@@ -487,9 +569,7 @@ class a1(device):
         packet = bytearray(16)
         packet[0] = 1
         response = self.send_packet(0x6a, packet)
-        err = response[0x22] | (response[0x23] << 8)
-        if err != 0:
-            return None
+        check_error(response[0x22:0x24])
         data = {}
         payload = self.decrypt(bytes(response[0x38:]))
         if isinstance(payload[0x4], int):
@@ -508,78 +588,99 @@ class a1(device):
 
 
 class rm(device):
-    def __init__(self, host, mac, devtype):
-        device.__init__(self, host, mac, devtype)
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
         self.type = "RM2"
+        self._request_header = bytes()
+        self._code_sending_header = bytes()
 
     def check_data(self):
-        packet = bytearray(16)
-        packet[0] = 4
+        packet = bytearray(self._request_header)
+        packet.append(0x04)
         response = self.send_packet(0x6a, packet)
-        err = response[0x22] | (response[0x23] << 8)
-        if err != 0:
-            return None
+        check_error(response[0x22:0x24])
         payload = self.decrypt(bytes(response[0x38:]))
-        return payload[0x04:]
+        return payload[len(self._request_header) + 4:]
 
     def send_data(self, data):
-        packet = bytearray([0x02, 0x00, 0x00, 0x00])
+        packet = bytearray(self._code_sending_header)
+        packet += bytes([0x02, 0x00, 0x00, 0x00])
         packet += data
-        self.send_packet(0x6a, packet)
+        response = self.send_packet(0x6a, packet)
+        check_error(response[0x22:0x24])
 
     def enter_learning(self):
-        packet = bytearray(16)
-        packet[0] = 3
-        self.send_packet(0x6a, packet)
+        packet = bytearray(self._request_header)
+        packet.append(0x03)
+        response = self.send_packet(0x6a, packet)
+        check_error(response[0x22:0x24])
 
     def sweep_frequency(self):
-        packet = bytearray(16)
-        packet[0] = 0x19
-        self.send_packet(0x6a, packet)
+        packet = bytearray(self._request_header)
+        packet.append(0x19)
+        response = self.send_packet(0x6a, packet)
+        check_error(response[0x22:0x24])
 
     def cancel_sweep_frequency(self):
-        packet = bytearray(16)
-        packet[0] = 0x1e
-        self.send_packet(0x6a, packet)
+        packet = bytearray(self._request_header)
+        packet.append(0x1e)
+        response = self.send_packet(0x6a, packet)
+        check_error(response[0x22:0x24])
 
     def check_frequency(self):
-        packet = bytearray(16)
-        packet[0] = 0x1a
+        packet = bytearray(self._request_header)
+        packet.append(0x1a)
         response = self.send_packet(0x6a, packet)
-        err = response[0x22] | (response[0x23] << 8)
-        if err != 0:
-            return False
+        check_error(response[0x22:0x24])
         payload = self.decrypt(bytes(response[0x38:]))
-        if payload[0x04] == 1:
+        if payload[len(self._request_header) + 4] == 1:
             return True
         return False
 
     def find_rf_packet(self):
-        packet = bytearray(16)
-        packet[0] = 0x1b
+        packet = bytearray(self._request_header)
+        packet.append(0x1b)
         response = self.send_packet(0x6a, packet)
-        err = response[0x22] | (response[0x23] << 8)
-        if err != 0:
-            return False
+        check_error(response[0x22:0x24])
         payload = self.decrypt(bytes(response[0x38:]))
-        if payload[0x04] == 1:
+        if payload[len(self._request_header) + 4] == 1:
             return True
         return False
 
-    def check_temperature(self):
-        packet = bytearray(16)
-        packet[0] = 1
+    def _read_sensor(self, type, offset, divider):
+        packet = bytearray(self._request_header)
+        packet.append(type)
         response = self.send_packet(0x6a, packet)
-        err = response[0x22] | (response[0x23] << 8)
-        if err != 0:
-            return False
+        check_error(response[0x22:0x24])
         payload = self.decrypt(bytes(response[0x38:]))
-        if isinstance(payload[0x4], int):
-            temp = (payload[0x4] * 10 + payload[0x5]) / 10.0
+        value_pos = len(self._request_header) + offset
+        if isinstance(payload[value_pos], int):
+            value = (payload[value_pos] + payload[value_pos+1] / divider)
         else:
-            temp = (ord(payload[0x4]) * 10 + ord(payload[0x5])) / 10.0
-        return temp
+            value = (ord(payload[value_pos]) + ord(payload[value_pos+1]) / divider)
+        return value
 
+    def check_temperature(self):
+        return self._read_sensor( 0x01, 4, 10.0 )
+
+class rm4(rm):
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
+        self.type = "RM4"
+        self._request_header = b'\x04\x00'
+        self._code_sending_header = b'\xd0\x00'
+
+    def check_temperature(self):
+        return self._read_sensor( 0x24, 4, 100.0 )
+
+    def check_humidity(self):
+        return self._read_sensor( 0x24, 6, 100.0 )
+
+    def check_sensors(self):
+        return {
+            'temperature': self.check_temperature(),
+            'humidity': self.check_humidity()
+        }
 
 # For legacy compatibility - don't use this
 class rm2(rm):
@@ -593,8 +694,8 @@ class rm2(rm):
 
 
 class hysen(device):
-    def __init__(self, host, mac, devtype):
-        device.__init__(self, host, mac, devtype)
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
         self.type = "Hysen heating controller"
 
     # Send a request
@@ -602,10 +703,44 @@ class hysen(device):
     # Returns decrypted payload
     # New behaviour: raises a ValueError if the device response indicates an error or CRC check fails
     # The function prepends length (2 bytes) and appends CRC
+
+    def calculate_crc16(self, input_data):
+        from ctypes import c_ushort
+        crc16_tab = []
+        crc16_constant = 0xA001
+
+        for i in range(0, 256):
+            crc = c_ushort(i).value
+            for j in range(0, 8):
+                if (crc & 0x0001):
+                    crc = c_ushort(crc >> 1).value ^ crc16_constant
+                else:
+                    crc = c_ushort(crc >> 1).value
+            crc16_tab.append(hex(crc))
+
+        try:
+            is_string = isinstance(input_data, str)
+            is_bytes = isinstance(input_data, bytes)
+
+            if not is_string and not is_bytes:
+                raise Exception("Please provide a string or a byte sequence "
+                                "as argument for calculation.")
+
+            crcValue = 0xffff
+
+            for c in input_data:
+                d = ord(c) if is_string else c
+                tmp = crcValue ^ d
+                rotated = c_ushort(crcValue >> 8).value
+                crcValue = rotated ^ int(crc16_tab[(tmp & 0x00ff)], 0)
+
+            return crcValue
+        except Exception as e:
+            print("EXCEPTION(calculate): {}".format(e))
+
     def send_request(self, input_payload):
 
-        from PyCRC.CRC16 import CRC16
-        crc = CRC16(modbus_flag=True).calculate(bytes(input_payload))
+        crc = self.calculate_crc16(bytes(input_payload))
 
         # first byte is length, +2 for CRC16
         request_payload = bytearray([len(input_payload) + 2, 0x00])
@@ -617,19 +752,14 @@ class hysen(device):
 
         # send to device
         response = self.send_packet(0x6a, request_payload)
-
-        # check for error
-        err = response[0x22] | (response[0x23] << 8)
-        if err:
-            raise ValueError('broadlink_response_error', err)
-
+        check_error(response[0x22:0x24])
         response_payload = bytearray(self.decrypt(bytes(response[0x38:])))
 
         # experimental check on CRC in response (first 2 bytes are len, and trailing bytes are crc)
         response_payload_len = response_payload[0]
         if response_payload_len + 2 > len(response_payload):
             raise ValueError('hysen_response_error', 'first byte of response is not length')
-        crc = CRC16(modbus_flag=True).calculate(bytes(response_payload[2:response_payload_len]))
+        crc = self.calculate_crc16(bytes(response_payload[2:response_payload_len]))
         if (response_payload[response_payload_len] == crc & 0xFF) and (
                 response_payload[response_payload_len + 1] == (crc >> 8) & 0xFF):
             return response_payload[2:response_payload_len]
@@ -782,18 +912,15 @@ class S1C(device):
     Its VERY VERY VERY DIRTY IMPLEMENTATION of S1C
     """
 
-    def __init__(self, host, mac, devtype):
-        device.__init__(self, host, mac, devtype)
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
         self.type = 'S1C'
 
     def get_sensors_status(self):
         packet = bytearray(16)
         packet[0] = 0x06  # 0x06 - get sensors info, 0x07 - probably add sensors
         response = self.send_packet(0x6a, packet)
-        err = response[0x22] | (response[0x23] << 8)
-        if err != 0:
-            return None
-
+        check_error(response[0x22:0x24])
         payload = self.decrypt(bytes(response[0x38:]))
         if not payload:
             return None
@@ -828,8 +955,8 @@ class S1C(device):
 
 
 class dooya(device):
-    def __init__(self, host, mac, devtype):
-        device.__init__(self, host, mac, devtype)
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
         self.type = "Dooya DT360E"
 
     def _send(self, magic1, magic2):
@@ -841,9 +968,7 @@ class dooya(device):
         packet[9] = 0xfa
         packet[10] = 0x44
         response = self.send_packet(0x6a, packet)
-        err = response[0x22] | (response[0x23] << 8)
-        if err != 0:
-            return None
+        check_error(response[0x22:0x24])
         payload = self.decrypt(bytes(response[0x38:]))
         return ord(payload[4])
 
@@ -927,6 +1052,65 @@ class wistar(device):
         response = self._send(0x02, [position, 0x70, 0xa0])
         position = ord(response[14])
         return position
+=======
+class lb1(device):
+    state_dict = []
+    effect_map_dict = { 'lovely color' : 0,
+                        'flashlight' : 1,
+                        'lightning' : 2,
+                        'color fading' : 3,
+                        'color breathing' : 4,
+                        'multicolor breathing' : 5,
+                        'color jumping' : 6,
+                        'multicolor jumping' : 7 }
+
+    def __init__(self, host, mac, devtype):
+        device.__init__(self, host, mac, devtype)
+        self.type = "SmartBulb"
+
+    def send_command(self,command, type = 'set'):
+        packet = bytearray(16+(int(len(command)/16) + 1)*16)
+        packet[0x02] = 0xa5
+        packet[0x03] = 0xa5
+        packet[0x04] = 0x5a
+        packet[0x05] = 0x5a
+        packet[0x08] = 0x02 if type == "set" else 0x01 # 0x01 => query, # 0x02 => set
+        packet[0x09] = 0x0b
+        packet[0x0a] = len(command)
+        packet[0x0e:] = map(ord, command)
+
+        checksum = 0xbeaf
+        for b in packet:
+            checksum = (checksum + b) & 0xffff
+
+        packet[0x00] = (0x0c + len(command)) & 0xff
+        packet[0x06] = checksum & 0xff  # Checksum 1 position
+        packet[0x07] = checksum >> 8  # Checksum 2 position
+
+        response = self.send_packet(0x6a, packet)
+        check_error(response[0x36:0x38])
+        payload = self.decrypt(bytes(response[0x38:]))
+
+        responseLength = int(payload[0x0a]) | (int(payload[0x0b]) << 8)
+        if responseLength > 0:
+            self.state_dict = json.loads(payload[0x0e:0x0e+responseLength])
+
+    def set_json(self, jsonstr):
+        reconvert = json.loads(jsonstr)
+        if 'bulb_sceneidx' in reconvert.keys():
+            reconvert['bulb_sceneidx'] = self.effect_map_dict.get(reconvert['bulb_sceneidx'], 255)
+
+        self.send_command(json.dumps(reconvert))
+        return json.dumps(self.state_dict)
+
+    def set_state(self, state):
+        cmd = '{"pwr":%d}' % (1 if state == "ON" or state == 1 else 0)
+        self.send_command(cmd)
+
+    def get_state(self):
+        cmd = "{}"
+        self.send_command(cmd)
+        return self.state_dict
 
 # Setup a new Broadlink device via AP Mode. Review the README to see how to enter AP Mode.
 # Only tested with Broadlink RM3 Mini (Blackbean)
@@ -952,9 +1136,8 @@ def setup(ssid, password, security_mode):
     payload[0x86] = security_mode  # Type of encryption (00 - none, 01 = WEP, 02 = WPA1, 03 = WPA2, 04 = WPA1/2)
 
     checksum = 0xbeaf
-    for i in range(len(payload)):
-        checksum += payload[i]
-        checksum = checksum & 0xffff
+    for b in payload:
+        checksum = (checksum + b) & 0xffff
 
     payload[0x20] = checksum & 0xff  # Checksum 1 position
     payload[0x21] = checksum >> 8  # Checksum 2 position
@@ -964,3 +1147,4 @@ def setup(ssid, password, security_mode):
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     sock.sendto(payload, ('255.255.255.255', 80))
+    sock.close()
