@@ -130,7 +130,6 @@ if args.send:
     dev.send_data(data)
 if args.learn or args.learnfile:
     dev.enter_learning()
-    data = None
     print("Learning...")
     for second in range(TIMEOUT):
         try:
@@ -200,9 +199,9 @@ if args.rfscanlearn:
     print("Learning RF Frequency, press and hold the button to learn...")
 
     for second in range(TIMEOUT):
+        time.sleep(1)
         if dev.check_frequency():
             break
-        time.sleep(1)
     else:
         print("RF Frequency not found")
         dev.cancel_sweep_frequency()
@@ -217,7 +216,6 @@ if args.rfscanlearn:
 
     dev.find_rf_packet()
 
-    data = None
     for second in range(TIMEOUT):
         try:
             data = dev.check_data()
