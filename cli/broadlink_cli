@@ -6,7 +6,7 @@ import codecs
 import time
 
 import broadlink
-from broadlink.exceptions import ReadError
+from broadlink.exceptions import ReadError, StorageError
 
 TICK = 32.84
 TIMEOUT = 30
@@ -131,10 +131,11 @@ if args.send:
 if args.learn or (args.learnfile and not args.rfscanlearn):
     dev.enter_learning()
     print("Learning...")
-    for second in range(TIMEOUT):
+    start = time.time()
+    while time.time() - start < TIMEOUT:
         try:
             data = dev.check_data()
-        except ReadError:
+        except (ReadError, StorageError):
             time.sleep(1)
         else:
             break
@@ -198,7 +199,8 @@ if args.rfscanlearn:
     dev.sweep_frequency()
     print("Learning RF Frequency, press and hold the button to learn...")
 
-    for second in range(TIMEOUT):
+    start = time.time()
+    while time.time() - start < TIMEOUT:
         time.sleep(1)
         if dev.check_frequency():
             break
@@ -216,10 +218,11 @@ if args.rfscanlearn:
 
     dev.find_rf_packet()
 
-    for second in range(TIMEOUT):
+    start = time.time()
+    while time.time() - start < TIMEOUT:
         try:
             data = dev.check_data()
-        except ReadError:
+        except (ReadError, StorageError):
             time.sleep(1)
         else:
             break
