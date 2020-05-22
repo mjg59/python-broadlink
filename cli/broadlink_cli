@@ -133,10 +133,11 @@ if args.learn or (args.learnfile and not args.rfscanlearn):
     print("Learning...")
     start = time.time()
     while time.time() - start < TIMEOUT:
+        time.sleep(1)
         try:
             data = dev.check_data()
         except (ReadError, StorageError):
-            time.sleep(1)
+            continue
         else:
             break
     else:
@@ -220,10 +221,11 @@ if args.rfscanlearn:
 
     start = time.time()
     while time.time() - start < TIMEOUT:
+        time.sleep(1)
         try:
             data = dev.check_data()
         except (ReadError, StorageError):
-            time.sleep(1)
+            continue
         else:
             break
     else:
