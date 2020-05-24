@@ -604,7 +604,7 @@ class rm(device):
 
     def send_data(self, data):
         packet = bytearray(self._code_sending_header)
-        packet += bytes([0x02, 0x00, 0x00, 0x00])
+        packet += bytearray([0x02, 0x00, 0x00, 0x00])
         packet += data
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
