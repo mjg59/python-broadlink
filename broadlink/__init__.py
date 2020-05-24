@@ -136,7 +136,7 @@ def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.2
         responsepacket = bytearray(response[0])
         host = response[1]
         devtype = responsepacket[0x34] | responsepacket[0x35] << 8
-        mac = responsepacket[0x3a:0x40]
+        mac = responsepacket[0x3f:0x39:-1]
         name = responsepacket[0x40:].split(b'\x00')[0].decode('utf-8')
         cloud = bool(responsepacket[-1])
         device = gendevice(devtype, host, mac, name=name, cloud=cloud)
@@ -153,7 +153,7 @@ def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.2
         responsepacket = bytearray(response[0])
         host = response[1]
         devtype = responsepacket[0x34] | responsepacket[0x35] << 8
-        mac = responsepacket[0x3a:0x40]
+        mac = responsepacket[0x3f:0x39:-1]
         name = responsepacket[0x40:].split(b'\x00')[0].decode('utf-8')
         cloud = bool(responsepacket[-1])
         device = gendevice(devtype, host, mac, name=name, cloud=cloud)
@@ -229,7 +229,7 @@ class device:
         if len(key) % 16 != 0:
             return False
 
-        self.id = payload[0x00:0x04]
+        self.id = payload[0x03::-1]
         self.update_aes(key)
 
         return True
@@ -253,16 +253,16 @@ class device:
         packet[0x26] = command
         packet[0x28] = self.count & 0xff
         packet[0x29] = self.count >> 8
-        packet[0x2a] = self.mac[0]
-        packet[0x2b] = self.mac[1]
-        packet[0x2c] = self.mac[2]
-        packet[0x2d] = self.mac[3]
-        packet[0x2e] = self.mac[4]
-        packet[0x2f] = self.mac[5]
-        packet[0x30] = self.id[0]
-        packet[0x31] = self.id[1]
-        packet[0x32] = self.id[2]
-        packet[0x33] = self.id[3]
+        packet[0x2a] = self.mac[5]
+        packet[0x2b] = self.mac[4]
+        packet[0x2c] = self.mac[3]
+        packet[0x2d] = self.mac[2]
+        packet[0x2e] = self.mac[1]
+        packet[0x2f] = self.mac[0]
+        packet[0x30] = self.id[3]
+        packet[0x31] = self.id[2]
+        packet[0x32] = self.id[1]
+        packet[0x33] = self.id[0]
 
         # pad the payload for AES encryption
         if payload:
