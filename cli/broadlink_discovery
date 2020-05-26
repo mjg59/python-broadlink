@@ -3,6 +3,7 @@
 import argparse
 
 import broadlink
+from broadlink.exceptions import StorageError
 
 parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
 parser.add_argument("--timeout", type=int, default=5, help="timeout to wait for receiving discovery responses")
@@ -20,8 +21,10 @@ for device in devices:
                                                                     ''.join(format(x, '02x') for x in device.mac)))
         print("Device file data (to be used with --device @filename in broadlink_cli) : ")
         print("{} {} {}".format(hex(device.devtype), device.host[0], ''.join(format(x, '02x') for x in device.mac)))
-        if hasattr(device, 'check_temperature'):
+        try:
             print("temperature = {}".format(device.check_temperature()))
+        except (AttributeError, StorageError):
+            pass
         print("")
     else:
         print("Error authenticating with device : {}".format(device.host))
