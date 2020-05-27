@@ -175,10 +175,6 @@ class device:
         self.iv = bytearray(
             [0x56, 0x2e, 0x17, 0x99, 0x6d, 0x09, 0x3d, 0x28, 0xdd, 0xb3, 0xba, 0x69, 0x5a, 0x2e, 0x6f, 0x58])
         self.id = bytearray([0, 0, 0, 0])
-        self.cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.cs.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        self.cs.bind(('', 0))
         self.type = "Unknown"
         self.lock = threading.Lock()
 
@@ -303,9 +299,6 @@ class device:
                     cs.sendto(packet, self.host)
                     cs.settimeout(1)
                     response = cs.recvfrom(2048)
-                    self.cs.sendto(packet, self.host)
-                    self.cs.settimeout(1)
-                    response = self.cs.recvfrom(2048)
                     break
                 except socket.timeout:
                     if (time.time() - start_time) > self.timeout:
@@ -1097,12 +1090,12 @@ class lb1(device):
 class bsl1(device):
     state_dict = []
 
-    def __init__(self, host, mac, devtype, name, cloud):
+    def __init__(self,*args, **kwargs):
         device.__init__(self, host, mac, devtype)
         self.type = "BSL1"
 
     def send_command(self,command, type = 'set'):
-        packet = bytearray(16+(int(len(command)/16) + 1)*16)
+        packet = bytearray(14 + len(command))
         packet[0x02] = 0xa5
         packet[0x03] = 0xa5
         packet[0x04] = 0x5a
@@ -1122,7 +1115,7 @@ class bsl1(device):
 
         response = self.send_packet(0x6a, packet)
 
-        err = response[0x36] | (response[0x37] << 8)
+        err = check_error(response[0x36:0x38])
         if err != 0:
             return None
         payload = self.decrypt(bytes(response[0x38:]))
