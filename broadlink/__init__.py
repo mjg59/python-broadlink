@@ -607,21 +607,18 @@ class rm(device):
             return True
         return False
 
-    def _read_sensor(self, type, offset, divider):
+    def _check_sensors(self, command):
         packet = bytearray(self._request_header)
-        packet.append(type)
+        packet.append(command)
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
         payload = self.decrypt(bytes(response[0x38:]))
-        value_pos = len(self._request_header) + offset
-        if isinstance(payload[value_pos], int):
-            value = (payload[value_pos] + payload[value_pos+1] / divider)
-        else:
-            value = (ord(payload[value_pos]) + ord(payload[value_pos+1]) / divider)
-        return value
+        return bytearray(payload[len(self._request_header + 4):])
 
     def check_temperature(self):
-        return self._read_sensor( 0x01, 4, 10.0 )
+        data = self._check_sensors(0x1)
+        return data[0x0] + data[0x1] / 10.0
+
 
 class rm4(rm):
     def __init__(self, *args, **kwargs):
@@ -630,17 +627,21 @@ class rm4(rm):
         self._request_header = b'\x04\x00'
         self._code_sending_header = b'\xd0\x00'
 
+    def check_sensors(self):
+        data = self._check_sensors(0x24)
+        return {
+            'temperature': data[0x0] + data[0x1] / 10.0,
+            'humidity': data[0x2] + data[0x3] / 10.0
+        }
+
     def check_temperature(self):
-        return self._read_sensor( 0x24, 4, 100.0 )
+        data = self._check_sensors(0x24)
+        return data[0x0] + data[0x1] / 10.0
 
     def check_humidity(self):
-        return self._read_sensor( 0x24, 6, 100.0 )
+        data = self._check_sensors(0x24)
+        return data[0x2] + data[0x3] / 10.0
 
-    def check_sensors(self):
-        return {
-            'temperature': self.check_temperature(),
-            'humidity': self.check_humidity()
-        }
 
 # For legacy compatibility - don't use this
 class rm2(rm):
