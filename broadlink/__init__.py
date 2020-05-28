@@ -613,7 +613,7 @@ class rm(device):
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
         payload = self.decrypt(bytes(response[0x38:]))
-        return bytearray(payload[len(self._request_header + 4):])
+        return bytearray(payload[len(self._request_header) + 4:])
 
     def check_sensors(self):
         data = self._check_sensors(0x1)
