@@ -516,7 +516,7 @@ class a1(device):
     _SENSORS_AND_LEVELS = (
         ('light', ('dark', 'dim', 'normal', 'bright')),
         ('air_quality', ('excellent', 'good', 'normal', 'bad')),
-        ('noise_levels', ('quiet', 'normal', 'noisy')),
+        ('noise', ('quiet', 'normal', 'noisy')),
     )
 
     def __init__(self, *args, **kwargs):
