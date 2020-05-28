@@ -26,6 +26,7 @@ def gendevice(devtype, host, mac, name=None, cloud=None):
               0x2728,  # SPMini2
               0x2733, 0x273e,  # OEM branded SPMini
               0x7530, 0x7546, 0x7918,  # OEM branded SPMini2
+              0x7544,  # SP2-CL
               0x7D0D,  # TMall OEM SPMini3
               0x2736  # SPMiniPlus
               ],
