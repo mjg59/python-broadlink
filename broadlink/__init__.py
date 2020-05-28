@@ -615,6 +615,10 @@ class rm(device):
         payload = self.decrypt(bytes(response[0x38:]))
         return bytearray(payload[len(self._request_header + 4):])
 
+    def check_sensors(self):
+        data = self._check_sensors(0x1)
+        return {'temperature': data[0x0] + data[0x1] / 10.0}
+
     def check_temperature(self):
         data = self._check_sensors(0x1)
         return data[0x0] + data[0x1] / 10.0
