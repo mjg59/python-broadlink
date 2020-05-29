@@ -615,13 +615,13 @@ class rm(device):
         payload = self.decrypt(bytes(response[0x38:]))
         return bytearray(payload[len(self._request_header) + 4:])
 
-    def check_sensors(self):
-        data = self._check_sensors(0x1)
-        return {'temperature': data[0x0] + data[0x1] / 10.0}
-
     def check_temperature(self):
         data = self._check_sensors(0x1)
         return data[0x0] + data[0x1] / 10.0
+
+    def check_sensors(self):
+        data = self._check_sensors(0x1)
+        return {'temperature': data[0x0] + data[0x1] / 10.0}
 
 
 class rm4(rm):
@@ -631,20 +631,20 @@ class rm4(rm):
         self._request_header = b'\x04\x00'
         self._code_sending_header = b'\xd0\x00'
 
-    def check_sensors(self):
-        data = self._check_sensors(0x24)
-        return {
-            'temperature': data[0x0] + data[0x1] / 10.0,
-            'humidity': data[0x2] + data[0x3] / 10.0
-        }
-
     def check_temperature(self):
         data = self._check_sensors(0x24)
-        return data[0x0] + data[0x1] / 10.0
+        return data[0x0] + data[0x1] / 100.0
 
     def check_humidity(self):
         data = self._check_sensors(0x24)
-        return data[0x2] + data[0x3] / 10.0
+        return data[0x2] + data[0x3] / 100.0
+
+    def check_sensors(self):
+        data = self._check_sensors(0x24)
+        return {
+            'temperature': data[0x0] + data[0x1] / 100.0,
+            'humidity': data[0x2] + data[0x3] / 100.0
+        }
 
 
 # For legacy compatibility - don't use this
