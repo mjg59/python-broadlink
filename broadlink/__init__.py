@@ -1036,8 +1036,8 @@ class lb1(device):
                         'color jumping' : 6,
                         'multicolor jumping' : 7 }
 
-    def __init__(self, host, mac, devtype):
-        device.__init__(self, host, mac, devtype)
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
         self.type = "SmartBulb"
 
     def send_command(self,command, type = 'set'):
