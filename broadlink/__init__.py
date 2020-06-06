@@ -235,6 +235,12 @@ class device:
 
         return True
 
+    def change_name(self, name):
+        packet = bytearray(4)
+        packet.extend(map(ord, name))
+        response = self.send_packet(0x6a, packet)
+        check_error(response[0x22:0x24])
+
     def get_type(self):
         return self.type
 
