@@ -236,7 +236,7 @@ class device:
         return True
 
     def get_fwversion(self):
-        packet = bytearray([104])
+        packet = bytearray([0x68])
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
