@@ -111,8 +111,8 @@ def gendevice(devtype, host, mac, name=None, cloud=None):
     try:
         device_class, model, manufacturer = next(
             (device_class, model, manufacturer)
-            for device_class, members in devices.items()
-            for device_type, model, manufacturer in members
+            for device_class, device_list in devices.items()
+            for device_type, model, manufacturer in device_list
             if device_type == devtype
         )
     except StopIteration:
