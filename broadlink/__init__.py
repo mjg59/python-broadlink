@@ -40,8 +40,8 @@ def gendevice(devtype, host, mac, name=None, cloud=None):
 
         0x2712: (rm, "RM pro/pro+", "Broadlink"),
         0x272a: (rm, "RM pro", "Broadlink"),
-        0x273d: (rm, "RM pro", "Broadlink"),
         0x2737: (rm, "RM mini 3", "Broadlink"),
+        0x273d: (rm, "RM pro", "Broadlink"),
         0x277c: (rm, "RM home", "Broadlink"),
         0x2783: (rm, "RM home", "Broadlink"),
         0x2787: (rm, "RM pro", "Broadlink"),
@@ -70,6 +70,7 @@ def gendevice(devtype, host, mac, name=None, cloud=None):
 
         0x4eb5: (mp1, "MP1-1K4S", "Broadlink"),
         0x4ef7: (mp1, "MP1-1K4S", "Broadlink (OEM)"),
+        0x4f65: (mp1, "MP1-1K3S2U", "Broadlink"),
 
         0x4ead: (hysen, "HY02B05H", "Hysen"),
 
@@ -80,6 +81,7 @@ def gendevice(devtype, host, mac, name=None, cloud=None):
         0x51e3: (bg1, "BG800/BG900", "BG Electrical"),
 
         0x5043: (lb1, "SB800TD", "Broadlink (OEM)"),
+        0x60c7: (lb1, "LB1", "Broadlink (OEM)"),
         0x60c8: (lb1, "LB1", "Broadlink (OEM)"),
     }
 
