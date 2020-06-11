@@ -14,114 +14,107 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 from .exceptions import check_error, exception
 
+
 def gendevice(devtype, host, mac, name=None, cloud=None):
     devices = {
-        # ~1 == not in Broadlink app
-        # ~2 == not in IHC app
-        # ~3 == not in e-Control app
-
         # Smart Plug
-        sp1: [(0x0000, "SP1", "Broadlink")],  # e-Control app
+        sp1: [(0x0000, "SP1", "Broadlink")],
         sp2: [
-            (0x2711, "SP2", "Broadlink"),  # IHC app
-            (0x2720, "SP mini", "Broadlink"),  # Broadlink app
-            (0x2733, "SP3", "Broadlink (OEM)"),  # Broadlink app / OEM (https://github.com/mjg59/python-broadlink/commit/d490c5b71eaa9fa19f711648a92359678717682f#diff-23bf3ed5c3d3cd55c0dce572ad221c97)
-            (0x753e, "SP mini 3", "Broadlink"),  # Broadlink app  # TODO solve conflict: SP3 (https://github.com/mjg59/python-broadlink/commit/d490c5b71eaa9fa19f711648a92359678717682f#diff-23bf3ed5c3d3cd55c0dce572ad221c97)
-            (0x7546, "SP2-UK/BR/IN", "Broadlink (OEM)"),  # Broadlink app / OEM (https://github.com/mjg59/python-broadlink/pull/251)
-            (0x7d00, "SP3-EU", "Broadlink (OEM)"),  # IHC app (Brand: Clas Ohlson) / OEM (https://github.com/mjg59/python-broadlink/pull/169)
-            (0x7d0d, "SP mini 3", "Broadlink (OEM)"),  # IHC app / OEM (https://github.com/mjg59/python-broadlink/pull/228)
-            (0x9479, "SP3S-US", "Broadlink"),  # Broadlink app
-            (0x947a, "SP3S-EU", "Broadlink"),  # Broadlink app
-
-            # TODO REVIEW
-            (0x2719, "SP2-compatible", "Honeywell"),  # e-Control app  # TODO get model / confirm (https://github.com/mjg59/python-broadlink/commit/d490c5b71eaa9fa19f711648a92359678717682f#diff-23bf3ed5c3d3cd55c0dce572ad221c97)
-            (0x2728, "SP2-compatible", "URANT/Kebidu"),  # TODO solve conflicts: URANT SP1-UK (IHC app) != SP mini (e-Control app) != Kebidu KBT001929-EU (https://github.com/mjg59/python-broadlink/issues/135)
-            (0x271a, "SP2-compatible", "Honeywell"),  # e-Control app  # TODO get model / confirm (https://github.com/mjg59/python-broadlink/commit/d490c5b71eaa9fa19f711648a92359678717682f#diff-23bf3ed5c3d3cd55c0dce572ad221c97)
-            (0x2736, "SP mini plus", "Broadlink (OEM)"),  # e-Control app  # TODO does SP mini plus exist? confirm (https://github.com/mjg59/python-broadlink/commit/d490c5b71eaa9fa19f711648a92359678717682f#diff-23bf3ed5c3d3cd55c0dce572ad221c97)
-            (0x273e, "SP mini", "Broadlink (OEM)"),  # ~1 ~2 ~3  # TODO confirm (https://github.com/mjg59/python-broadlink/commit/d490c5b71eaa9fa19f711648a92359678717682f#diff-23bf3ed5c3d3cd55c0dce572ad221c97)
-            (0x7530, "SP mini 2", "Broadlink (OEM)"), # e-Control app  # TODO does SP mini 2 exist? confirm (https://github.com/mjg59/python-broadlink/commit/d490c5b71eaa9fa19f711648a92359678717682f#diff-23bf3ed5c3d3cd55c0dce572ad221c97)
-            (0x7918, "SP mini 2", "Broadlink (OEM)"),  # e-Control app  # TODO dost SP mini 2 exist? confirm (https://github.com/mjg59/python-broadlink/commit/d490c5b71eaa9fa19f711648a92359678717682f#diff-23bf3ed5c3d3cd55c0dce572ad221c97)
-            (0x7919, "SP2-compatible", "Broadlink (OEM)/Honeywell"),  # TODO solve conflicts: Broadlink WS1-W10 (IHC app) != SP mini (e-Control app) != Honeywell (https://github.com/mjg59/python-broadlink/commit/d490c5b71eaa9fa19f711648a92359678717682f#diff-23bf3ed5c3d3cd55c0dce572ad221c97)
-            (0x791a, "SP2-compatible", "Broadlink (OEM)/Honeywell"),  # TODO solve conflicts: Broadlink WS1-W16 (IHC app) != SP mini (e-Control app) != Honeywell (https://github.com/mjg59/python-broadlink/commit/d490c5b71eaa9fa19f711648a92359678717682f#diff-23bf3ed5c3d3cd55c0dce572ad221c97)
+            (0x2711, "SP2", "Broadlink"),
+            (0x2719, "SP2-compatible", "Honeywell"),
+            (0x271a, "SP2-compatible", "Honeywell"),
+            (0x2720, "SP mini", "Broadlink"),
+            (0x2728, "SP2-compatible", "URANT"),
+            (0x2733, "SP3", "Broadlink"),
+            (0x2736, "SP mini+", "Broadlink"),
+            (0x273e, "SP mini", "Broadlink"),
+            (0x7530, "SP2", "Broadlink (OEM)"),
+            (0x753e, "SP mini 3", "Broadlink"),
+            (0x7546, "SP2-UK/BR/IN", "Broadlink (OEM)"),
+            (0x7918, "SP2", "Broadlink (OEM)"),
+            (0x7919, "SP2-compatible", "Honeywell"),
+            (0x791a, "SP2-compatible", "Honeywell"),
+            (0x7d00, "SP3-EU", "Broadlink (OEM)"),
+            (0x7d0d, "SP mini 3", "Broadlink (OEM)"),
+            (0x9479, "SP3S-US", "Broadlink"),
+            (0x947a, "SP3S-EU", "Broadlink"),
         ],
 
         # Universal Remote
         rm: [
-            (0x2712, "RM pro/pro+", "Broadlink"),  # Broadlink app
-            (0x272a, "RM pro", "Broadlink"),  # Broadlink app
-            (0x2737, "RM mini 3", "Broadlink"),  # Broadlink app
-            (0x277c, "RM home", "Broadlink (OEM)"),  # IHC app
-            (0x2783, "RM home", "Broadlink"),  # Broadlink app
-            (0x2787, "RM pro", "Broadlink"),  # Broadlink app
-            (0x278b, "RM plus", "Broadlink (OEM)"),  # IHC app
-            (0x2797, "RM pro+", "Broadlink"),  # Broadlink app
-            (0x279d, "RM pro+", "Broadlink"),  # Broadlink app
-            (0x27a9, "RM pro+", "Broadlink"),  # Broadlink app
-            (0x27c2, "RM mini 3", "Broadlink (OEM)"),  # IHC app
-            (0x27d1, "RM mini 3", "Broadlink (OEM)"),  # IHC app
-            (0x27de, "RM mini 3", "Broadlink"),  # Broadlink app
-
-            # TODO REVIEW
-            (0x273d, "RM pro", "Broadlink (OEM)"),  # ~1 ~2 ~3  # TODO confirm: RM Pro Phicomm (https://github.com/mjg59/python-broadlink/commit/d490c5b71eaa9fa19f711648a92359678717682f#diff-23bf3ed5c3d3cd55c0dce572ad221c97)
-            (0x278f, "RM mini", "Broadlink (OEM)"),  # ~1 ~2 ~3  # TODO confirm: RM Mini Shate (https://github.com/mjg59/python-broadlink/commit/d490c5b71eaa9fa19f711648a92359678717682f#diff-23bf3ed5c3d3cd55c0dce572ad221c97)
-            (0x27a1, "RM plus", "Broadlink (OEM)"),  # TODO solve conflicts: RM2 Pro Plus R1 (https://github.com/mjg59/python-broadlink/pull/156) != SP1 (e-Control app)
-            (0x27a6, "RM plus", "Broadlink (OEM)"),  # ~1 ~2 ~3  # TODO confirm RM2 Pro PP (https://github.com/mjg59/python-broadlink/pull/156)
+            (0x2712, "RM pro/pro+", "Broadlink"),
+            (0x272a, "RM pro", "Broadlink"),
+            (0x273d, "RM pro", "Broadlink"),
+            (0x2737, "RM mini 3", "Broadlink"),
+            (0x277c, "RM home", "Broadlink"),
+            (0x2783, "RM home", "Broadlink"),
+            (0x2787, "RM pro", "Broadlink"),
+            (0x278b, "RM plus", "Broadlink"),
+            (0x278f, "RM mini", "Broadlink"),
+            (0x2797, "RM pro+", "Broadlink"),
+            (0x279d, "RM pro+", "Broadlink"),
+            (0x27a1, "RM plus", "Broadlink"),
+            (0x27a6, "RM plus", "Broadlink"),
+            (0x27a9, "RM pro+", "Broadlink"),
+            (0x27c2, "RM mini 3", "Broadlink"),
+            (0x27d1, "RM mini 3", "Broadlink"),
+            (0x27de, "RM mini 3", "Broadlink"),
         ],
         rm4: [
-            (0x51da, "RM4 mini", "Broadlink"),  # Broadlink app
-            (0x5f36, "RM mini", "Broadlink"),  # Broadlink app
-            (0x6026, "RM4 pro", "Broadlink"),  # Broadlink app
-            (0x6070, "RM4C mini", "Broadlink"),  # Broadlink app
-            (0x610e, "RM4 mini", "Broadlink"),  # Broadlink app
-            (0x610f, "RM4C mini", "Broadlink"),  # Broadlink app
-            (0x61a2, "RM4 pro", "Broadlink"),  # Broadlink app
-            (0x62bc, "RM4 mini", "Broadlink"),  # Broadlink app
-            (0x62be, "RM4C mini", "Broadlink"),  # Broadlink app
+            (0x51da, "RM4 mini", "Broadlink"),
+            (0x5f36, "RM mini", "Broadlink"),
+            (0x6026, "RM4 pro", "Broadlink"),
+            (0x6070, "RM4C mini", "Broadlink"),
+            (0x610e, "RM4 mini", "Broadlink"),
+            (0x610f, "RM4C mini", "Broadlink"),
+            (0x61a2, "RM4 pro", "Broadlink"),
+            (0x62bc, "RM4 mini", "Broadlink"),
+            (0x62be, "RM4C mini", "Broadlink"),
         ],
 
         # e-Sensor
-        a1: [(0x2714, "e-Sensor", "Broadlink")],  # Broadlink app
+        a1: [(0x2714, "e-Sensor", "Broadlink")],
 
         # Power Strip
         mp1: [
-            (0x4eb5, "Broadlink", "MP1-1K4S"),
-            (0x4ef7, "Broadlink (OEM)", "MP1-1K4S"),  # ~1 ~2 ~3 / Brand: Honyar (https://github.com/mjg59/python-broadlink/commit/1d7fba3d06af33b6af3d51b87a5c66c32751433d#diff-8651c630cb85a737f3c4c67091ea485f)
+            (0x4eb5, "MP1-1K4S", "Broadlink"),
+            (0x4ef7, "MP1-1K4S", "Broadlink (OEM)"),
         ],
 
         # HVAC
-        hysen: [(0x4ead, "HY02B05H", "Hysen")],  # IHC app  # TODO the model came from (https://github.com/mjg59/python-broadlink/pull/138), the apps shows "HVAC"
+        hysen: [(0x4ead, "HY02B05H", "Hysen")],
 
         # Wi-Fi Alarm Kit
-        S1C: [(0x2722, "S2KIT", "Broadlink")],  # Broadlink app  # TODO solve conflicts: S2KIT (Broadlink app) != S1C (https://github.com/mjg59/python-broadlink/pull/103)
+        S1C: [(0x2722, "S2KIT", "Broadlink")],
 
         # Electric Curtain Motor
-        dooya: [(0x4e4d, "DT360E-45/20", "Dooya")],  # Broadlink app
+        dooya: [(0x4e4d, "DT360E-45/20", "Dooya")],
 
         # Wall Socket
-        bg1: [(0x51e3, "BG800/BG900", "BG Electrical")],  # BG app  # TODO: these models came from users, the app shows "Socket"
+        bg1: [(0x51e3, "BG800/BG900", "BG Electrical")],
 
         # Smart Bulb
         lb1: [
-            (0x5043, "SB800TD", "Broadlink (OEM)"),  # Broadlink app
-            (0x60c8, "LB1", "Broadlink (OEM)"),  # ~1 ~2 ~3  # TODO find model
+            (0x5043, "SB800TD", "Broadlink (OEM)"),
+            (0x60c8, "LB1", "Broadlink (OEM)"),
         ],
     }
 
     # Look for the class associated to devtype in devices
     try:
-        device_class, model, manufacturer = next(
-            (device_class, model, manufacturer)
-            for device_class, device_list in devices.items()
-            for device_type, model, manufacturer in device_list
-            if device_type == devtype
+        dev_class, model, manufacturer = next(
+            (dev_class, model, manufacturer)
+            for dev_class, dev_list in devices.items()
+            for dev_type, model, manufacturer in dev_list
+            if dev_type == devtype
         )
     except StopIteration:
         return device(host, mac, devtype, name=name, cloud=cloud)
 
-    device = device_class(host, mac, devtype, name=name, cloud=cloud)
-    device.model = model
-    device.manufacturer = manufacturer
-    return device
+    dev = dev_class(host, mac, devtype, name=name, cloud=cloud)
+    dev.model = model
+    dev.manufacturer = manufacturer
+    return dev
 
 
 def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.255.255'):
