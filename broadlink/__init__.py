@@ -17,98 +17,76 @@ from .exceptions import check_error, exception
 
 def gendevice(devtype, host, mac, name=None, cloud=None):
     devices = {
-        # Smart Plug
-        sp1: [(0x0000, "SP1", "Broadlink")],
-        sp2: [
-            (0x2711, "SP2", "Broadlink"),
-            (0x2719, "SP2-compatible", "Honeywell"),
-            (0x271a, "SP2-compatible", "Honeywell"),
-            (0x2720, "SP mini", "Broadlink"),
-            (0x2728, "SP2-compatible", "URANT"),
-            (0x2733, "SP3", "Broadlink"),
-            (0x2736, "SP mini+", "Broadlink"),
-            (0x273e, "SP mini", "Broadlink"),
-            (0x7530, "SP2", "Broadlink (OEM)"),
-            (0x753e, "SP mini 3", "Broadlink"),
-            (0x7546, "SP2-UK/BR/IN", "Broadlink (OEM)"),
-            (0x7918, "SP2", "Broadlink (OEM)"),
-            (0x7919, "SP2-compatible", "Honeywell"),
-            (0x791a, "SP2-compatible", "Honeywell"),
-            (0x7d00, "SP3-EU", "Broadlink (OEM)"),
-            (0x7d0d, "SP mini 3", "Broadlink (OEM)"),
-            (0x9479, "SP3S-US", "Broadlink"),
-            (0x947a, "SP3S-EU", "Broadlink"),
-        ],
+        0x0000: (sp1, "SP1", "Broadlink"),
 
-        # Universal Remote
-        rm: [
-            (0x2712, "RM pro/pro+", "Broadlink"),
-            (0x272a, "RM pro", "Broadlink"),
-            (0x273d, "RM pro", "Broadlink"),
-            (0x2737, "RM mini 3", "Broadlink"),
-            (0x277c, "RM home", "Broadlink"),
-            (0x2783, "RM home", "Broadlink"),
-            (0x2787, "RM pro", "Broadlink"),
-            (0x278b, "RM plus", "Broadlink"),
-            (0x278f, "RM mini", "Broadlink"),
-            (0x2797, "RM pro+", "Broadlink"),
-            (0x279d, "RM pro+", "Broadlink"),
-            (0x27a1, "RM plus", "Broadlink"),
-            (0x27a6, "RM plus", "Broadlink"),
-            (0x27a9, "RM pro+", "Broadlink"),
-            (0x27c2, "RM mini 3", "Broadlink"),
-            (0x27d1, "RM mini 3", "Broadlink"),
-            (0x27de, "RM mini 3", "Broadlink"),
-        ],
-        rm4: [
-            (0x51da, "RM4 mini", "Broadlink"),
-            (0x5f36, "RM mini", "Broadlink"),
-            (0x6026, "RM4 pro", "Broadlink"),
-            (0x6070, "RM4C mini", "Broadlink"),
-            (0x610e, "RM4 mini", "Broadlink"),
-            (0x610f, "RM4C mini", "Broadlink"),
-            (0x61a2, "RM4 pro", "Broadlink"),
-            (0x62bc, "RM4 mini", "Broadlink"),
-            (0x62be, "RM4C mini", "Broadlink"),
-        ],
+        0x2711: (sp2, "SP2", "Broadlink"),
+        0x2719: (sp2, "SP2-compatible", "Honeywell"),
+        0x271a: (sp2, "SP2-compatible", "Honeywell"),
+        0x2720: (sp2, "SP mini", "Broadlink"),
+        0x2728: (sp2, "SP2-compatible", "URANT"),
+        0x2733: (sp2, "SP3", "Broadlink"),
+        0x2736: (sp2, "SP mini+", "Broadlink"),
+        0x273e: (sp2, "SP mini", "Broadlink"),
+        0x7530: (sp2, "SP2", "Broadlink (OEM)"),
+        0x753e: (sp2, "SP mini 3", "Broadlink"),
+        0x7546: (sp2, "SP2-UK/BR/IN", "Broadlink (OEM)"),
+        0x7918: (sp2, "SP2", "Broadlink (OEM)"),
+        0x7919: (sp2, "SP2-compatible", "Honeywell"),
+        0x791a: (sp2, "SP2-compatible", "Honeywell"),
+        0x7d00: (sp2, "SP3-EU", "Broadlink (OEM)"),
+        0x7d0d: (sp2, "SP mini 3", "Broadlink (OEM)"),
+        0x9479: (sp2, "SP3S-US", "Broadlink"),
+        0x947a: (sp2, "SP3S-EU", "Broadlink"),
 
-        # e-Sensor
-        a1: [(0x2714, "e-Sensor", "Broadlink")],
+        0x2712: (rm, "RM pro/pro+", "Broadlink"),
+        0x272a: (rm, "RM pro", "Broadlink"),
+        0x273d: (rm, "RM pro", "Broadlink"),
+        0x2737: (rm, "RM mini 3", "Broadlink"),
+        0x277c: (rm, "RM home", "Broadlink"),
+        0x2783: (rm, "RM home", "Broadlink"),
+        0x2787: (rm, "RM pro", "Broadlink"),
+        0x278b: (rm, "RM plus", "Broadlink"),
+        0x278f: (rm, "RM mini", "Broadlink"),
+        0x2797: (rm, "RM pro+", "Broadlink"),
+        0x279d: (rm, "RM pro+", "Broadlink"),
+        0x27a1: (rm, "RM plus", "Broadlink"),
+        0x27a6: (rm, "RM plus", "Broadlink"),
+        0x27a9: (rm, "RM pro+", "Broadlink"),
+        0x27c2: (rm, "RM mini 3", "Broadlink"),
+        0x27d1: (rm, "RM mini 3", "Broadlink"),
+        0x27de: (rm, "RM mini 3", "Broadlink"),
 
-        # Power Strip
-        mp1: [
-            (0x4eb5, "MP1-1K4S", "Broadlink"),
-            (0x4ef7, "MP1-1K4S", "Broadlink (OEM)"),
-        ],
+        0x51da: (rm4, "RM4 mini", "Broadlink"),
+        0x5f36: (rm4, "RM mini", "Broadlink"),
+        0x6026: (rm4, "RM4 pro", "Broadlink"),
+        0x6070: (rm4, "RM4C mini", "Broadlink"),
+        0x610e: (rm4, "RM4 mini", "Broadlink"),
+        0x610f: (rm4, "RM4C mini", "Broadlink"),
+        0x61a2: (rm4, "RM4 pro", "Broadlink"),
+        0x62bc: (rm4, "RM4 mini", "Broadlink"),
+        0x62be: (rm4, "RM4C mini", "Broadlink"),
 
-        # HVAC
-        hysen: [(0x4ead, "HY02B05H", "Hysen")],
+        0x2714: (a1, "e-Sensor", "Broadlink"),
 
-        # Wi-Fi Alarm Kit
-        S1C: [(0x2722, "S2KIT", "Broadlink")],
+        0x4eb5: (mp1, "MP1-1K4S", "Broadlink"),
+        0x4ef7: (mp1, "MP1-1K4S", "Broadlink (OEM)"),
 
-        # Electric Curtain Motor
-        dooya: [(0x4e4d, "DT360E-45/20", "Dooya")],
+        0x4ead: (hysen, "HY02B05H", "Hysen"),
 
-        # Wall Socket
-        bg1: [(0x51e3, "BG800/BG900", "BG Electrical")],
+        0x2722: (S1C, "S2KIT", "Broadlink"),
 
-        # Smart Bulb
-        lb1: [
-            (0x5043, "SB800TD", "Broadlink (OEM)"),
-            (0x60c8, "LB1", "Broadlink (OEM)"),
-        ],
+        0x4e4d: (dooya, "DT360E-45/20", "Dooya"),
+
+        0x51e3: (bg1, "BG800/BG900", "BG Electrical"),
+
+        0x5043: (lb1, "SB800TD", "Broadlink (OEM)"),
+        0x60c8: (lb1, "LB1", "Broadlink (OEM)"),
     }
 
     # Look for the class associated to devtype in devices
     try:
-        dev_class, model, manufacturer = next(
-            (dev_class, model, manufacturer)
-            for dev_class, dev_list in devices.items()
-            for dev_type, model, manufacturer in dev_list
-            if dev_type == devtype
-        )
-    except StopIteration:
+        dev_class, model, manufacturer = devices[devtype]
+    except KeyError:
         return device(host, mac, devtype, name=name, cloud=cloud)
 
     dev = dev_class(host, mac, devtype, name=name, cloud=cloud)
