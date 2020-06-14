@@ -156,32 +156,28 @@ def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.2
 
     cs.sendto(packet, (discover_ip_address, 80))
     if timeout is None:
-        response = cs.recvfrom(1024)
-        responsepacket = bytearray(response[0])
-        host = response[1]
-        devtype = responsepacket[0x34] | responsepacket[0x35] << 8
-        mac = responsepacket[0x3f:0x39:-1]
-        name = responsepacket[0x40:].split(b'\x00')[0].decode('utf-8')
-        cloud = bool(responsepacket[-1])
-        device = gendevice(devtype, host, mac, name=name, cloud=cloud)
+        response, host = cs.recvfrom(1024)
+        devtype = response[0x34] | response[0x35] << 8
+        mac = bytes(response[0x3f:0x39:-1])
+        name = response[0x40:].split(b'\x00')[0].decode('utf-8')
+        cloud = bool(response[-1])
+        dev = gendevice(devtype, host, mac, name=name, cloud=cloud)
         cs.close()
-        return device
+        return dev
 
     while (time.time() - starttime) < timeout:
         cs.settimeout(timeout - (time.time() - starttime))
         try:
-            response = cs.recvfrom(1024)
+            response, host = cs.recvfrom(1024)
         except socket.timeout:
             cs.close()
             return devices
-        responsepacket = bytearray(response[0])
-        host = response[1]
-        devtype = responsepacket[0x34] | responsepacket[0x35] << 8
-        mac = responsepacket[0x3f:0x39:-1]
-        name = responsepacket[0x40:].split(b'\x00')[0].decode('utf-8')
-        cloud = bool(responsepacket[-1])
-        device = gendevice(devtype, host, mac, name=name, cloud=cloud)
-        devices.append(device)
+        devtype = response[0x34] | response[0x35] << 8
+        mac = bytes(response[0x3f:0x39:-1])
+        name = response[0x40:].split(b'\x00')[0].decode('utf-8')
+        cloud = bool(response[-1])
+        dev = gendevice(devtype, host, mac, name=name, cloud=cloud)
+        devices.append(dev)
     cs.close()
     return devices
 
