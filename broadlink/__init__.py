@@ -8,6 +8,7 @@ import struct
 import threading
 import time
 from datetime import datetime
+from functools import lru_cache
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -15,6 +16,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from .exceptions import check_error, exception
 
 
+@lru_cache(64)
 def gendevice(devtype, host, mac, name=None, cloud=None):
     devices = {
         0x0000: (sp1, "SP1", "Broadlink"),
@@ -1011,8 +1013,8 @@ class lb1(device):
                         'color jumping' : 6,
                         'multicolor jumping' : 7 }
 
-    def __init__(self, host, mac, devtype):
-        device.__init__(self, host, mac, devtype)
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
         self.type = "SmartBulb"
 
     def send_command(self,command, type = 'set'):
