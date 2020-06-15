@@ -74,17 +74,19 @@ def gendevice(devtype, host, mac, name=None, cloud=None):
         0x4ef7: (mp1, "MP1-1K4S", "Broadlink (OEM)"),
         0x4f65: (mp1, "MP1-1K3S2U", "Broadlink"),
 
-        0x4ead: (hysen, "HY02B05H", "Hysen"),
+        0x5043: (lb1, "SB800TD", "Broadlink (OEM)"),
+        0x504e: (lb1, "LB1", "Broadlink"),
+        0x60c7: (lb1, "LB1", "Broadlink"),
+        0x60c8: (lb1, "LB1", "Broadlink"),
+        0x6112: (lb1, "LB1", "Broadlink"),
 
         0x2722: (S1C, "S2KIT", "Broadlink"),
+
+        0x4ead: (hysen, "HY02B05H", "Hysen"),
 
         0x4e4d: (dooya, "DT360E-45/20", "Dooya"),
 
         0x51e3: (bg1, "BG800/BG900", "BG Electrical"),
-
-        0x5043: (lb1, "SB800TD", "Broadlink (OEM)"),
-        0x60c7: (lb1, "LB1", "Broadlink (OEM)"),
-        0x60c8: (lb1, "LB1", "Broadlink (OEM)"),
     }
 
     # Look for the class associated to devtype in devices
