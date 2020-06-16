@@ -244,9 +244,21 @@ class device:
 
     def set_name(self, name):
         packet = bytearray(4)
-        packet.extend(map(ord, name))
+        packet += name.encode('utf-8')
+        packet += bytearray(0x50 - len(packet))
+        packet[0x43] = self.cloud
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
+        self.name = name
+
+    def set_lock(self, state):
+        packet = bytearray(4)
+        packet += self.name.encode('utf-8')
+        packet += bytearray(0x50 - len(packet))
+        packet[0x43] = state
+        response = self.send_packet(0x6a, packet)
+        check_error(response[0x22:0x24])
+        self.cloud = bool(state)
 
     def get_type(self):
         return self.type
