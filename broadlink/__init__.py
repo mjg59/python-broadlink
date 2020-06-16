@@ -14,66 +14,90 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 from .exceptions import check_error, exception
 
+
 def gendevice(devtype, host, mac, name=None, cloud=None):
     devices = {
-        sp1: [0],
-        sp2: [0x2711,  # SP2
-              0x2719, 0x7919, 0x271a, 0x791a,  # Honeywell SP2
-              0x2720,  # SPMini
-              0x753e,  # SP3
-              0x7D00,  # OEM branded SP3
-              0x947a, 0x9479,  # SP3S
-              0x2728,  # SPMini2
-              0x2733, 0x273e,  # OEM branded SPMini
-              0x7530, 0x7546, 0x7918,  # OEM branded SPMini2
-              0x7544,  # SP2-CL
-              0x7D0D,  # TMall OEM SPMini3
-              0x2736  # SPMiniPlus
-              ],
-        rm: [0x2712,  # RM2
-             0x2737,  # RM Mini
-             0x273d,  # RM Pro Phicomm
-             0x2783,  # RM2 Home Plus
-             0x277c,  # RM2 Home Plus GDT
-             0x272a,  # RM2 Pro Plus
-             0x2787,  # RM2 Pro Plus2
-             0x279d,  # RM2 Pro Plus3
-             0x27a9,  # RM2 Pro Plus_300
-             0x278b,  # RM2 Pro Plus BL
-             0x2797,  # RM2 Pro Plus HYC
-             0x27a1,  # RM2 Pro Plus R1
-             0x27a6,  # RM2 Pro PP
-             0x278f,  # RM Mini Shate
-             0x27c2,  # RM Mini 3
-             0x27d1,  # new RM Mini3
-             0x27de  # RM Mini 3 (C)
-             ],
-        rm4: [0x51da,  # RM4 Mini
-              0x5f36,  # RM Mini 3
-              0x6026,  # RM4 Pro
-              0x6070,  # RM4c Mini
-              0x61a2,  # RM4 Pro
-              0x610e,  # RM4 Mini
-              0x610f,  # RM4c
-              0x62bc,  # RM4 Mini
-              0x62be  # RM4c Mini
-              ],
-        a1: [0x2714],  # A1
-        mp1: [0x4EB5,  # MP1
-              0x4EF7  # Honyar oem mp1
-              ],
-        hysen: [0x4EAD],  # Hysen controller
-        S1C: [0x2722],  # S1 (SmartOne Alarm Kit)
-        dooya: [0x4E4D],  # Dooya DT360E (DOOYA_CURTAIN_V2)
-        bg1: [0x51E3], # BG Electrical Smart Power Socket
-        lb1 : [0x60c8]   # RGB Smart Bulb
+        0x0000: (sp1, "SP1", "Broadlink"),
+
+        0x2711: (sp2, "SP2", "Broadlink"),
+        0x2719: (sp2, "SP2-compatible", "Honeywell"),
+        0x271a: (sp2, "SP2-compatible", "Honeywell"),
+        0x2720: (sp2, "SP mini", "Broadlink"),
+        0x2728: (sp2, "SP2-compatible", "URANT"),
+        0x2733: (sp2, "SP3", "Broadlink"),
+        0x2736: (sp2, "SP mini+", "Broadlink"),
+        0x273e: (sp2, "SP mini", "Broadlink"),
+        0x7530: (sp2, "SP2", "Broadlink (OEM)"),
+        0x753e: (sp2, "SP mini 3", "Broadlink"),
+        0X7544: (sp2, "SP2-CL", "Broadlink"),
+        0x7546: (sp2, "SP2-UK/BR/IN", "Broadlink (OEM)"),
+        0x7918: (sp2, "SP2", "Broadlink (OEM)"),
+        0x7919: (sp2, "SP2-compatible", "Honeywell"),
+        0x791a: (sp2, "SP2-compatible", "Honeywell"),
+        0x7d00: (sp2, "SP3-EU", "Broadlink (OEM)"),
+        0x7d0d: (sp2, "SP mini 3", "Broadlink (OEM)"),
+        0x9479: (sp2, "SP3S-US", "Broadlink"),
+        0x947a: (sp2, "SP3S-EU", "Broadlink"),
+
+        0x2712: (rm, "RM pro/pro+", "Broadlink"),
+        0x272a: (rm, "RM pro", "Broadlink"),
+        0x2737: (rm, "RM mini 3", "Broadlink"),
+        0x273d: (rm, "RM pro", "Broadlink"),
+        0x277c: (rm, "RM home", "Broadlink"),
+        0x2783: (rm, "RM home", "Broadlink"),
+        0x2787: (rm, "RM pro", "Broadlink"),
+        0x278b: (rm, "RM plus", "Broadlink"),
+        0x278f: (rm, "RM mini", "Broadlink"),
+        0x2797: (rm, "RM pro+", "Broadlink"),
+        0x279d: (rm, "RM pro+", "Broadlink"),
+        0x27a1: (rm, "RM plus", "Broadlink"),
+        0x27a6: (rm, "RM plus", "Broadlink"),
+        0x27a9: (rm, "RM pro+", "Broadlink"),
+        0x27c2: (rm, "RM mini 3", "Broadlink"),
+        0x27d1: (rm, "RM mini 3", "Broadlink"),
+        0x27de: (rm, "RM mini 3", "Broadlink"),
+
+        0x51da: (rm4, "RM4 mini", "Broadlink"),
+        0x5f36: (rm4, "RM mini", "Broadlink"),
+        0x6026: (rm4, "RM4 pro", "Broadlink"),
+        0x6070: (rm4, "RM4C mini", "Broadlink"),
+        0x610e: (rm4, "RM4 mini", "Broadlink"),
+        0x610f: (rm4, "RM4C mini", "Broadlink"),
+        0x61a2: (rm4, "RM4 pro", "Broadlink"),
+        0x62bc: (rm4, "RM4 mini", "Broadlink"),
+        0x62be: (rm4, "RM4C mini", "Broadlink"),
+
+        0x2714: (a1, "e-Sensor", "Broadlink"),
+
+        0x4eb5: (mp1, "MP1-1K4S", "Broadlink"),
+        0x4ef7: (mp1, "MP1-1K4S", "Broadlink (OEM)"),
+        0x4f65: (mp1, "MP1-1K3S2U", "Broadlink"),
+
+        0x5043: (lb1, "SB800TD", "Broadlink (OEM)"),
+        0x504e: (lb1, "LB1", "Broadlink"),
+        0x60c7: (lb1, "LB1", "Broadlink"),
+        0x60c8: (lb1, "LB1", "Broadlink"),
+        0x6112: (lb1, "LB1", "Broadlink"),
+
+        0x2722: (S1C, "S2KIT", "Broadlink"),
+
+        0x4ead: (hysen, "HY02B05H", "Hysen"),
+
+        0x4e4d: (dooya, "DT360E-45/20", "Dooya"),
+
+        0x51e3: (bg1, "BG800/BG900", "BG Electrical"),
     }
 
     # Look for the class associated to devtype in devices
-    [device_class] = [dev for dev in devices if devtype in devices[dev]] or [None]
-    if device_class is None:
+    try:
+        dev_class, model, manufacturer = devices[devtype]
+    except KeyError:
         return device(host, mac, devtype, name=name, cloud=cloud)
-    return device_class(host, mac, devtype, name=name, cloud=cloud)
+
+    dev = dev_class(host, mac, devtype, name=name, cloud=cloud)
+    dev.model = model
+    dev.manufacturer = manufacturer
+    return dev
 
 
 def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.255.255'):
@@ -170,6 +194,8 @@ class device:
         self.devtype = devtype if devtype is not None else 0x272a
         self.name = name
         self.cloud = cloud
+        self.model = None
+        self.manufacturer = None
         self.timeout = timeout
         self.count = random.randrange(0xffff)
         self.iv = bytearray(
@@ -1000,8 +1026,8 @@ class lb1(device):
                         'color jumping' : 6,
                         'multicolor jumping' : 7 }
 
-    def __init__(self, host, mac, devtype):
-        device.__init__(self, host, mac, devtype)
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
         self.type = "SmartBulb"
 
     def send_command(self,command, type = 'set'):
