@@ -58,7 +58,7 @@ def gendevice(devtype, host, mac, name=None, cloud=None):
         0x27de: (rm, "RM mini 3", "Broadlink"),
 
         0x51da: (rm4, "RM4 mini", "Broadlink"),
-        0x5f36: (rm4, "RM mini", "Broadlink"),
+        0x5f36: (rm4, "RM mini 3", "Broadlink"),
         0x6026: (rm4, "RM4 pro", "Broadlink"),
         0x6070: (rm4, "RM4C mini", "Broadlink"),
         0x610e: (rm4, "RM4 mini", "Broadlink"),
