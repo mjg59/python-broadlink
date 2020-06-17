@@ -65,6 +65,7 @@ def gendevice(devtype, host, mac, name=None, cloud=None):
         hysen: [0x4EAD],  # Hysen controller
         S1C: [0x2722],  # S1 (SmartOne Alarm Kit)
         dooya: [0x4E4D],  # Dooya DT360E (DOOYA_CURTAIN_V2)
+        wistar: [0x4f6c],  # Wistart wi-fi curtain
         bg1: [0x51E3], # BG Electrical Smart Power Socket
         lb1 : [0x60c8]   # RGB Smart Bulb
     }
@@ -984,6 +985,75 @@ class dooya(device):
 
         elif current < new_percentage:
             self.open()
+            while current is not None and current < new_percentage:
+                time.sleep(0.2)
+                current = self.get_percentage()
+        self.stop()
+
+class wistar(device):
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
+        self.type = "Wistar curtain"
+
+    def _send(self, command, data):
+        packet = bytearray([0, 0, 0xa5, 0xa5, 0x5a, 0x5a, 0, 0, 0, 0x0b])
+        packet[8] = command
+        packet.append(len(data))
+        packet.append(0)
+        packet.append(0)
+        packet.append(0)
+        packet += bytearray(data)
+        packet[0] = len(packet)-2
+
+        checksum = 0xbeaf
+        for i in range(2,len(packet)):
+            checksum += packet[i]
+            checksum = checksum & 0xffff
+
+        packet[6] = checksum&0xff
+        packet[7] = checksum>>8
+        response = self.send_packet(0x6a, packet)
+        err = response[0x22] | (response[0x23] << 8)
+        if err != 0:
+            return None
+        payload = self.decrypt(bytes(response[0x38:]))
+        return payload
+        
+    def get_percentage(self):
+        response = self._send(0x01, [])
+        position = ord(response[14])
+        return position
+
+    def open(self):
+        response = self._send(0x02, [0x4a, 0x31, 0xa0])
+        position = ord(response[14])
+        return position
+
+    def close(self):
+        response = self._send(0x02, [0x61, 0x32, 0xa0])
+        position = ord(response[14])
+        return position
+
+    def stop(self):
+        response = self._send(0x02, [0x4c, 0x73, 0xa0])
+        position = ord(response[14])
+        return position
+
+    def set_percentage(self, position):
+        response = self._send(0x02, [position, 0x70, 0xa0])
+        position = ord(response[14])
+        return position
+
+    def set_percentage_and_wait(self, new_percentage):
+        current = self.get_percentage()
+        if current > new_percentage:
+            self.set_percentage(new_percentage)
+            while current is not None and current > new_percentage:
+                time.sleep(0.2)
+                current = self.get_percentage()
+
+        elif current < new_percentage:
+            self.set_percentage(new_percentage)
             while current is not None and current < new_percentage:
                 time.sleep(0.2)
                 current = self.get_percentage()
