@@ -15,7 +15,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from .exceptions import check_error, exception
 
 
-def gendevice(devtype, host, mac, name=None, cloud=None):
+def gendevice(devtype, host, mac, name=None, is_locked=None):
     devices = {
         0x0000: (sp1, "SP1", "Broadlink"),
 
@@ -92,9 +92,9 @@ def gendevice(devtype, host, mac, name=None, cloud=None):
     try:
         dev_class, model, manufacturer = devices[devtype]
     except KeyError:
-        return device(host, mac, devtype, name=name, cloud=cloud)
+        return device(host, mac, devtype, name=name, is_locked=is_locked)
 
-    dev = dev_class(host, mac, devtype, name=name, cloud=cloud)
+    dev = dev_class(host, mac, devtype, name=name, is_locked=is_locked)
     dev.model = model
     dev.manufacturer = manufacturer
     return dev
@@ -163,8 +163,8 @@ def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.2
         devtype = responsepacket[0x34] | responsepacket[0x35] << 8
         mac = responsepacket[0x3f:0x39:-1]
         name = responsepacket[0x40:].split(b'\x00')[0].decode('utf-8')
-        cloud = bool(responsepacket[-1])
-        device = gendevice(devtype, host, mac, name=name, cloud=cloud)
+        is_locked = bool(responsepacket[-1])
+        device = gendevice(devtype, host, mac, name=name, is_locked=is_locked)
         cs.close()
         return device
 
@@ -180,20 +180,20 @@ def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.2
         devtype = responsepacket[0x34] | responsepacket[0x35] << 8
         mac = responsepacket[0x3f:0x39:-1]
         name = responsepacket[0x40:].split(b'\x00')[0].decode('utf-8')
-        cloud = bool(responsepacket[-1])
-        device = gendevice(devtype, host, mac, name=name, cloud=cloud)
+        is_locked = bool(responsepacket[-1])
+        device = gendevice(devtype, host, mac, name=name, is_locked=is_locked)
         devices.append(device)
     cs.close()
     return devices
 
 
 class device:
-    def __init__(self, host, mac, devtype, timeout=10, name=None, cloud=None):
+    def __init__(self, host, mac, devtype, timeout=10, name=None, is_locked=None):
         self.host = host
         self.mac = mac.encode() if isinstance(mac, str) else mac
         self.devtype = devtype if devtype is not None else 0x272a
         self.name = name
-        self.cloud = cloud
+        self.is_locked = is_locked
         self.model = None
         self.manufacturer = None
         self.timeout = timeout
@@ -272,7 +272,7 @@ class device:
         packet = bytearray(4)
         packet += name.encode('utf-8')
         packet += bytearray(0x50 - len(packet))
-        packet[0x43] = self.cloud
+        packet[0x43] = self.is_locked
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
         self.name = name
@@ -284,7 +284,7 @@ class device:
         packet[0x43] = state
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
-        self.cloud = bool(state)
+        self.is_locked = bool(state)
 
     def get_type(self):
         return self.type
