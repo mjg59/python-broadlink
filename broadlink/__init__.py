@@ -102,9 +102,10 @@ def gendevice(devtype, host, mac, name=None, cloud=None):
 
 def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.255.255'):
     if local_ip_address is None:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            s.connect(('8.8.8.8', 53))  # connecting to a UDP address doesn't send packets
-            local_ip_address = s.getsockname()[0]
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 53))  # connecting to a UDP address doesn't send packets
+        local_ip_address = s.getsockname()[0]
+        s.close()
 
     address = local_ip_address.split('.')
     cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
