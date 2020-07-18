@@ -112,7 +112,6 @@ def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.2
     cs.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     cs.bind((local_ip_address, 0))
     port = cs.getsockname()[1]
-    starttime = time.time()
 
     devices = []
 
@@ -168,6 +167,7 @@ def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.2
         cs.close()
         return device
 
+    starttime = time.time()
     while (time.time() - starttime) < timeout:
         cs.settimeout(timeout - (time.time() - starttime))
         try:
@@ -338,8 +338,8 @@ class device:
         packet[0x20] = checksum & 0xff
         packet[0x21] = checksum >> 8
 
-        start_time = time.time()
         with self.lock:
+            start_time = time.time()
             cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
