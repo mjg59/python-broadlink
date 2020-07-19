@@ -15,8 +15,8 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from .exceptions import check_error, exception
 
 
-def gendevice(devtype, host, mac, name=None, cloud=None):
-    devices = {
+def get_devices():
+    return {
         0x0000: (sp1, "SP1", "Broadlink"),
 
         0x2711: (sp2, "SP2", "Broadlink"),
@@ -88,16 +88,24 @@ def gendevice(devtype, host, mac, name=None, cloud=None):
         0x51e3: (bg1, "BG800/BG900", "BG Electrical"),
     }
 
-    # Look for the class associated to devtype in devices
-    try:
-        dev_class, model, manufacturer = devices[devtype]
-    except KeyError:
-        return device(host, mac, devtype, name=name, cloud=cloud)
 
-    dev = dev_class(host, mac, devtype, name=name, cloud=cloud)
-    dev.model = model
-    dev.manufacturer = manufacturer
-    return dev
+def gendevice(dev_type, host, mac, name=None, cloud=None):
+    """Generate a device."""
+    try:
+        dev_class, model, manufacturer = get_devices()[dev_type]
+
+    except KeyError:
+        return device(host, mac, dev_type, name=name, cloud=cloud)
+
+    return dev_class(
+        host,
+        mac,
+        dev_type,
+        name=name,
+        model=model,
+        manufacturer=manufacturer,
+        cloud=cloud,
+    )
 
 
 def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.255.255'):
@@ -188,15 +196,25 @@ def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.2
 
 
 class device:
-    def __init__(self, host, mac, devtype, timeout=10, name=None, cloud=None):
+    def __init__(
+        self,
+        host,
+        mac,
+        devtype,
+        timeout=10,
+        name=None,
+        model=None,
+        manufacturer=None,
+        cloud=None
+    ):
         self.host = host
         self.mac = mac.encode() if isinstance(mac, str) else mac
         self.devtype = devtype if devtype is not None else 0x272a
-        self.name = name
-        self.cloud = cloud
-        self.model = None
-        self.manufacturer = None
         self.timeout = timeout
+        self.name = name
+        self.model = model
+        self.manufacturer = manufacturer
+        self.cloud = cloud
         self.count = random.randrange(0xffff)
         self.iv = bytearray(
             [0x56, 0x2e, 0x17, 0x99, 0x6d, 0x09, 0x3d, 0x28, 0xdd, 0xb3, 0xba, 0x69, 0x5a, 0x2e, 0x6f, 0x58])
