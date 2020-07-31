@@ -90,13 +90,13 @@ def get_devices():
     }
 
 
-def gendevice(dev_type, host, mac, name=None, cloud=None):
+def gendevice(dev_type, host, mac, name=None, is_locked=None):
     """Generate a device."""
     try:
         dev_class, model, manufacturer = get_devices()[dev_type]
 
     except KeyError:
-        return device(host, mac, dev_type, name=name, cloud=cloud)
+        return device(host, mac, dev_type, name=name, is_locked=is_locked)
 
     return dev_class(
         host,
@@ -105,7 +105,7 @@ def gendevice(dev_type, host, mac, name=None, cloud=None):
         name=name,
         model=model,
         manufacturer=manufacturer,
-        cloud=cloud,
+        is_locked=is_locked,
     )
 
 
@@ -172,8 +172,8 @@ def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.2
         devtype = responsepacket[0x34] | responsepacket[0x35] << 8
         mac = responsepacket[0x3f:0x39:-1]
         name = responsepacket[0x40:].split(b'\x00')[0].decode('utf-8')
-        cloud = bool(responsepacket[-1])
-        device = gendevice(devtype, host, mac, name=name, cloud=cloud)
+        is_locked = bool(responsepacket[-1])
+        device = gendevice(devtype, host, mac, name=name, is_locked=is_locked)
         cs.close()
         return device
 
@@ -189,8 +189,8 @@ def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.2
         devtype = responsepacket[0x34] | responsepacket[0x35] << 8
         mac = responsepacket[0x3f:0x39:-1]
         name = responsepacket[0x40:].split(b'\x00')[0].decode('utf-8')
-        cloud = bool(responsepacket[-1])
-        device = gendevice(devtype, host, mac, name=name, cloud=cloud)
+        is_locked = bool(responsepacket[-1])
+        device = gendevice(devtype, host, mac, name=name, is_locked=is_locked)
         devices.append(device)
     cs.close()
     return devices
@@ -206,7 +206,7 @@ class device:
         name=None,
         model=None,
         manufacturer=None,
-        cloud=None
+        is_locked=None
     ):
         self.host = host
         self.mac = mac.encode() if isinstance(mac, str) else mac
@@ -215,7 +215,7 @@ class device:
         self.name = name
         self.model = model
         self.manufacturer = manufacturer
-        self.cloud = cloud
+        self.is_locked = is_locked
         self.count = random.randrange(0xffff)
         self.iv = bytearray(
             [0x56, 0x2e, 0x17, 0x99, 0x6d, 0x09, 0x3d, 0x28, 0xdd, 0xb3, 0xba, 0x69, 0x5a, 0x2e, 0x6f, 0x58])
@@ -291,7 +291,7 @@ class device:
         packet = bytearray(4)
         packet += name.encode('utf-8')
         packet += bytearray(0x50 - len(packet))
-        packet[0x43] = self.cloud
+        packet[0x43] = self.is_locked
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
         self.name = name
@@ -303,7 +303,7 @@ class device:
         packet[0x43] = state
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
-        self.cloud = bool(state)
+        self.is_locked = bool(state)
 
     def get_type(self):
         return self.type
