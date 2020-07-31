@@ -31,6 +31,7 @@ def get_devices():
         0x753e: (sp2, "SP mini 3", "Broadlink"),
         0X7544: (sp2, "SP2-CL", "Broadlink"),
         0x7546: (sp2, "SP2-UK/BR/IN", "Broadlink (OEM)"),
+        0x7547: (sp2, "SC1", "Broadlink"),
         0x7918: (sp2, "SP2", "Broadlink (OEM)"),
         0x7919: (sp2, "SP2-compatible", "Honeywell"),
         0x791a: (sp2, "SP2-compatible", "Honeywell"),
