@@ -285,13 +285,13 @@ class device:
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
-        return payload[0x4] | payload[0x5] << 8        
+        return payload[0x4] | payload[0x5] << 8
 
     def set_name(self, name):
         packet = bytearray(4)
         packet += name.encode('utf-8')
         packet += bytearray(0x50 - len(packet))
-        packet[0x43] = self.is_locked
+        packet[0x43] = bool(self.is_locked)
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
         self.name = name
@@ -300,7 +300,7 @@ class device:
         packet = bytearray(4)
         packet += self.name.encode('utf-8')
         packet += bytearray(0x50 - len(packet))
-        packet[0x43] = state
+        packet[0x43] = bool(state)
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
         self.is_locked = bool(state)
