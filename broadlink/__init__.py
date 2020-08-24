@@ -156,11 +156,8 @@ def discover(timeout=None, local_ip_address=None, discover_ip_address='255.255.2
     packet[0x1c] = port & 0xff
     packet[0x1d] = port >> 8
     packet[0x26] = 6
-    
-    checksum = 0xbeaf
-    for b in packet:
-        checksum = (checksum + b) & 0xffff
 
+    checksum = sum(packet, 0xbeaf) & 0xffff
     packet[0x20] = checksum & 0xff
     packet[0x21] = checksum >> 8
 
@@ -339,10 +336,7 @@ class device:
         if payload:
             payload += bytearray((16 - len(payload)) % 16)
 
-        checksum = 0xbeaf
-        for b in payload:
-            checksum = (checksum + b) & 0xffff
-
+        checksum = sum(payload, 0xbeaf) & 0xffff
         packet[0x34] = checksum & 0xff
         packet[0x35] = checksum >> 8
 
@@ -350,10 +344,7 @@ class device:
         for i in range(len(payload)):
             packet.append(payload[i])
 
-        checksum = 0xbeaf
-        for b in packet:
-            checksum = (checksum + b) & 0xffff
-
+        checksum = sum(packet, 0xbeaf) & 0xffff
         packet[0x20] = checksum & 0xff
         packet[0x21] = checksum >> 8
 
@@ -492,9 +483,7 @@ class bg1(device):
         for i in range(len(js)):
             packet.append(js[i])
 
-        checksum = 0xc0ad
-        for b in packet[0x08:]:
-            checksum = (checksum + b) & 0xffff
+        checksum = sum(packet[0x08:], 0xc0ad) & 0xffff
 
         packet[0x06] = checksum & 0xff
         packet[0x07] = checksum >> 8
@@ -1049,8 +1038,9 @@ class lb1(device):
         device.__init__(self, *args, **kwargs)
         self.type = "SmartBulb"
 
-    def send_command(self,command, type = 'set'):
+    def send_command(self, command, type='set'):
         packet = bytearray(16+(int(len(command)/16) + 1)*16)
+        packet[0x00] = 0x0c + len(command) & 0xff
         packet[0x02] = 0xa5
         packet[0x03] = 0xa5
         packet[0x04] = 0x5a
@@ -1060,11 +1050,7 @@ class lb1(device):
         packet[0x0a] = len(command)
         packet[0x0e:] = map(ord, command)
 
-        checksum = 0xbeaf
-        for b in packet:
-            checksum = (checksum + b) & 0xffff
-
-        packet[0x00] = (0x0c + len(command)) & 0xff
+        checksum = sum(packet, 0xbeaf) & 0xffff
         packet[0x06] = checksum & 0xff  # Checksum 1 position
         packet[0x07] = checksum >> 8  # Checksum 2 position
 
@@ -1116,10 +1102,7 @@ def setup(ssid, password, security_mode):
     payload[0x85] = pass_length  # Character length of password
     payload[0x86] = security_mode  # Type of encryption (00 - none, 01 = WEP, 02 = WPA1, 03 = WPA2, 04 = WPA1/2)
 
-    checksum = 0xbeaf
-    for b in payload:
-        checksum = (checksum + b) & 0xffff
-
+    checksum = sum(payload, 0xbeaf) & 0xffff
     payload[0x20] = checksum & 0xff  # Checksum 1 position
     payload[0x21] = checksum >> 8  # Checksum 2 position
 
