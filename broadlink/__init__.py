@@ -357,14 +357,23 @@ class device:
                 try:
                     cs.sendto(packet, self.host)
                     cs.settimeout(1)
-                    response = cs.recvfrom(2048)
+                    resp, _ = cs.recvfrom(2048)
+                    resp = bytearray(resp)
                     break
                 except socket.timeout:
                     if (time.time() - start_time) > self.timeout:
                         cs.close()
-                        raise exception(0xfffd)
+                        raise exception(-4000)  # Network timeout.
             cs.close()
-        return bytearray(response[0])
+
+        if len(resp) < 0x30:
+            raise exception(-4007)  # Length error.
+
+        checksum = resp[0x20] | (resp[0x21] << 8)
+        if sum(resp, 0xbeaf) - sum(resp[0x20:0x22]) & 0xffff != checksum:
+            raise exception(-4008)  # Checksum error.
+
+        return resp
 
 
 class mp1(device):
