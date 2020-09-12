@@ -672,7 +672,7 @@ class sp4(device):
 
         payload = self.decrypt(bytes(response[0x38:]))
         js_len = struct.unpack_from("<I", payload, 0x08)[0]
-        state = json.loads(payload[0x0C : 0x0C + js_len])
+        state = json.loads(payload[0x0C : 0x0C + js_len].decode("utf-8"))
         return state
 
 
