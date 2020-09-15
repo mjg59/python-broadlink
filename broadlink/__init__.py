@@ -13,6 +13,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 from .exceptions import check_error, exception
+from .helpers import get_local_ip
 
 
 def get_devices():
@@ -116,11 +117,7 @@ def discover(
         discover_ip_address='255.255.255.255',
         discover_ip_port=80
 ):
-    if local_ip_address is None:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            s.connect(('8.8.8.8', 53))  # connecting to a UDP address doesn't send packets
-            local_ip_address = s.getsockname()[0]
-
+    local_ip_address = local_ip_address or get_local_ip()
     address = local_ip_address.split('.')
     cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
