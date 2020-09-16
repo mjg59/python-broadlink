@@ -118,8 +118,8 @@ class LengthError(SDKException):
     pass
 
 
-class DNSError(SDKException):
-    """Domain name resolution error."""
+class DNSLookupError(SDKException):
+    """Failed to obtain local IP address."""
 
     pass
 
@@ -153,7 +153,7 @@ BROADLINK_EXCEPTIONS = {
     -4000: (NetworkTimeoutError, "Network timeout"),
     -4007: (LengthError, "Received data packet length error"),
     -4008: (ChecksumError, "Received data packet check error"),
-    -4013: (DNSError, "Domain name resolution error"),
+    -4013: (DNSLookupError, "Failed to obtain local IP address"),
 }
 
 
