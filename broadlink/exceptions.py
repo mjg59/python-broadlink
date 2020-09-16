@@ -13,23 +13,19 @@ class BroadlinkException(Exception):
             self.strerror = "%s: %s" % (args[1], args[2])
         elif len(args) == 2:
             self.errno = args[0]
-            self.strerror = args[1]
+            self.strerror = str(args[1])
         elif len(args) == 1:
             self.errno = None
-            self.strerror = args[0]
+            self.strerror = str(args[0])
         else:
             self.errno = None
-            self.strerror = None
+            self.strerror = ""
 
     def __str__(self):
         """Return the error message."""
         if self.errno is not None:
-            err_msg = "[Errno %s] %s" % (self.errno, self.strerror)
-        elif self.strerror is not None:
-            err_msg = "%s" % (self.strerror)
-        else:
-            err_msg = ""
-        return err_msg
+            return "[Errno %s] %s" % (self.errno, self.strerror)
+        return self.strerror
 
 
 class FirmwareException(BroadlinkException):
@@ -122,6 +118,12 @@ class LengthError(SDKException):
     pass
 
 
+class DNSError(SDKException):
+    """Domain name resolution error."""
+
+    pass
+
+
 class NetworkTimeoutError(SDKException):
     """Network timeout error."""
 
@@ -151,6 +153,7 @@ BROADLINK_EXCEPTIONS = {
     -4000: (NetworkTimeoutError, "Network timeout"),
     -4007: (LengthError, "Received data packet length error"),
     -4008: (ChecksumError, "Received data packet check error"),
+    -4013: (DNSError, "Domain name resolution error"),
 }
 
 
