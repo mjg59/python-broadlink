@@ -3,7 +3,7 @@
 import socket
 import time
 from datetime import datetime
-from typing import List, Union, Tuple
+from typing import Dict, List, Union, Tuple, Type
 
 from .alarm import S1C
 from .cover import dooya
@@ -17,7 +17,7 @@ from .switch import bg1, mp1, sp1, sp2
 from .helpers import calculate_crc16, get_local_ip
 
 
-def get_devices() -> dict:
+def get_devices() -> Dict[int, Tuple[Type[device], str, str]]:
     """Return all supported devices."""
     return {
         0x0000: (sp1, "SP1", "Broadlink"),
@@ -90,7 +90,7 @@ def gendevice(
     mac: Union[bytes, str],
     name: str = None,
     is_locked: bool = None,
-):
+) -> device:
     """Generate a device."""
     try:
         dev_class, model, manufacturer = get_devices()[dev_type]
@@ -114,7 +114,7 @@ def discover(
         local_ip_address: str = None,
         discover_ip_address: str = '255.255.255.255',
         discover_ip_port: int = 80,
-) -> list:
+) -> List[device]:
     """Discover devices connected to the local network."""
     local_ip_address = local_ip_address or get_local_ip()
     address = local_ip_address.split('.')

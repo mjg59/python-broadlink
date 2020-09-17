@@ -19,7 +19,7 @@ class hysen(device):
     # New behaviour: raises a ValueError if the device response indicates an error or CRC check fails
     # The function prepends length (2 bytes) and appends CRC
 
-    def send_request(self, input_payload: bytes) -> bytes:
+    def send_request(self, input_payload: bytearray) -> bytes:
         """Send a request to the device."""
         crc = calculate_crc16(bytes(input_payload))
 
