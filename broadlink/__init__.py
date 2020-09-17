@@ -33,6 +33,7 @@ def get_devices() -> Dict[int, Tuple[Type[device], str, str]]:
         0x7530: (sp2, "SP2", "Broadlink (OEM)"),
         0x7539: (sp2, "SP2-IL", "Broadlink (OEM)"),
         0x753e: (sp2, "SP mini 3", "Broadlink"),
+        0x7540: (sp2, "MP2", "Broadlink"),
         0X7544: (sp2, "SP2-CL", "Broadlink"),
         0x7546: (sp2, "SP2-UK/BR/IN", "Broadlink (OEM)"),
         0x7547: (sp2, "SC1", "Broadlink"),
