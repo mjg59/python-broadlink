@@ -21,6 +21,8 @@ def get_devices():
         0x0000: (sp1, "SP1", "Broadlink"),
 
         0x2711: (sp2, "SP2", "Broadlink"),
+        0x2716: (sp2, "NEO PRO", "Ankuoo"),
+        0x2717: (sp2, "NEO", "Ankuoo"),
         0x2719: (sp2, "SP2-compatible", "Honeywell"),
         0x271a: (sp2, "SP2-compatible", "Honeywell"),
         0x2720: (sp2, "SP mini", "Broadlink"),
