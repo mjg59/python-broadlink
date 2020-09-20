@@ -6,15 +6,14 @@ from datetime import datetime
 from typing import Dict, List, Union, Tuple, Type
 
 from .alarm import S1C
-from .cover import dooya
 from .climate import hysen
+from .cover import dooya
 from .device import device
-from .exceptions import check_error, exception
+from .helpers import get_local_ip
 from .light import lb1
 from .remote import rm, rm2, rm4
 from .sensor import a1
 from .switch import bg1, mp1, sp1, sp2
-from .helpers import calculate_crc16, get_local_ip
 
 
 def get_devices() -> Dict[int, Tuple[Type[device], str, str]]:
