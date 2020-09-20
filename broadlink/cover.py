@@ -23,8 +23,8 @@ class dooya(device):
         packet[10] = 0x44
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
-        payload = self.decrypt(bytes(response[0x38:]))
-        return ord(payload[4])
+        payload = self.decrypt(response[0x38:])
+        return payload[4]
 
     def open(self) -> int:
         """Open the curtain."""

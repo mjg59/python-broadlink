@@ -50,7 +50,7 @@ class mp1(device):
 
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
-        payload = self.decrypt(bytes(response[0x38:]))
+        payload = self.decrypt(response[0x38:])
         return payload[0x0e]
 
     def check_power(self) -> dict:
@@ -116,7 +116,7 @@ class bg1(device):
         check_error(response[0x22:0x24])
         return self._decode(response)
 
-    def _encode(self, flag: int, js: str) -> bytearray:
+    def _encode(self, flag: int, js: str) -> bytes:
         """Encode a message."""
         #  The packet format is:
         #  0x00-0x01 length
@@ -139,7 +139,7 @@ class bg1(device):
 
     def _decode(self, response: bytes) -> dict:
         """Decode a message."""
-        payload = self.decrypt(bytes(response[0x38:]))
+        payload = self.decrypt(response[0x38:])
         js_len = struct.unpack_from('<I', payload, 0x0a)[0]
         state = json.loads(payload[0x0e:0x0e+js_len])
         return state
@@ -197,10 +197,8 @@ class sp2(device):
         packet[0] = 1
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
-        payload = self.decrypt(bytes(response[0x38:]))
-        if isinstance(payload[0x4], int):
-            return bool(payload[0x4] == 1 or payload[0x4] == 3 or payload[0x4] == 0xFD)
-        return bool(ord(payload[0x4]) == 1 or ord(payload[0x4]) == 3 or ord(payload[0x4]) == 0xFD)
+        payload = self.decrypt(response[0x38:])
+        return bool(payload[0x4] == 1 or payload[0x4] == 3 or payload[0x4] == 0xFD)
 
     def check_nightlight(self) -> bool:
         """Return the state of the night light."""
@@ -208,20 +206,13 @@ class sp2(device):
         packet[0] = 1
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
-        payload = self.decrypt(bytes(response[0x38:]))
-        if isinstance(payload[0x4], int):
-            return bool(payload[0x4] == 2 or payload[0x4] == 3 or payload[0x4] == 0xFF)
-        return bool(ord(payload[0x4]) == 2 or ord(payload[0x4]) == 3 or ord(payload[0x4]) == 0xFF)
+        payload = self.decrypt(response[0x38:])
+        return bool(payload[0x4] == 2 or payload[0x4] == 3 or payload[0x4] == 0xFF)
 
     def get_energy(self) -> int:
         """Return the energy state of the device."""
         packet = bytearray([8, 0, 254, 1, 5, 1, 0, 0, 0, 45])
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
-        payload = self.decrypt(bytes(response[0x38:]))
-        if isinstance(payload[0x7], int):
-            energy = int(hex(payload[0x07] * 256 + payload[0x06])[2:]) + int(hex(payload[0x05])[2:]) / 100.0
-        else:
-            energy = int(hex(ord(payload[0x07]) * 256 + ord(payload[0x06]))[2:]) + int(
-                hex(ord(payload[0x05]))[2:]) / 100.0
-        return energy
+        payload = self.decrypt(response[0x38:])
+        return int(hex(payload[0x07] * 256 + payload[0x06])[2:]) + int(hex(payload[0x05])[2:]) / 100.0

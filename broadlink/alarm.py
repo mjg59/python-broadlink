@@ -1,5 +1,3 @@
-import codecs
-
 from .device import device
 from .exceptions import check_error
 
@@ -25,7 +23,7 @@ class S1C(device):
         packet[0] = 0x06  # 0x06 - get sensors info, 0x07 - probably add sensors
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
-        payload = self.decrypt(bytes(response[0x38:]))
+        payload = self.decrypt(response[0x38:])
         if not payload:
             return None
         count = payload[0x4]
@@ -34,11 +32,11 @@ class S1C(device):
 
         sens_res = []
         for sens in sensors_a:
-            status = ord(chr(sens[0]))
-            _name = str(bytes(sens[4:26]).decode())
-            _order = ord(chr(sens[1]))
-            _type = ord(chr(sens[3]))
-            _serial = bytes(codecs.encode(sens[26:30], "hex")).decode()
+            status = sens[0]
+            _name = sens[4:26].decode()
+            _order = sens[1]
+            _type = sens[3]
+            _serial = sens[26:30].hex()
 
             type_str = S1C_SENSORS_TYPES.get(_type, 'Unknown')
 

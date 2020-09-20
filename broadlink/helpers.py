@@ -21,8 +21,8 @@ def get_local_ip() -> str:
         return s.getsockname()[0]
 
 
-def calculate_crc16(input_data) -> int:
-    """Calculate CRC-16."""
+def calculate_crc16(input_data: bytes) -> int:
+    """Calculate the CRC-16 of a byte string."""
     crc16_tab = []
     crc16_constant = 0xA001
 
@@ -35,24 +35,11 @@ def calculate_crc16(input_data) -> int:
                 crc = c_ushort(crc >> 1).value
         crc16_tab.append(hex(crc))
 
-    try:
-        is_string = isinstance(input_data, str)
-        is_bytes = isinstance(input_data, bytes)
+    crcValue = 0xFFFF
 
-        if not is_string and not is_bytes:
-            raise Exception(
-                "Please provide a string or a byte sequence "
-                "as argument for calculation."
-            )
+    for c in input_data:
+        tmp = crcValue ^ c
+        rotated = c_ushort(crcValue >> 8).value
+        crcValue = rotated ^ int(crc16_tab[(tmp & 0x00FF)], 0)
 
-        crcValue = 0xFFFF
-
-        for c in input_data:
-            d = ord(c) if is_string else c
-            tmp = crcValue ^ d
-            rotated = c_ushort(crcValue >> 8).value
-            crcValue = rotated ^ int(crc16_tab[(tmp & 0x00FF)], 0)
-
-        return crcValue
-    except Exception as e:
-        print("EXCEPTION(calculate): {}".format(e))
+    return crcValue

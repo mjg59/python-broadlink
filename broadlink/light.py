@@ -44,7 +44,7 @@ class lb1(device):
 
         response = self.send_packet(0x6a, packet)
         check_error(response[0x36:0x38])
-        payload = self.decrypt(bytes(response[0x38:]))
+        payload = self.decrypt(response[0x38:])
 
         responseLength = int(payload[0x0a]) | (int(payload[0x0b]) << 8)
         if responseLength > 0:
