@@ -19,9 +19,9 @@ class hysen(device):
     # New behaviour: raises a ValueError if the device response indicates an error or CRC check fails
     # The function prepends length (2 bytes) and appends CRC
 
-    def send_request(self, input_payload: bytearray) -> bytes:
+    def send_request(self, input_payload: bytes) -> bytes:
         """Send a request to the device."""
-        crc = calculate_crc16(bytes(input_payload))
+        crc = calculate_crc16(input_payload)
 
         # first byte is length, +2 for CRC16
         request_payload = bytearray([len(input_payload) + 2, 0x00])
@@ -34,13 +34,13 @@ class hysen(device):
         # send to device
         response = self.send_packet(0x6a, request_payload)
         check_error(response[0x22:0x24])
-        response_payload = bytearray(self.decrypt(bytes(response[0x38:])))
+        response_payload = self.decrypt(response[0x38:])
 
         # experimental check on CRC in response (first 2 bytes are len, and trailing bytes are crc)
         response_payload_len = response_payload[0]
         if response_payload_len + 2 > len(response_payload):
             raise ValueError('hysen_response_error', 'first byte of response is not length')
-        crc = calculate_crc16(bytes(response_payload[2:response_payload_len]))
+        crc = calculate_crc16(response_payload[2:response_payload_len])
         if (response_payload[response_payload_len] == crc & 0xFF) and (
                 response_payload[response_payload_len + 1] == (crc >> 8) & 0xFF):
             return response_payload[2:response_payload_len]

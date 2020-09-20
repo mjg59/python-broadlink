@@ -18,7 +18,7 @@ class rm(device):
         packet.append(0x04)
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
-        payload = self.decrypt(bytes(response[0x38:]))
+        payload = self.decrypt(response[0x38:])
         return payload[len(self._request_header) + 4:]
 
     def send_data(self, data: bytes) -> None:
@@ -56,7 +56,7 @@ class rm(device):
         packet.append(0x1a)
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
-        payload = self.decrypt(bytes(response[0x38:]))
+        payload = self.decrypt(response[0x38:])
         if payload[len(self._request_header) + 4] == 1:
             return True
         return False
@@ -67,7 +67,7 @@ class rm(device):
         packet.append(0x1b)
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
-        payload = self.decrypt(bytes(response[0x38:]))
+        payload = self.decrypt(response[0x38:])
         if payload[len(self._request_header) + 4] == 1:
             return True
         return False
@@ -78,7 +78,7 @@ class rm(device):
         packet.append(command)
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
-        payload = self.decrypt(bytes(response[0x38:]))
+        payload = self.decrypt(response[0x38:])
         return bytearray(payload[len(self._request_header) + 4:])
 
     def check_temperature(self) -> int:

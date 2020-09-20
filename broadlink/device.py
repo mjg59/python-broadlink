@@ -34,14 +34,14 @@ class device:
         self.manufacturer = manufacturer
         self.is_locked = is_locked
         self.count = random.randrange(0xffff)
-        self.iv = bytearray(
+        self.iv = bytes(
             [0x56, 0x2e, 0x17, 0x99, 0x6d, 0x09, 0x3d, 0x28, 0xdd, 0xb3, 0xba, 0x69, 0x5a, 0x2e, 0x6f, 0x58])
-        self.id = bytearray([0, 0, 0, 0])
+        self.id = bytes(4)
         self.type = "Unknown"
         self.lock = threading.Lock()
 
         self.aes = None
-        key = bytearray(
+        key = bytes(
             [0x09, 0x76, 0x28, 0x34, 0x3f, 0xe9, 0x9e, 0x23, 0x76, 0x5c, 0x15, 0x13, 0xac, 0xcf, 0x8b, 0x02])
         self.update_aes(key)
 
@@ -133,7 +133,7 @@ class device:
         """Return device type."""
         return self.type
 
-    def send_packet(self, command: int, payload: bytearray) -> bytearray:
+    def send_packet(self, command: int, payload: bytes) -> bytes:
         """Send a packet to the device."""
         self.count = (self.count + 1) & 0xffff
         packet = bytearray(0x38)
@@ -162,8 +162,10 @@ class device:
         packet[0x33] = self.id[0]
 
         # pad the payload for AES encryption
-        if payload:
-            payload += bytearray((16 - len(payload)) % 16)
+        padding = (16 - len(payload)) % 16
+        if padding:
+            payload = bytearray(payload)
+            payload += bytearray(padding)
 
         checksum = sum(payload, 0xbeaf) & 0xffff
         packet[0x34] = checksum & 0xff
@@ -187,7 +189,6 @@ class device:
                     cs.sendto(packet, self.host)
                     cs.settimeout(1)
                     resp, _ = cs.recvfrom(2048)
-                    resp = bytearray(resp)
                     break
                 except socket.timeout:
                     if (time.time() - start_time) > self.timeout:

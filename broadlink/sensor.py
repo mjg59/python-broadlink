@@ -31,7 +31,7 @@ class a1(device):
         packet = bytearray([0x1])
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
-        payload = self.decrypt(bytes(response[0x38:]))
+        payload = self.decrypt(response[0x38:])
         data = bytearray(payload[0x4:])
         return {
             'temperature': data[0x0] + data[0x1] / 10.0,
