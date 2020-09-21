@@ -31,109 +31,73 @@ class BroadlinkException(Exception):
 class FirmwareException(BroadlinkException):
     """Common base class for all firmware exceptions."""
 
-    pass
-
 
 class AuthenticationError(FirmwareException):
     """Authentication error."""
-
-    pass
 
 
 class AuthorizationError(FirmwareException):
     """Authorization error."""
 
-    pass
-
 
 class CommandNotSupportedError(FirmwareException):
     """Command not supported error."""
-
-    pass
 
 
 class ConnectionClosedError(FirmwareException):
     """Connection closed error."""
 
-    pass
-
 
 class DataValidationError(FirmwareException):
     """Data validation error."""
-
-    pass
 
 
 class DeviceOfflineError(FirmwareException):
     """Device offline error."""
 
-    pass
-
 
 class ReadError(FirmwareException):
     """Read error."""
-
-    pass
 
 
 class SendError(FirmwareException):
     """Send error."""
 
-    pass
-
 
 class SSIDNotFoundError(FirmwareException):
     """SSID not found error."""
-
-    pass
 
 
 class StorageError(FirmwareException):
     """Storage error."""
 
-    pass
-
 
 class WriteError(FirmwareException):
     """Write error."""
-
-    pass
 
 
 class SDKException(BroadlinkException):
     """Common base class for all SDK exceptions."""
 
-    pass
-
 
 class ChecksumError(SDKException):
     """Received data packet check error."""
-
-    pass
 
 
 class LengthError(SDKException):
     """Received data packet length error."""
 
-    pass
-
 
 class DNSLookupError(SDKException):
     """Failed to obtain local IP address."""
-
-    pass
 
 
 class NetworkTimeoutError(SDKException):
     """Network timeout error."""
 
-    pass
-
 
 class UnknownError(BroadlinkException):
     """Unknown error."""
-
-    pass
 
 
 BROADLINK_EXCEPTIONS = {
