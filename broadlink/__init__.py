@@ -74,6 +74,7 @@ def get_devices() -> Dict[int, Tuple[Type[device], str, str]]:
         0x62bc: (rm4, "RM4 mini", "Broadlink"),
         0x62be: (rm4, "RM4C mini", "Broadlink"),
         0x648d: (rm4, "RM4 mini", "Broadlink"),
+        0x649b: (rm4, "RM4 pro", "Broadlink"),
         0x2714: (a1, "e-Sensor", "Broadlink"),
         0x4eb5: (mp1, "MP1-1K4S", "Broadlink"),
         0x4ef7: (mp1, "MP1-1K4S", "Broadlink (OEM)"),
