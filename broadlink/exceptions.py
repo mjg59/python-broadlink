@@ -13,125 +13,91 @@ class BroadlinkException(Exception):
             self.strerror = "%s: %s" % (args[1], args[2])
         elif len(args) == 2:
             self.errno = args[0]
-            self.strerror = args[1]
+            self.strerror = str(args[1])
         elif len(args) == 1:
             self.errno = None
-            self.strerror = args[0]
+            self.strerror = str(args[0])
         else:
             self.errno = None
-            self.strerror = None
+            self.strerror = ""
 
     def __str__(self):
         """Return the error message."""
         if self.errno is not None:
-            err_msg = "[Errno %s] %s" % (self.errno, self.strerror)
-        elif self.strerror is not None:
-            err_msg = "%s" % (self.strerror)
-        else:
-            err_msg = ""
-        return err_msg
+            return "[Errno %s] %s" % (self.errno, self.strerror)
+        return self.strerror
 
 
 class FirmwareException(BroadlinkException):
     """Common base class for all firmware exceptions."""
 
-    pass
-
 
 class AuthenticationError(FirmwareException):
     """Authentication error."""
-
-    pass
 
 
 class AuthorizationError(FirmwareException):
     """Authorization error."""
 
-    pass
-
 
 class CommandNotSupportedError(FirmwareException):
     """Command not supported error."""
-
-    pass
 
 
 class ConnectionClosedError(FirmwareException):
     """Connection closed error."""
 
-    pass
-
 
 class DataValidationError(FirmwareException):
     """Data validation error."""
-
-    pass
 
 
 class DeviceOfflineError(FirmwareException):
     """Device offline error."""
 
-    pass
-
 
 class ReadError(FirmwareException):
     """Read error."""
-
-    pass
 
 
 class SendError(FirmwareException):
     """Send error."""
 
-    pass
-
 
 class SSIDNotFoundError(FirmwareException):
     """SSID not found error."""
-
-    pass
 
 
 class StorageError(FirmwareException):
     """Storage error."""
 
-    pass
-
 
 class WriteError(FirmwareException):
     """Write error."""
-
-    pass
 
 
 class SDKException(BroadlinkException):
     """Common base class for all SDK exceptions."""
 
-    pass
-
 
 class ChecksumError(SDKException):
     """Received data packet check error."""
-
-    pass
 
 
 class LengthError(SDKException):
     """Received data packet length error."""
 
-    pass
+
+class DNSLookupError(SDKException):
+    """Failed to obtain local IP address."""
 
 
 class NetworkTimeoutError(SDKException):
     """Network timeout error."""
 
-    pass
-
 
 class UnknownError(BroadlinkException):
     """Unknown error."""
-
-    pass
 
 
 BROADLINK_EXCEPTIONS = {
@@ -151,6 +117,7 @@ BROADLINK_EXCEPTIONS = {
     -4000: (NetworkTimeoutError, "Network timeout"),
     -4007: (LengthError, "Received data packet length error"),
     -4008: (ChecksumError, "Received data packet check error"),
+    -4013: (DNSLookupError, "Failed to obtain local IP address"),
 }
 
 
