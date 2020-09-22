@@ -20,13 +20,13 @@ def scan(
         discover_ip_port: int = 80,
 ) -> Generator[HelloResponse, None, None]:
     """Broadcast a hello message and yield responses."""
-    cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    cs.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    conn.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
     if local_ip_address:
-        cs.bind((local_ip_address, 0))
-        port = cs.getsockname()[1]
+        conn.bind((local_ip_address, 0))
+        port = conn.getsockname()[1]
     else:
         local_ip_address = "0.0.0.0"
         port = 0
@@ -71,13 +71,13 @@ def scan(
     packet[0x20] = checksum & 0xff
     packet[0x21] = checksum >> 8
 
-    cs.sendto(packet, (discover_ip_address, discover_ip_port))
+    conn.sendto(packet, (discover_ip_address, discover_ip_port))
 
     try:
         while (time.time() - starttime) < timeout:
-            cs.settimeout(timeout - (time.time() - starttime))
+            conn.settimeout(timeout - (time.time() - starttime))
             try:
-                response, host = cs.recvfrom(1024)
+                response, host = conn.recvfrom(1024)
             except socket.timeout:
                 break
 
@@ -87,22 +87,22 @@ def scan(
             is_locked = bool(response[-1])
             yield devtype, host, mac, name, is_locked
     finally:
-        cs.close()
+        conn.close()
 
 
 class device:
     """Controls a Broadlink device."""
 
     def __init__(
-        self,
-        host: Tuple[str, int],
-        mac: Union[bytes, str],
-        devtype: int,
-        timeout: int = 10,
-        name: str = None,
-        model: str = None,
-        manufacturer: str = None,
-        is_locked: bool = None,
+            self,
+            host: Tuple[str, int],
+            mac: Union[bytes, str],
+            devtype: int,
+            timeout: int = 10,
+            name: str = None,
+            model: str = None,
+            manufacturer: str = None,
+            is_locked: bool = None,
     ) -> None:
         """Initialize the controller."""
         self.host = host
@@ -282,20 +282,20 @@ class device:
 
         start_time = time.time()
         with self.lock:
-            cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
             while True:
                 try:
-                    cs.sendto(packet, self.host)
-                    cs.settimeout(1)
-                    resp, _ = cs.recvfrom(2048)
+                    conn.sendto(packet, self.host)
+                    conn.settimeout(1)
+                    resp, _ = conn.recvfrom(2048)
                     break
                 except socket.timeout:
                     if (time.time() - start_time) > self.timeout:
-                        cs.close()
+                        conn.close()
                         raise exception(-4000)  # Network timeout.
-            cs.close()
+            conn.close()
 
         if len(resp) < 0x30:
             raise exception(-4007)  # Length error.
