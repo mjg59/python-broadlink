@@ -227,11 +227,11 @@ class sp4(device):
         self.type = "SP4"
 
     def set_power(self, state: bool) -> None:
-        """Set the power state of the device"""
+        """Set the power state of the device."""
         self.set_state(pwr=state)
 
     def set_nightlight(self, state: bool) -> None:
-        """Set the night light state of the device"""
+        """Set the night light state of the device."""
         self.set_state(ntlight=state)
 
     def set_state(
@@ -242,7 +242,7 @@ class sp4(device):
         ntlbrightness: int = None,
         maxworktime: int = None,
     ) -> dict:
-        """Set state of device"""
+        """Set state of device."""
         data = {}
         if pwr is not None:
             data["pwr"] = pwr
@@ -271,7 +271,7 @@ class sp4(device):
         return state["ntlight"]
 
     def get_state(self) -> dict:
-        """Get full state of device"""
+        """Get full state of device."""
         packet = self._encode(1, b"{}")
         response = self.send_packet(0x6A, packet)
         return self._decode(response)
