@@ -13,7 +13,7 @@ from .helpers import get_local_ip
 from .light import lb1
 from .remote import rm, rm2, rm4
 from .sensor import a1
-from .switch import bg1, mp1, sp1, sp2
+from .switch import bg1, mp1, sp1, sp2, sp4
 
 
 def get_devices() -> Dict[int, Tuple[Type[device], str, str]]:
@@ -44,6 +44,7 @@ def get_devices() -> Dict[int, Tuple[Type[device], str, str]]:
         0x7d0d: (sp2, "SP mini 3", "Broadlink (OEM)"),
         0x9479: (sp2, "SP3S-US", "Broadlink"),
         0x947a: (sp2, "SP3S-EU", "Broadlink"),
+        0x7579: (sp4, "SP4L-EU", "Broadlink"),
         0x2712: (rm, "RM pro/pro+", "Broadlink"),
         0x272a: (rm, "RM pro", "Broadlink"),
         0x2737: (rm, "RM mini 3", "Broadlink"),
