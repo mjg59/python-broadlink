@@ -1,15 +1,13 @@
 #!/usr/bin/python3
 """The python-broadlink library."""
 import socket
-import time
-from datetime import datetime
 from typing import Dict, List, Union, Tuple, Type
 
 from .alarm import S1C
 from .climate import hysen
 from .cover import dooya
-from .device import device
-from .helpers import get_local_ip
+from .device import device, scan
+from .exceptions import exception
 from .light import lb1
 from .remote import rm, rm2, rm4
 from .sensor import a1
@@ -94,11 +92,11 @@ def get_devices() -> Dict[int, Tuple[Type[device], str, str]]:
 
 
 def gendevice(
-    dev_type: int,
-    host: Tuple[str, int],
-    mac: Union[bytes, str],
-    name: str = None,
-    is_locked: bool = None,
+        dev_type: int,
+        host: Tuple[str, int],
+        mac: Union[bytes, str],
+        name: str = None,
+        is_locked: bool = None,
 ) -> device:
     """Generate a device."""
     try:
@@ -118,91 +116,50 @@ def gendevice(
     )
 
 
+def hello(
+        host: str,
+        port: int = 80,
+        timeout: int = 10,
+        local_ip_address: str = None,
+) -> device:
+    """Direct device discovery.
+
+    Useful if the device is locked.
+    """
+    try:
+        return next(xdiscover(timeout, local_ip_address, host, port))
+    except StopIteration:
+        raise exception(-4000)  # Network timeout.
+
+
 def discover(
-        timeout: int = None,
+        timeout: int = 10,
         local_ip_address: str = None,
         discover_ip_address: str = '255.255.255.255',
         discover_ip_port: int = 80,
 ) -> List[device]:
     """Discover devices connected to the local network."""
-    local_ip_address = local_ip_address or get_local_ip()
-    address = local_ip_address.split('.')
-    cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    cs.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    cs.bind((local_ip_address, 0))
-    port = cs.getsockname()[1]
-    starttime = time.time()
+    responses = scan(
+        timeout, local_ip_address, discover_ip_address, discover_ip_port
+    )
+    return [gendevice(*resp) for resp in responses]
 
-    devices = []
 
-    timezone = int(time.timezone / -3600)
-    packet = bytearray(0x30)
+def xdiscover(
+        timeout: int = 10,
+        local_ip_address: str = None,
+        discover_ip_address: str = '255.255.255.255',
+        discover_ip_port: int = 80,
+) -> Generator[device, None, None]:
+    """Discover devices connected to the local network.
 
-    year = datetime.now().year
-
-    if timezone < 0:
-        packet[0x08] = 0xff + timezone - 1
-        packet[0x09] = 0xff
-        packet[0x0a] = 0xff
-        packet[0x0b] = 0xff
-    else:
-        packet[0x08] = timezone
-        packet[0x09] = 0
-        packet[0x0a] = 0
-        packet[0x0b] = 0
-
-    packet[0x0c] = year & 0xff
-    packet[0x0d] = year >> 8
-    packet[0x0e] = datetime.now().minute
-    packet[0x0f] = datetime.now().hour
-    subyear = str(year)[2:]
-    packet[0x10] = int(subyear)
-    packet[0x11] = datetime.now().isoweekday()
-    packet[0x12] = datetime.now().day
-    packet[0x13] = datetime.now().month
-    packet[0x18] = int(address[0])
-    packet[0x19] = int(address[1])
-    packet[0x1a] = int(address[2])
-    packet[0x1b] = int(address[3])
-    packet[0x1c] = port & 0xff
-    packet[0x1d] = port >> 8
-    packet[0x26] = 6
-
-    checksum = sum(packet, 0xbeaf) & 0xffff
-    packet[0x20] = checksum & 0xff
-    packet[0x21] = checksum >> 8
-
-    cs.sendto(packet, (discover_ip_address, discover_ip_port))
-    if timeout is None:
-        response = cs.recvfrom(1024)
-        responsepacket = bytearray(response[0])
-        host = response[1]
-        devtype = responsepacket[0x34] | responsepacket[0x35] << 8
-        mac = responsepacket[0x3f:0x39:-1]
-        name = responsepacket[0x40:].split(b'\x00')[0].decode('utf-8')
-        is_locked = bool(responsepacket[-1])
-        device = gendevice(devtype, host, mac, name=name, is_locked=is_locked)
-        cs.close()
-        return device
-
-    while (time.time() - starttime) < timeout:
-        cs.settimeout(timeout - (time.time() - starttime))
-        try:
-            response = cs.recvfrom(1024)
-        except socket.timeout:
-            cs.close()
-            return devices
-        responsepacket = bytearray(response[0])
-        host = response[1]
-        devtype = responsepacket[0x34] | responsepacket[0x35] << 8
-        mac = responsepacket[0x3f:0x39:-1]
-        name = responsepacket[0x40:].split(b'\x00')[0].decode('utf-8')
-        is_locked = bool(responsepacket[-1])
-        device = gendevice(devtype, host, mac, name=name, is_locked=is_locked)
-        devices.append(device)
-    cs.close()
-    return devices
+    This function returns a generator that yields devices instantly.
+    """
+    responses = scan(
+        timeout, local_ip_address, discover_ip_address, discover_ip_port
+    )
+    for resp in responses:
+        yield gendevice(*resp)
 
 
 # Setup a new Broadlink device via AP Mode. Review the README to see how to enter AP Mode.
