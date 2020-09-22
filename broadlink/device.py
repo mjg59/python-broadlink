@@ -114,15 +114,13 @@ class device:
         self.manufacturer = manufacturer
         self.is_locked = is_locked
         self.count = random.randrange(0xffff)
-        self.iv = bytes(
-            [0x56, 0x2e, 0x17, 0x99, 0x6d, 0x09, 0x3d, 0x28, 0xdd, 0xb3, 0xba, 0x69, 0x5a, 0x2e, 0x6f, 0x58])
+        self.iv = bytes.fromhex('562e17996d093d28ddb3ba695a2e6f58')
         self.id = bytes(4)
         self.type = "Unknown"
         self.lock = threading.Lock()
 
         self.aes = None
-        key = bytes(
-            [0x09, 0x76, 0x28, 0x34, 0x3f, 0xe9, 0x9e, 0x23, 0x76, 0x5c, 0x15, 0x13, 0xac, 0xcf, 0x8b, 0x02])
+        key = bytes.fromhex('097628343fe99e23765c1513accf8b02')
         self.update_aes(key)
 
     def update_aes(self, key: bytes) -> None:

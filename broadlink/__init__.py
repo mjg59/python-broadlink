@@ -185,7 +185,7 @@ def setup(ssid: str, password: str, security_mode: int) -> None:
 
     payload[0x84] = ssid_length  # Character length of SSID
     payload[0x85] = pass_length  # Character length of password
-    payload[0x86] = security_mode  # Type of encryption (00 - none, 01 = WEP, 02 = WPA1, 03 = WPA2, 04 = WPA1/2)
+    payload[0x86] = security_mode  # Type of encryption
 
     checksum = sum(payload, 0xbeaf) & 0xffff
     payload[0x20] = checksum & 0xff  # Checksum 1 position
