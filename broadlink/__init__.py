@@ -9,7 +9,7 @@ from .cover import dooya
 from .device import device, scan
 from .exceptions import exception
 from .light import lb1
-from .remote import rm, rm2, rm4
+from .remote import rm, rm4
 from .sensor import a1
 from .switch import bg1, mp1, sp1, sp2, sp4
 
