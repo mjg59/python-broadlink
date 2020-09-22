@@ -306,7 +306,7 @@ class sp4(device):
         """Decode a message."""
         check_error(response[0x22:0x24])
 
-        payload = self.decrypt(bytes(response[0x38:]))
+        payload = self.decrypt(response[0x38:])
         js_len = struct.unpack_from("<I", payload, 0x08)[0]
         state = json.loads(payload[0x0C : 0x0C + js_len])
         return state
