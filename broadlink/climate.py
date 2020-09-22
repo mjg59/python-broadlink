@@ -238,3 +238,294 @@ class hysen(device):
             input_payload.append(int(weekend[i]["temp"] * 2))
 
         self.send_request(input_payload)
+
+class tornado(device):
+    """Controls a Tornado 16X SQ air conditioner."""
+    def __init__(self, *args, **kwargs):
+        device.__init__(self, *args, **kwargs)
+        self.type = "Tornado air conditioner"
+    
+    def _decode(self, response) -> bytes:
+        payload = self.decrypt(bytes(response[0x38:]))
+        return payload
+    
+    def _calculate_checksum(self, packet:bytes, target:int=0x20017) -> tuple:
+        """Calculate checksum of given array,
+        by adding little endian words and subtracting from target.
+        
+        Args:
+            packet (list/bytearray/bytes): 
+        """
+        result = target - (sum([v if i % 2 == 0 else v << 8 for i, v in enumerate(packet)]) & 0xffff)
+        return (result & 0xff, (result >> 8) & 0xff)
+
+    def _send_short_payload(self, payload:int) -> bytes:
+        """Send a request for info from A/C unit and returns the response.
+        0 = GET_AC_INFO, 1 = GET_STATES, 2 = GET_SLEEP_INFO, 3 = unknown function
+        """
+        header = bytearray([0x0c, 0x00, 0xbb, 0x00, 0x06, 0x80, 0x00, 0x00, 0x02, 0x00])
+        if (payload == 0):
+            packet = header + bytes([0x21, 0x01, 0x1b, 0x7e])
+        elif (payload == 1):
+            packet = header + bytes([0x11, 0x01, 0x2b, 0x7e])
+        elif (payload == 2):
+            packet = header + bytes([0x41, 0x01, 0xfb, 0x7d])
+        elif (payload == 3):
+            packet = bytearray(16)
+            packet[0x00] = 0xd0
+            packet[0x01] = 0x07
+        else:
+            pass
+
+        response = self.send_packet(0x6a, packet)
+        check_error(response[0x22:0x24])
+        return (self._decode(response))
+
+    def get_state(self, payload_debug: bool = None) -> dict:
+        """Returns a dictionary with the unit's parameters.
+        
+        Args:
+            payload_debug (Optional[bool]): add the received payload for debugging
+        
+        Returns:
+            dict:
+                state (bool): power
+                target_temp (float): temperature set point 16<n<32
+                mode (str): cooling, heating, fan, dry, auto
+                speed (str): mute, low, mid, high, turbo (available only in cooling)
+                swing_h (str): ON, OFF
+                swing_v (str): ON, OFF, 1, 2, 3, 4, 5 (fixed positions)
+                sleep (bool): 
+                display (bool):
+                health (bool):
+                cmnd_0d_rmask (int): unknown
+                cmnd_0e_rmask (int): unknown
+                cmnd_18 (int): unknown
+        """
+        payload = self._send_short_payload(1)
+        assert(len(payload) == 32)
+        data = {}
+        data['state'] = True if (payload[0x14] & 0x20) == 0x20 else False
+        data['target_temp'] = (payload[0x0c] >> 3) + 8 + (0.0 if ((payload[0xe] & 0b10000000) == 0) else 0.5)
+
+        swing_v = payload[0x0c] & 0b111
+        swing_h = (payload[0x0d] & 0b11100000) >> 5
+        if (swing_h == 0b111):
+            data['swing_h'] = 'OFF'
+        elif (swing_h == 0b000):
+            data['swing_h'] = 'ON'
+        else:
+            data['swing_h'] = 'unrecognized value'
+        
+        if (swing_v == 0b111):
+            data['swing_v'] = 'OFF'
+        elif (swing_v == 0b000):
+            data['swing_v'] = 'ON'
+        elif (swing_v >= 0 and swing_v <=5):
+            data['swing_v'] = str(swing_v)
+        else:
+            data['swing_v'] = 'unrecognized value'
+
+        mode = payload[0x11] >> 3 << 3
+        if mode == 0x00:
+            data['mode'] = 'auto'
+        elif mode == 0x20:
+            data['mode'] = 'cooling'
+        elif mode == 0x40:
+            data['mode'] = 'drying'
+        elif mode == 0x80:
+            data['mode'] = 'heating'
+        elif mode == 0xc0:
+            data['mode'] = 'fan'
+        else:
+            data['mode'] = 'unrecognized value'
+
+        speed_L = payload[0x0f]
+        speed_R = payload[0x10] 
+        if speed_L == 0x60 and speed_R == 0x00:
+            data['speed'] = 'low'
+        elif speed_L == 0x40 and speed_R == 0x00:
+            data['speed'] = 'mid'
+        elif speed_L == 0x20 and speed_R == 0x00:
+            data['speed'] = 'high'
+        elif speed_L == 0x40 and speed_R == 0x80:
+            data['speed'] = 'mute'
+        elif speed_R == 0x40:
+            data['speed'] = 'turbo'
+        elif speed_L == 0xa0 and speed_R == 0x00:
+            data['speed'] = 'auto'
+        else:
+            data['speed'] = 'unrecognized value'
+
+        data['sleep'] = False if (payload[0x11] & 0b100 == 0b000) else True
+        data['display'] = (payload[0x16] & 0x10 == 0x10)
+        data['health'] = (payload[0x14] & 0b11 == 0b11)
+        data['cmnd_0d_rmask'] = payload[0x0d] & 0xf
+        data['cmnd_0e_rmask'] = payload[0x0e] & 0xf
+        data['cmnd_18'] = payload[0x18]
+
+        checksum = self._calculate_checksum(payload[:0x19]) # checksum=(payload[0x1a] << 8) + payload[0x19]
+
+        if (payload[0x19] == checksum[0] and payload[0x1a] == checksum[1]):
+            pass # success
+        else:
+            print('checksum fail', ['{:02x}'.format(x) for x in checksum])
+
+        if (payload_debug):
+            data['received_payload'] = payload
+
+        return data
+
+    def get_ac_info(self, payload_debug: bool = None) -> dict:
+        """Returns dictionary with A/C info...
+        Not implemented yet, except power state.
+
+        Args:
+            payload_debug (Optional[bool]): add the received payload for debugging
+        """
+        payload = self._send_short_payload(0)
+
+        # first 13 bytes are the same: 22 00 bb 00 07 00 00 00 18 00 01 21 c0
+        data = {}
+        data['state'] = True if (payload[0x0d] & 0b1 == 0b1) else False
+
+        if (payload_debug):
+            data['received_payload'] = payload
+
+        return data
+
+    def set_advanced(self,
+        state: bool = None,
+        mode: str = None,
+        target_temp: float = None,
+        speed: str = None,
+        swing_v: str = None,
+        swing_h: str = None,
+        sleep: bool = None,
+        display: bool = None,
+        health: bool = None,
+        cmnd_0d_rmask: int = 0b100,
+        cmnd_0e_rmask: int = 0b1101,
+        cmnd_18: int = 0b101,
+    ) -> bytes:
+        """Set paramaters of unit and return response.
+        If not all parameters are specificed, will try to derive from the unit's current state.
+        
+        Args:
+            state (bool): power
+            target_temp (float): temperature set point 16<n<32
+            mode (str): cooling, heating, fan, dry, auto
+            speed (str): mute, low, mid, high, turbo (available only for cooling) 
+            swing_h (str): ON, OFF
+            swing_v (str): ON, OFF, 1, 2, 3, 4, 5 (fixed positions)
+            sleep (bool) 
+            display (bool)
+            health (bool)
+            cmnd_0d_rmask (int): unknown
+            cmnd_0e_rmask (int): unknown
+            cmnd_18 (int): unknown
+        """
+        
+        received_state = self.get_state()
+        args = {
+            'state': state if state != None else received_state['state'],
+            'mode': mode if mode != None else received_state['mode'],
+            'target_temp': target_temp if target_temp != None else received_state['target_temp'],
+            'speed': speed if speed != None else received_state['speed'],
+            'swing_v': swing_v if swing_v != None else received_state['swing_v'],
+            'swing_h': swing_h if swing_h != None else received_state['swing_h'],
+            'sleep': sleep if sleep != None else received_state['sleep'],
+            'display': display if display != None else received_state['display'],
+            'health': health if health != None else received_state['health'],
+            'cmnd_0d_rmask': cmnd_0d_rmask,
+            'cmnd_0e_rmask': cmnd_0e_rmask,
+            'cmnd_18': cmnd_18,
+            'checksum_lbit': 0
+        }
+        
+        PREFIX = [0x19, 0x00, 0xbb, 0x00, 0x06, 0x80, 0x00, 0x00, 0x0f, 0x00, 0x01, 0x01] # 12B
+        MIDDLE = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] # 13B + 2B checksum
+        SUFFIX = [0, 0, 0, 0, 0] # 5B
+        payload = PREFIX + MIDDLE + SUFFIX
+
+        assert ((args['target_temp'] >= 16) and (args['target_temp'] <= 32) and ((args['target_temp'] * 2) % 1 == 0))
+
+        if (args['swing_v'] == 'OFF'):
+            swing_L = 0b111
+        elif (args['swing_v'] == 'ON'):
+            swing_L = 0b000
+        else:
+            raise ValueError('unrecognized swing vertical value {}'.format(args['swing_v']))
+
+        if (args['swing_h'] == 'OFF'):
+            swing_R = 0b111
+        elif (args['swing_h'] == 'ON'):
+            swing_R = 0b000
+        elif (args['swing_h'] >= 0 and args['swing_v'] <= 5):
+            swing_R = str(args['swing_v'])
+        else:
+            raise ValueError('unrecognized swing horizontal value {}'.format(args['swing_h']))
+
+        if (args['speed'] == 'low'):
+            speed_L, speed_R = 0x60, 0x00
+        elif (args['speed'] == 'mid'):
+            speed_L, speed_R = 0x40, 0x00
+        elif (args['speed']  == 'high'):
+            speed_L, speed_R = 0x20, 0x00
+        elif (args['speed'] == 'mute'):
+            speed_L, speed_R = 0x40, 0x80
+            assert (args['mode'] == 'F')
+        elif (args['speed'] == 'turbo'):
+            speed_R = 0x40
+            speed_L = 0x20 # doesn't matter
+        elif (args['speed'] == 'auto'):
+            speed_L, speed_R = 0xa0, 0x00
+        else:
+            raise ValueError('unrecognized speed value: {}'.format(speed))
+
+        if (args['mode'] == 'auto'):
+            mode_1 = 0x00
+        elif (args['mode'] == 'cooling'):
+            mode_1 = 0x20
+        elif (args['mode'] == 'drying'):
+            mode_1 = 0x40
+            args['cmnd_0e_rmask'] = 0x16
+        elif (args['mode'] == 'heating'):
+            mode_1 = 0x80
+        elif (args['mode'] == 'fan'):
+            mode_1 = 0xc0
+            args['target_temp'] = 24.0
+            if args['speed'] == 'turbo':
+                raise ValueError('speed cannot be {} in fan mode'.format(args['speed']))
+        else:
+            raise ValueError('unrecognized mode value: {}'.format(mode))
+
+        if (received_state['state'] == True):
+            if (args['mode'] == 'heating' or args['mode'] == 'fan' or args['mode'] == 'drying'):
+                args['checksum_lbit'] = 1
+                if (args['swing_h'] == 'ON'):
+                    args['checksum_lbit'] = 0
+
+        payload[0x0c] = ((int(args['target_temp']) - 8 << 3) | swing_L)
+        payload[0x0d] = (int(swing_R) << 5) | args['cmnd_0d_rmask']
+        payload[0x0e] = (0b10000000 if (args['target_temp'] % 1 == 0.5) else 0b0) | args['cmnd_0e_rmask']
+        payload[0x0f] = speed_L
+        payload[0x10] = speed_R
+        payload[0x11] = mode_1 | (0b100 if args['sleep'] else 0b000)
+        # payload[0x12] = always 0x00
+        # payload[0x13] = always 0x00
+        payload[0x14] = (0b11 if args['health'] else 0b00) | (0b100000 if args['state'] else 0b000000)
+        # payload[0x15] = always 0x00
+        payload[0x16] = 0b10000 if args['display'] else 0b00000 # 0b_00 also changes
+        # payload[0x17] = always 0x00
+        payload[0x18] = args['cmnd_18']
+        
+        # 0x19-0x1a - checksum
+        checksum = self._calculate_checksum(payload[:0x19]) # checksum=(payload[0x1a] << 8) + payload[0x19]
+        payload[0x19] = checksum[0] - args['checksum_lbit']
+        payload[0x1a] = checksum[1]
+
+        response = self.send_packet(0x6a, bytearray(payload))
+        check_error(response[0x22:0x24])
+        response_payload = self._decode(response)
+        return response_payload
