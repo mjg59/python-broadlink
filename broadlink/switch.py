@@ -226,13 +226,13 @@ class sp4(device):
         device.__init__(self, *args, **kwargs)
         self.type = "SP4"
 
-    def set_power(self, state: bool) -> bool:
+    def set_power(self, state: bool) -> None:
         """Set the power state of the device"""
-        return self.set_state(pwr=state)
+        self.set_state(pwr=state)
 
-    def set_nightlight(self, state: bool) -> bool:
+    def set_nightlight(self, state: bool) -> None:
         """Set the night light state of the device"""
-        return self.set_state(ntlight=state)
+        self.set_state(ntlight=state)
 
     def set_state(
         self,
