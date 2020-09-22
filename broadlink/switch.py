@@ -221,35 +221,35 @@ class sp2(device):
 class sp4(device):
     """Controls a Broadlink SP4."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         """Initialize the controller."""
         device.__init__(self, *args, **kwargs)
         self.type = "SP4"
 
-    def set_power(self, state):
+    def set_power(self, state: bool) -> bool:
         """Set the power state of the device"""
-        return self.set_state(pwr=int(bool(state)))
+        return self.set_state(pwr=state)
 
-    def set_nightlight(self, state):
+    def set_nightlight(self, state: bool) -> bool:
         """Set the night light state of the device"""
-        return self.set_state(ntlight=int(bool(state)))
+        return self.set_state(ntlight=state)
 
     def set_state(
         self,
-        pwr=None,
-        ntlight=None,
-        indicator=None,
-        ntlbrightness=None,
-        maxworktime=None,
-    ):
+        pwr: bool = None,
+        ntlight: bool = None,
+        indicator: bool = None,
+        ntlbrightness: int = None,
+        maxworktime: int = None,
+    ) -> dict:
         """Set state of device"""
         data = {}
         if pwr is not None:
-            data["pwr"] = int(bool(pwr))
+            data["pwr"] = pwr
         if ntlight is not None:
-            data["ntlight"] = int(bool(ntlight))
+            data["ntlight"] = ntlight
         if indicator is not None:
-            data["indicator"] = int(bool(indicator))
+            data["indicator"] = indicator
         if ntlbrightness is not None:
             data["ntlbrightness"] = ntlbrightness
         if maxworktime is not None:
@@ -260,19 +260,17 @@ class sp4(device):
         response = self.send_packet(0x6A, packet)
         return self._decode(response)
 
-    def check_power(self):
+    def check_power(self) -> bool:
         """Return the power state of the device."""
         state = self.get_state()
-        if state:
-            return state["pwr"]
+        return state["pwr"] if state else None
 
-    def check_nightlight(self):
+    def check_nightlight(self) -> bool:
         """Return the night light state of the device."""
         state = self.get_state()
-        if state:
-            return state["ntlight"]
+        return state["ntlight"] if state else None
 
-    def get_state(self):
+    def get_state(self) -> dict:
         """Get full state of device"""
         packet = self._encode(1, b"{}")
         response = self.send_packet(0x6A, packet)
