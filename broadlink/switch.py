@@ -276,7 +276,7 @@ class sp4(device):
         response = self.send_packet(0x6A, packet)
         return self._decode(response)
 
-    def _encode(self, flag, js):
+    def _encode(self, flag: int, js: str) -> bytes:
         """Encode a message."""
         # SP4 support added by Petter Olofsson
         # packet format is:
@@ -300,7 +300,7 @@ class sp4(device):
         packet[0x05] = checksum >> 8
         return packet
 
-    def _decode(self, response):
+    def _decode(self, response: bytes) -> dict:
         """Decode a message."""
         check_error(response[0x22:0x24])
 
