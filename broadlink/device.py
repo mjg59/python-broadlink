@@ -2,12 +2,92 @@ import socket
 import threading
 import random
 import time
-from typing import Tuple, Union
+from datetime import datetime
+from typing import Generator, Tuple, Union
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 from .exceptions import check_error, exception
+
+HelloResponse = Tuple[int, Tuple[str, int], str, str, bool]
+
+
+def scan(
+        timeout: int = 10,
+        local_ip_address: str = None,
+        discover_ip_address: str = '255.255.255.255',
+        discover_ip_port: int = 80,
+) -> Generator[HelloResponse, None, None]:
+    """Broadcast a hello message and yield responses."""
+    cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    cs.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
+    if local_ip_address:
+        cs.bind((local_ip_address, 0))
+        port = cs.getsockname()[1]
+    else:
+        local_ip_address = "0.0.0.0"
+        port = 0
+
+    address = local_ip_address.split('.')
+    starttime = time.time()
+
+    timezone = int(time.timezone / -3600)
+    packet = bytearray(0x30)
+
+    year = datetime.now().year
+
+    if timezone < 0:
+        packet[0x08] = 0xff + timezone - 1
+        packet[0x09] = 0xff
+        packet[0x0a] = 0xff
+        packet[0x0b] = 0xff
+    else:
+        packet[0x08] = timezone
+        packet[0x09] = 0
+        packet[0x0a] = 0
+        packet[0x0b] = 0
+
+    packet[0x0c] = year & 0xff
+    packet[0x0d] = year >> 8
+    packet[0x0e] = datetime.now().minute
+    packet[0x0f] = datetime.now().hour
+    subyear = str(year)[2:]
+    packet[0x10] = int(subyear)
+    packet[0x11] = datetime.now().isoweekday()
+    packet[0x12] = datetime.now().day
+    packet[0x13] = datetime.now().month
+    packet[0x18] = int(address[3])
+    packet[0x19] = int(address[2])
+    packet[0x1a] = int(address[1])
+    packet[0x1b] = int(address[0])
+    packet[0x1c] = port & 0xff
+    packet[0x1d] = port >> 8
+    packet[0x26] = 6
+
+    checksum = sum(packet, 0xbeaf) & 0xffff
+    packet[0x20] = checksum & 0xff
+    packet[0x21] = checksum >> 8
+
+    cs.sendto(packet, (discover_ip_address, discover_ip_port))
+
+    try:
+        while (time.time() - starttime) < timeout:
+            cs.settimeout(timeout - (time.time() - starttime))
+            try:
+                response, host = cs.recvfrom(1024)
+            except socket.timeout:
+                break
+
+            devtype = response[0x34] | response[0x35] << 8
+            mac = bytes(reversed(response[0x3a:0x40]))
+            name = response[0x40:].split(b'\x00')[0].decode('utf-8')
+            is_locked = bool(response[-1])
+            yield devtype, host, mac, name, is_locked
+    finally:
+        cs.close()
 
 
 class device:
@@ -99,6 +179,29 @@ class device:
 
         self.id = payload[0x03::-1]
         self.update_aes(key)
+        return True
+
+    def hello(self, local_ip_address=None) -> bool:
+        """Send a hello message to the device.
+
+        Device information is checked before updating name and lock status.
+        """
+        responses = scan(
+            timeout=self.timeout,
+            local_ip_address=local_ip_address,
+            discover_ip_address=self.host[0],
+            discover_ip_port=self.host[1],
+        )
+        try:
+            devtype, host, mac, name, is_locked = next(responses)
+        except StopIteration:
+            raise exception(-4000)  # Network timeout.
+
+        if (devtype, host, mac) != (self.devtype, self.host, self.mac):
+            raise exception(-2040)  # Device information is not intact.
+
+        self.name = name
+        self.is_locked = is_locked
         return True
 
     def get_fwversion(self) -> int:
