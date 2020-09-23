@@ -123,6 +123,19 @@ class device:
         key = bytes.fromhex('097628343fe99e23765c1513accf8b02')
         self.update_aes(key)
 
+    def __repr__(self):
+        return "<%s: %s %s (%s) at %s:%s | %s | %s | %s>" % (
+            type(self).__name__,
+            self.manufacturer,
+            self.model,
+            hex(self.devtype),
+            self.host[0],
+            self.host[1],
+            ':'.join(format(x, '02x') for x in self.mac),
+            self.name,
+            "Locked" if self.is_locked else "Unlocked",
+        )
+
     def update_aes(self, key: bytes) -> None:
         """Update AES."""
         self.aes = Cipher(
