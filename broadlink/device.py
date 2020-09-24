@@ -107,7 +107,7 @@ class device:
     ) -> None:
         """Initialize the controller."""
         self.host = host
-        self.mac = mac.encode() if isinstance(mac, str) else mac
+        self.mac = bytes.fromhex(mac) if isinstance(mac, str) else mac
         self.devtype = devtype if devtype is not None else 0x272a
         self.timeout = timeout
         self.name = name
