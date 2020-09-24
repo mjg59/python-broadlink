@@ -1,3 +1,4 @@
+"""Support for switches."""
 import json
 import struct
 

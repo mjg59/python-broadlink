@@ -1,3 +1,4 @@
+"""Support for covers."""
 import time
 
 from .device import device

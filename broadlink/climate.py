@@ -1,3 +1,4 @@
+"""Support for climate control."""
 from typing import List
 
 from .device import device

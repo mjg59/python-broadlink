@@ -1,3 +1,4 @@
+"""Support for lights."""
 import json
 from typing import Union
 

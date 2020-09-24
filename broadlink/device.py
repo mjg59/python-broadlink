@@ -1,3 +1,4 @@
+"""Support for Broadlink devices."""
 import socket
 import threading
 import random
