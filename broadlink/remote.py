@@ -1,3 +1,4 @@
+"""Support for universal remotes."""
 from .device import device
 from .exceptions import check_error
 
@@ -119,15 +120,3 @@ class rm4(rm):
             'temperature': data[0x0] + data[0x1] / 100.0,
             'humidity': data[0x2] + data[0x3] / 100.0
         }
-
-
-# For legacy compatibility - don't use this
-class rm2(rm):
-    def __init__(self):
-        device.__init__(self, None, None, None)
-
-    def discover(self):
-        dev = discover()
-        self.host = dev.host
-        self.mac = dev.mac
-

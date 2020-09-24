@@ -1,3 +1,4 @@
+"""Support for Broadlink devices."""
 import socket
 import threading
 import random
@@ -20,13 +21,13 @@ def scan(
         discover_ip_port: int = 80,
 ) -> Generator[HelloResponse, None, None]:
     """Broadcast a hello message and yield responses."""
-    cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    cs.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    conn.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
     if local_ip_address:
-        cs.bind((local_ip_address, 0))
-        port = cs.getsockname()[1]
+        conn.bind((local_ip_address, 0))
+        port = conn.getsockname()[1]
     else:
         local_ip_address = "0.0.0.0"
         port = 0
@@ -71,13 +72,13 @@ def scan(
     packet[0x20] = checksum & 0xff
     packet[0x21] = checksum >> 8
 
-    cs.sendto(packet, (discover_ip_address, discover_ip_port))
+    conn.sendto(packet, (discover_ip_address, discover_ip_port))
 
     try:
         while (time.time() - starttime) < timeout:
-            cs.settimeout(timeout - (time.time() - starttime))
+            conn.settimeout(timeout - (time.time() - starttime))
             try:
-                response, host = cs.recvfrom(1024)
+                response, host = conn.recvfrom(1024)
             except socket.timeout:
                 break
 
@@ -87,26 +88,26 @@ def scan(
             is_locked = bool(response[-1])
             yield devtype, host, mac, name, is_locked
     finally:
-        cs.close()
+        conn.close()
 
 
 class device:
     """Controls a Broadlink device."""
 
     def __init__(
-        self,
-        host: Tuple[str, int],
-        mac: Union[bytes, str],
-        devtype: int,
-        timeout: int = 10,
-        name: str = None,
-        model: str = None,
-        manufacturer: str = None,
-        is_locked: bool = None,
+            self,
+            host: Tuple[str, int],
+            mac: Union[bytes, str],
+            devtype: int,
+            timeout: int = 10,
+            name: str = None,
+            model: str = None,
+            manufacturer: str = None,
+            is_locked: bool = None,
     ) -> None:
         """Initialize the controller."""
         self.host = host
-        self.mac = mac.encode() if isinstance(mac, str) else mac
+        self.mac = bytes.fromhex(mac) if isinstance(mac, str) else mac
         self.devtype = devtype if devtype is not None else 0x272a
         self.timeout = timeout
         self.name = name
@@ -114,16 +115,27 @@ class device:
         self.manufacturer = manufacturer
         self.is_locked = is_locked
         self.count = random.randrange(0xffff)
-        self.iv = bytes(
-            [0x56, 0x2e, 0x17, 0x99, 0x6d, 0x09, 0x3d, 0x28, 0xdd, 0xb3, 0xba, 0x69, 0x5a, 0x2e, 0x6f, 0x58])
+        self.iv = bytes.fromhex('562e17996d093d28ddb3ba695a2e6f58')
         self.id = bytes(4)
         self.type = "Unknown"
         self.lock = threading.Lock()
 
         self.aes = None
-        key = bytes(
-            [0x09, 0x76, 0x28, 0x34, 0x3f, 0xe9, 0x9e, 0x23, 0x76, 0x5c, 0x15, 0x13, 0xac, 0xcf, 0x8b, 0x02])
+        key = bytes.fromhex('097628343fe99e23765c1513accf8b02')
         self.update_aes(key)
+
+    def __repr__(self):
+        return "<%s: %s %s (%s) at %s:%s | %s | %s | %s>" % (
+            type(self).__name__,
+            self.manufacturer,
+            self.model,
+            hex(self.devtype),
+            self.host[0],
+            self.host[1],
+            ':'.join(format(x, '02x') for x in self.mac),
+            self.name,
+            "Locked" if self.is_locked else "Unlocked",
+        )
 
     def update_aes(self, key: bytes) -> None:
         """Update AES."""
@@ -284,20 +296,20 @@ class device:
 
         start_time = time.time()
         with self.lock:
-            cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
             while True:
                 try:
-                    cs.sendto(packet, self.host)
-                    cs.settimeout(1)
-                    resp, _ = cs.recvfrom(2048)
+                    conn.sendto(packet, self.host)
+                    conn.settimeout(1)
+                    resp, _ = conn.recvfrom(2048)
                     break
                 except socket.timeout:
                     if (time.time() - start_time) > self.timeout:
-                        cs.close()
+                        conn.close()
                         raise exception(-4000)  # Network timeout.
-            cs.close()
+            conn.close()
 
         if len(resp) < 0x30:
             raise exception(-4007)  # Length error.
