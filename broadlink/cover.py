@@ -1,5 +1,6 @@
 """Support for covers."""
 import time
+import struct
 
 from .device import device
 from .exceptions import check_error
@@ -87,26 +88,26 @@ class dooya(device):
         payload = self.decrypt(response[0x38:])
         return payload[17]
 
-    def open(self) -> int:
+    def open(self) -> None:
         """Open the curtain."""
-        return self._send(0xc5, 0xc0, 0x01, 0x00)
+        self._send(0xc5, 0xc0, 0x01, 0x00)
 
-    def close(self) -> int:
+    def close(self) -> None:
         """Close the curtain."""
-        return self._send(0xc6, 0xc0, 0x02, 0x00)
+        self._send(0xc6, 0xc0, 0x02, 0x00)
 
-    def stop(self) -> int:
+    def stop(self) -> None:
         """Stop the curtain."""
-        return self._send(0xc7, 0xc0, 0x03, 0x00)
+        self._send(0xc7, 0xc0, 0x03, 0x00)
 
     def get_percentage(self) -> int:
         """Return the position of the curtain."""
-        return self._send(0xca, 0xc0 ,0x06, 0x5d)
+        return self._send(0xca, 0xc0 ,0x06, 0x00)
 
-    def set_percentage_and_wait(self, new_percentage) -> int:
+    def set_percentage_and_wait(self, new_percentage) -> None:
         new_percent_hex = struct.pack('<H', 49357+new_percentage)
         magic1 = new_percent_hex[0]
         magic2 = new_percent_hex[1]
         magic3 = 0x09
         magic4 = new_percentage
-        return self._send(magic1, magic2, magic3, magic4)
+        self._send(magic1, magic2, magic3, magic4)
