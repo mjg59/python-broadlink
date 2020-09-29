@@ -5,7 +5,7 @@ from typing import Generator, List, Union, Tuple
 
 from .alarm import S1C
 from .climate import hysen
-from .cover import dooya
+from .cover import dooya, dooya_new
 from .device import device, scan
 from .exceptions import exception
 from .light import lb1
