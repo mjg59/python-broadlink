@@ -32,13 +32,10 @@ def scan(
         local_ip_address = "0.0.0.0"
         port = 0
 
-    address = local_ip_address.split('.')
-    starttime = time.time()
-
-    timezone = int(time.timezone / -3600)
     packet = bytearray(0x30)
-
+    timezone = int(time.timezone / -3600)
     year = datetime.now().year
+    address = local_ip_address.split('.')
 
     if timezone < 0:
         packet[0x08] = 0xff + timezone - 1
@@ -72,21 +69,28 @@ def scan(
     packet[0x20] = checksum & 0xff
     packet[0x21] = checksum >> 8
 
-    conn.sendto(packet, (discover_ip_address, discover_ip_port))
-
+    starttime = time.time()
+    discovered = []
     try:
         while (time.time() - starttime) < timeout:
-            conn.settimeout(timeout - (time.time() - starttime))
-            try:
-                response, host = conn.recvfrom(1024)
-            except socket.timeout:
-                break
+            conn.sendto(packet, (discover_ip_address, discover_ip_port))
+            conn.settimeout(1)
 
-            devtype = response[0x34] | response[0x35] << 8
-            mac = bytes(reversed(response[0x3a:0x40]))
-            name = response[0x40:].split(b'\x00')[0].decode('utf-8')
-            is_locked = bool(response[-1])
-            yield devtype, host, mac, name, is_locked
+            while True:
+                try:
+                    response, host = conn.recvfrom(1024)
+                except socket.timeout:
+                    break
+
+                devtype = response[0x34] | response[0x35] << 8
+                mac = bytes(reversed(response[0x3a:0x40]))
+                if (host, mac, devtype) in discovered:
+                    continue
+                discovered.append((host, mac, devtype))
+
+                name = response[0x40:].split(b'\x00')[0].decode('utf-8')
+                is_locked = bool(response[-1])
+                yield devtype, host, mac, name, is_locked
     finally:
         conn.close()
 
