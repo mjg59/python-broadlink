@@ -34,6 +34,24 @@ import broadlink
 devices = broadlink.discover(timeout=5)
 ```
 
+You may need to specify `local_ip_address` or `discover_ip_address` if discovery does not return any devices.
+
+
+Using your machine's IP address with `local_ip_address`
+```
+import broadlink
+
+devices = broadlink.discover(timeout=5, local_ip_address=192.168.0.100)
+```
+
+Using your subnet's broadcast address with `discover_ip_address`
+
+```
+import broadlink
+
+devices = broadlink.discover(timeout=5, discover_ip_address=192.168.0.255)
+```
+
 Obtain the authentication key required for further communication:
 ```
 devices[0].auth()
