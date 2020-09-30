@@ -33,10 +33,8 @@ def scan(
         port = 0
 
     packet = bytearray(0x30)
-    timezone = int(time.timezone / -3600)
-    year = datetime.now().year
-    address = local_ip_address.split('.')
 
+    timezone = int(time.timezone / -3600)
     if timezone < 0:
         packet[0x08] = 0xff + timezone - 1
         packet[0x09] = 0xff
@@ -48,6 +46,7 @@ def scan(
         packet[0x0a] = 0
         packet[0x0b] = 0
 
+    year = datetime.now().year
     packet[0x0c] = year & 0xff
     packet[0x0d] = year >> 8
     packet[0x0e] = datetime.now().minute
@@ -57,6 +56,8 @@ def scan(
     packet[0x11] = datetime.now().isoweekday()
     packet[0x12] = datetime.now().day
     packet[0x13] = datetime.now().month
+
+    address = local_ip_address.split('.')
     packet[0x18] = int(address[3])
     packet[0x19] = int(address[2])
     packet[0x1a] = int(address[1])
@@ -71,6 +72,7 @@ def scan(
 
     starttime = time.time()
     discovered = []
+
     try:
         while (time.time() - starttime) < timeout:
             conn.sendto(packet, (discover_ip_address, discover_ip_port))
