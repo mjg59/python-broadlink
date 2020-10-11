@@ -6,8 +6,10 @@ import codecs
 import time
 
 import broadlink
+from broadlink.exceptions import ReadError, StorageError
 
 TICK = 32.84
+TIMEOUT = 30
 IR_TOKEN = 0x26
 
 
@@ -88,6 +90,7 @@ parser.add_argument("--learnfile", help="save learned command to a specified fil
 parser.add_argument("--durations", action="store_true",
                     help="use durations in micro seconds instead of the Broadlink format")
 parser.add_argument("--convert", action="store_true", help="convert input data to durations")
+parser.add_argument("--joinwifi", nargs=2, help="Args are SSID PASSPHRASE to configure Broadlink device with")
 parser.add_argument("data", nargs='*', help="Data to send or convert")
 args = parser.parse_args()
 
@@ -104,6 +107,9 @@ elif args.mac:
 if args.host or args.device:
     dev = broadlink.gendevice(type, (host, 80), mac)
     dev.auth()
+
+if args.joinwifi:
+    broadlink.setup(args.joinwifi[0], args.joinwifi[1], 4)
 
 if args.convert:
     data = bytearray.fromhex(''.join(args.data))
@@ -130,29 +136,33 @@ if args.send_base64:
     data = durations_to_broadlink(parse_durations(' '.join(data))) \
         if args.durations else bytearray.fromhex(''.join(data))
     dev.send_data(data)
-if args.learn or args.learnfile:
+if args.learn or (args.learnfile and not args.rfscanlearn):
     dev.enter_learning()
-    data = None
     print("Learning...")
-    timeout = 30
-    while (data is None) and (timeout > 0):
-        time.sleep(2)
-        timeout -= 2
-        data = dev.check_data()
-    if data:
-        learned = format_durations(to_microseconds(bytearray(data))) \
-            if args.durations \
-            else ''.join(format(x, '02x') for x in bytearray(data))
-        if args.learn:
-            print(learned)
-            decode_hex = codecs.getdecoder("hex_codec")
-            print("Base64: " + str(base64.b64encode(decode_hex(learned)[0])))
-        if args.learnfile:
-            print("Saving to {}".format(args.learnfile))
-            with open(args.learnfile, "w") as text_file:
-                text_file.write(learned)
+    start = time.time()
+    while time.time() - start < TIMEOUT:
+        time.sleep(1)
+        try:
+            data = dev.check_data()
+        except (ReadError, StorageError):
+            continue
+        else:
+            break
     else:
         print("No data received...")
+        exit(1)
+
+    learned = format_durations(to_microseconds(bytearray(data))) \
+        if args.durations \
+        else ''.join(format(x, '02x') for x in bytearray(data))
+    if args.learn:
+        print(learned)
+        decode_hex = codecs.getdecoder("hex_codec")
+        print("Base64: " + str(base64.b64encode(decode_hex(learned)[0])))
+    if args.learnfile:
+        print("Saving to {}".format(args.learnfile))
+        with open(args.learnfile, "w") as text_file:
+            text_file.write(learned)
 if args.check:
     if dev.check_power():
         print('* ON *')
@@ -198,13 +208,12 @@ if args.rfscanlearn:
     dev.sweep_frequency()
     print("Learning RF Frequency, press and hold the button to learn...")
 
-    timeout = 20
-
-    while (not dev.check_frequency()) and (timeout > 0):
+    start = time.time()
+    while time.time() - start < TIMEOUT:
         time.sleep(1)
-        timeout -= 1
-
-    if timeout <= 0:
+        if dev.check_frequency():
+            break
+    else:
         print("RF Frequency not found")
         dev.cancel_sweep_frequency()
         exit(1)
@@ -218,26 +227,28 @@ if args.rfscanlearn:
 
     dev.find_rf_packet()
 
-    data = None
-    timeout = 20
-
-    while (data is None) and (timeout > 0):
+    start = time.time()
+    while time.time() - start < TIMEOUT:
         time.sleep(1)
-        timeout -= 1
-        data = dev.check_data()
-
-    if data:
-        print("Found RF Frequency - 2 of 2!")
-        learned = format_durations(to_microseconds(bytearray(data))) \
-            if args.durations \
-            else ''.join(format(x, '02x') for x in bytearray(data))
-        if args.learnfile is None:
-            print(learned)
-            decode_hex = codecs.getdecoder("hex_codec")
-            print("Base64: {}".format(str(base64.b64encode(decode_hex(learned)[0])).decode('utf8')))
-        if args.learnfile is not None:
-            print("Saving to {}".format(args.learnfile))
-            with open(args.learnfile, "w") as text_file:
-                text_file.write(learned)
+        try:
+            data = dev.check_data()
+        except (ReadError, StorageError):
+            continue
+        else:
+            break
     else:
         print("No data received...")
+        exit(1)
+
+    print("Found RF Frequency - 2 of 2!")
+    learned = format_durations(to_microseconds(bytearray(data))) \
+        if args.durations \
+        else ''.join(format(x, '02x') for x in bytearray(data))
+    if args.learnfile is None:
+        print(learned)
+        decode_hex = codecs.getdecoder("hex_codec")
+        print("Base64: {}".format(str(base64.b64encode(decode_hex(learned)[0]))))
+    if args.learnfile is not None:
+        print("Saving to {}".format(args.learnfile))
+        with open(args.learnfile, "w") as text_file:
+            text_file.write(learned)
