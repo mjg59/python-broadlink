@@ -246,11 +246,11 @@ class sp4(device):
         """Set state of device."""
         data = {}
         if pwr is not None:
-            data["pwr"] = pwr
+            data["pwr"] = int(bool(pwr))
         if ntlight is not None:
-            data["ntlight"] = ntlight
+            data["ntlight"] = int(bool(ntlight))
         if indicator is not None:
-            data["indicator"] = indicator
+            data["indicator"] = int(bool(indicator))
         if ntlbrightness is not None:
             data["ntlbrightness"] = ntlbrightness
         if maxworktime is not None:
