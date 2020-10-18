@@ -181,10 +181,12 @@ Send the following payload with a command byte of 0x006a
 |0x05|repeat count, (0 = no repeat, 1 send twice, .....)|
 |0x06-0x07|Length of the following data in little endian|
 |0x08 ....|Pulse lengths in 2^-15 s units (µs * 269 / 8192 works very well)|
-|....|0x0d 0x05 at the end for IR only|
+|....|For IR codes, the pulse lengths should be paired as ON, OFF|
 
 Each value is represented by one byte. If the length exceeds one byte
 then it is stored big endian with a leading 0.
+
+Captures of IR codes from the device will always end with a constant OFF value of `0x00 0x0d 0x05` but the trailing silence can be anything on transmit. The likely reason for this value is a capped timeout value on detection. The value is about 102 milliseconds.
 
 Example: The header for my Optoma projector is 8920 4450  
 8920 * 269 / 8192 = 0x124  
