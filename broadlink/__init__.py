@@ -42,6 +42,7 @@ SUPPORTED_TYPES = {
     0x947a: (sp2, "SP3S-EU", "Broadlink"),
     0x7579: (sp4, "SP4L-EU", "Broadlink"),
     0x7583: (sp4, "SP mini 3", "Broadlink (OEM)"),
+    0x7d11: (sp4, "SP mini 3", "Broadlink (OEM)"),
     0x2712: (rm, "RM pro/pro+", "Broadlink"),
     0x272a: (rm, "RM pro", "Broadlink"),
     0x2737: (rm, "RM mini 3", "Broadlink"),
