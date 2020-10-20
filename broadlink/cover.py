@@ -60,7 +60,7 @@ class dooya(device):
                 current = self.get_percentage()
         self.stop()
 
- class dooya_new(device):
+class dooya_new(device):
     """Controls a Dooya curtain motor."""
 
     def __init__(self, *args, **kwargs) -> None:
