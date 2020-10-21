@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 """The python-broadlink library."""
 import socket
 from typing import Generator, List, Union, Tuple
