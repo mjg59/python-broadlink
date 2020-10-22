@@ -7,6 +7,7 @@ A simple Python API for controlling IR/RF controllers from [Broadlink](http://ww
 * A1 sensor platform devices are supported
 * RM3 mini IR blaster
 * RM4 and RM4C mini blasters
+- SP2/SP3/SP4 smart plugs
 
 There is currently no support for the cloud API.
 
@@ -104,7 +105,7 @@ Obtain sensor data from an A1:
 data = devices[0].check_sensors()
 ```
 
-Set power state on a SmartPlug SP2/SP3:
+Set power state on a SmartPlug SP2/SP3/SP4:
 ```
 devices[0].set_power(True)
 ```
