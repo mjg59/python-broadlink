@@ -309,20 +309,16 @@ class device:
 
         start_time = time.time()
         with self.lock:
-            conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-            while True:
-                try:
-                    conn.sendto(packet, self.host)
-                    conn.settimeout(1)
-                    resp, _ = conn.recvfrom(2048)
-                    break
-                except socket.timeout:
-                    if (time.time() - start_time) > self.timeout:
-                        conn.close()
-                        raise exception(-4000)  # Network timeout.
-            conn.close()
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as conn:
+                while True:
+                    try:
+                        conn.sendto(packet, self.host)
+                        conn.settimeout(1)
+                        resp, _ = conn.recvfrom(2048)
+                        break
+                    except socket.timeout:
+                        if (time.time() - start_time) > self.timeout:
+                            raise exception(-4000)  # Network timeout.
 
         if len(resp) < 0x30:
             raise exception(-4007)  # Length error.
