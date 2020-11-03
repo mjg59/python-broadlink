@@ -143,6 +143,13 @@ class device:
             "Locked" if self.is_locked else "Unlocked",
         )
 
+    def __str__(self):
+        return "%s (%s at %s)" % (
+            self.name,
+            self.model or hex(self.devtype),
+            self.host[0],
+        )
+
     def update_aes(self, key: bytes) -> None:
         """Update AES."""
         self.aes = Cipher(
