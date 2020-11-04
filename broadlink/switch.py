@@ -219,13 +219,13 @@ class sp2(device):
         return int(hex(payload[0x07] * 256 + payload[0x06])[2:]) + int(hex(payload[0x05])[2:]) / 100.0
 
 
-class sp4l(device):
-    """Controls a Broadlink SP4L."""  
+class sp4(device):
+    """Controls a Broadlink SP4."""  
 
     def __init__(self, *args, **kwargs) -> None:
         """Initialize the controller."""
         device.__init__(self, *args, **kwargs)
-        self.type = "SP4L"
+        self.type = "SP4"
 
     def set_power(self, state: bool) -> None:
         """Set the power state of the device."""
@@ -301,13 +301,13 @@ class sp4l(device):
         return state
 
 
-class sp4m(sp4l):
-    """Controls a Broadlink SP4M."""
+class sp4b(sp4):
+    """Controls a Broadlink SP4 (type B)."""
 
     def __init__(self, *args, **kwargs) -> None:
         """Initialize the controller."""
         device.__init__(self, *args, **kwargs)
-        self.type = "SP4M"
+        self.type = "SP4B"
 
     def _encode(self, flag: int, state: dict) -> bytes:
         """Encode a message."""
