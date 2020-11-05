@@ -104,7 +104,7 @@ class dooya_new(device):
         """Return the position of the curtain."""
         return self._send(0xca, 0xc0 ,0x06, 0x00)
 
-    def set_percentage_and_wait(self, new_percentage) -> None:
+    def set_percentage(self, new_percentage) -> None:
         new_percent_hex = struct.pack('<H', 49357+new_percentage)
         magic1 = new_percent_hex[0]
         magic2 = new_percent_hex[1]
