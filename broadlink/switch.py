@@ -212,16 +212,14 @@ class sp2(device):
         payload = self.decrypt(response[0x38:])
         return bool(payload[0x4] == 2 or payload[0x4] == 3 or payload[0x4] == 0xFF)
 
-    def get_energy(self) -> int:
-        """Return the energy state of the device."""
+    def get_energy(self) -> float:
+        """Return the power consumption in W."""
         packet = bytearray([8, 0, 254, 1, 5, 1, 0, 0, 0, 45])
         response = self.send_packet(0x6A, packet)
         check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
-        return (
-            int(hex(payload[0x07] * 256 + payload[0x06])[2:])
-            + int(hex(payload[0x05])[2:]) / 100.0
-        )
+        energy = payload[0x7:0x4:-1].hex()
+        return int(energy) / 100
 
 
 class sp4(device):
