@@ -218,10 +218,7 @@ class sp2(device):
         response = self.send_packet(0x6A, packet)
         check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
-        return (
-            int(hex(payload[0x07] * 256 + payload[0x06])[2:])
-            + int(hex(payload[0x05])[2:]) / 100.0
-        )
+        return int((payload[0x07] + payload[0x06] / 100) * 100) + payload[0x05] / 100
 
 
 class sp4(device):
