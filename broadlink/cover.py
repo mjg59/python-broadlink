@@ -1,6 +1,5 @@
 """Support for covers."""
 import time
-import struct
 
 from .device import device
 from .exceptions import check_error
@@ -68,21 +67,22 @@ class dooya_new(device):
         device.__init__(self, *args, **kwargs)
         self.type = "Dooya DT360E(4F6E)"
 
-    def _send(self, magic1: int, magic2: int, magic3:int, magic4:int) -> int:
+    def _send(self, command: int, attribute: int = 0) -> int:
         """Send a packet to the device."""
+        checksum = 0xc0c4 + command + attribute & 0xffff
         packet = bytearray(32)
         packet[0] = 0x16
         packet[2] = 0xa5
         packet[3] = 0xa5
         packet[4] = 0x5a
         packet[5] = 0x5a
-        packet[6] = magic1
-        packet[7] = magic2
+        packet[6] = checksum & 0xff
+        packet[7] = checksum >> 8
         packet[8] = 0x02
         packet[9] = 0x0b
         packet[10] = 0x0a
-        packet[15] = magic3
-        packet[16] = magic4
+        packet[15] = command
+        packet[16] = attribute
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
@@ -90,24 +90,20 @@ class dooya_new(device):
 
     def open(self) -> None:
         """Open the curtain."""
-        self._send(0xc5, 0xc0, 0x01, 0x00)
+        self._send(0x01)
 
     def close(self) -> None:
         """Close the curtain."""
-        self._send(0xc6, 0xc0, 0x02, 0x00)
+        self._send(0x02)
 
     def stop(self) -> None:
         """Stop the curtain."""
-        self._send(0xc7, 0xc0, 0x03, 0x00)
+        self._send(0x03)
 
     def get_percentage(self) -> int:
         """Return the position of the curtain."""
-        return self._send(0xca, 0xc0 ,0x06, 0x00)
+        return self._send(0x06)
 
     def set_percentage(self, new_percentage) -> None:
-        new_percent_hex = struct.pack('<H', 49357+new_percentage)
-        magic1 = new_percent_hex[0]
-        magic2 = new_percent_hex[1]
-        magic3 = 0x09
-        magic4 = new_percentage
-        self._send(magic1, magic2, magic3, magic4)
+        """Set the position of the curtain."""
+        self._send(0x09, new_percentage)
