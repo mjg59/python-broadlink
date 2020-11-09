@@ -69,21 +69,21 @@ class dooya_new(device):
 
     def _send(self, command: int, attribute: int = 0) -> int:
         """Send a packet to the device."""
-        checksum = 0xc0c4 + command + attribute & 0xffff
+        checksum = 0xC0C4 + command + attribute & 0xFFFF
         packet = bytearray(32)
         packet[0] = 0x16
-        packet[2] = 0xa5
-        packet[3] = 0xa5
-        packet[4] = 0x5a
-        packet[5] = 0x5a
-        packet[6] = checksum & 0xff
+        packet[2] = 0xA5
+        packet[3] = 0xA5
+        packet[4] = 0x5A
+        packet[5] = 0x5A
+        packet[6] = checksum & 0xFF
         packet[7] = checksum >> 8
         packet[8] = 0x02
-        packet[9] = 0x0b
-        packet[10] = 0x0a
+        packet[9] = 0x0B
+        packet[10] = 0x0A
         packet[15] = command
         packet[16] = attribute
-        response = self.send_packet(0x6a, packet)
+        response = self.send_packet(0x6A, packet)
         check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
         return payload[17]
