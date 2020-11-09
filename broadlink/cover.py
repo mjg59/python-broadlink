@@ -59,13 +59,13 @@ class dooya(device):
                 current = self.get_percentage()
         self.stop()
 
-class dooya_new(device):
-    """Controls a Dooya curtain motor."""
+class dt36b(device):
+    """Controls a Dooya DT360E (type B)."""
 
     def __init__(self, *args, **kwargs) -> None:
         """Initialize the controller."""
         device.__init__(self, *args, **kwargs)
-        self.type = "Dooya DT360E(4F6E)"
+        self.type = "DT36B"
 
     def _send(self, command: int, attribute: int = 0) -> int:
         """Send a packet to the device."""
