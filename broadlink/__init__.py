@@ -5,7 +5,7 @@ from typing import Generator, List, Union, Tuple
 
 from .alarm import S1C
 from .climate import hysen
-from .cover import dooya, dooya_new
+from .cover import dooya, dt36b
 from .device import device, scan
 from .exceptions import exception
 from .light import lb1
@@ -92,7 +92,7 @@ SUPPORTED_TYPES = {
     0x2722: (S1C, "S2KIT", "Broadlink"),
     0x4EAD: (hysen, "HY02B05H", "Hysen"),
     0x4E4D: (dooya, "DT360E-45/20", "Dooya"),
-    0x4F6E: (dooya_new, "DT360E-45/20", "Dooya"),
+    0x4F6E: (dt36b, "DT360E-45/20", "Dooya"),
     0x51E3: (bg1, "BG800/BG900", "BG Electrical"),
 }
 
