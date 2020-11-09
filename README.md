@@ -7,6 +7,7 @@ A simple Python API for controlling IR/RF controllers from [Broadlink](http://ww
 * A1 sensor platform devices are supported
 * RM3 mini IR blaster
 * RM4 and RM4C mini blasters
+- SP2/SP3/SP4 smart plugs
 
 There is currently no support for the cloud API.
 
@@ -32,6 +33,24 @@ Discover available devices on the local network:
 import broadlink
 
 devices = broadlink.discover(timeout=5)
+```
+
+You may need to specify `local_ip_address` or `discover_ip_address` if discovery does not return any devices.
+
+
+Using your machine's IP address with `local_ip_address`
+```
+import broadlink
+
+devices = broadlink.discover(timeout=5, local_ip_address=192.168.0.100)
+```
+
+Using your subnet's broadcast address with `discover_ip_address`
+
+```
+import broadlink
+
+devices = broadlink.discover(timeout=5, discover_ip_address=192.168.0.255)
 ```
 
 Obtain the authentication key required for further communication:
@@ -86,7 +105,7 @@ Obtain sensor data from an A1:
 data = devices[0].check_sensors()
 ```
 
-Set power state on a SmartPlug SP2/SP3:
+Set power state on a SmartPlug SP2/SP3/SP4:
 ```
 devices[0].set_power(True)
 ```

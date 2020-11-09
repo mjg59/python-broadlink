@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 """The python-broadlink library."""
 import socket
 from typing import Generator, List, Union, Tuple
@@ -11,7 +11,7 @@ from .exceptions import exception
 from .light import lb1
 from .remote import rm, rm4
 from .sensor import a1
-from .switch import bg1, mp1, sp1, sp2, sp4
+from .switch import bg1, mp1, sp1, sp2, sp4, sp4b
 
 
 SUPPORTED_TYPES = {
@@ -98,11 +98,11 @@ SUPPORTED_TYPES = {
 
 
 def gendevice(
-        dev_type: int,
-        host: Tuple[str, int],
-        mac: Union[bytes, str],
-        name: str = None,
-        is_locked: bool = None,
+    dev_type: int,
+    host: Tuple[str, int],
+    mac: Union[bytes, str],
+    name: str = None,
+    is_locked: bool = None,
 ) -> device:
     """Generate a device."""
     try:
@@ -123,10 +123,10 @@ def gendevice(
 
 
 def hello(
-        host: str,
-        port: int = 80,
-        timeout: int = 10,
-        local_ip_address: str = None,
+    host: str,
+    port: int = 80,
+    timeout: int = 10,
+    local_ip_address: str = None,
 ) -> device:
     """Direct device discovery.
 
@@ -139,31 +139,27 @@ def hello(
 
 
 def discover(
-        timeout: int = 10,
-        local_ip_address: str = None,
-        discover_ip_address: str = '255.255.255.255',
-        discover_ip_port: int = 80,
+    timeout: int = 10,
+    local_ip_address: str = None,
+    discover_ip_address: str = "255.255.255.255",
+    discover_ip_port: int = 80,
 ) -> List[device]:
     """Discover devices connected to the local network."""
-    responses = scan(
-        timeout, local_ip_address, discover_ip_address, discover_ip_port
-    )
+    responses = scan(timeout, local_ip_address, discover_ip_address, discover_ip_port)
     return [gendevice(*resp) for resp in responses]
 
 
 def xdiscover(
-        timeout: int = 10,
-        local_ip_address: str = None,
-        discover_ip_address: str = '255.255.255.255',
-        discover_ip_port: int = 80,
+    timeout: int = 10,
+    local_ip_address: str = None,
+    discover_ip_address: str = "255.255.255.255",
+    discover_ip_port: int = 80,
 ) -> Generator[device, None, None]:
     """Discover devices connected to the local network.
 
     This function returns a generator that yields devices instantly.
     """
-    responses = scan(
-        timeout, local_ip_address, discover_ip_address, discover_ip_port
-    )
+    responses = scan(timeout, local_ip_address, discover_ip_address, discover_ip_port)
     for resp in responses:
         yield gendevice(*resp)
 
@@ -192,13 +188,12 @@ def setup(ssid: str, password: str, security_mode: int) -> None:
     payload[0x85] = pass_length  # Character length of password
     payload[0x86] = security_mode  # Type of encryption
 
-    checksum = sum(payload, 0xbeaf) & 0xffff
-    payload[0x20] = checksum & 0xff  # Checksum 1 position
+    checksum = sum(payload, 0xBEAF) & 0xFFFF
+    payload[0x20] = checksum & 0xFF  # Checksum 1 position
     payload[0x21] = checksum >> 8  # Checksum 2 position
 
-    sock = socket.socket(socket.AF_INET,  # Internet
-                         socket.SOCK_DGRAM)  # UDP
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Internet  # UDP
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    sock.sendto(payload, ('255.255.255.255', 80))
+    sock.sendto(payload, ("255.255.255.255", 80))
     sock.close()

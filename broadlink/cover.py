@@ -17,12 +17,12 @@ class dooya(device):
         """Send a packet to the device."""
         packet = bytearray(16)
         packet[0] = 0x09
-        packet[2] = 0xbb
+        packet[2] = 0xBB
         packet[3] = magic1
         packet[4] = magic2
-        packet[9] = 0xfa
+        packet[9] = 0xFA
         packet[10] = 0x44
-        response = self.send_packet(0x6a, packet)
+        response = self.send_packet(0x6A, packet)
         check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
         return payload[4]
@@ -41,7 +41,7 @@ class dooya(device):
 
     def get_percentage(self) -> int:
         """Return the position of the curtain."""
-        return self._send(0x06, 0x5d)
+        return self._send(0x06, 0x5D)
 
     def set_percentage_and_wait(self, new_percentage: int) -> None:
         """Set the position of the curtain."""
