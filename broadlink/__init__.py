@@ -21,6 +21,7 @@ SUPPORTED_TYPES = {
     0x2717: (sp2, "NEO", "Ankuoo"),
     0x2719: (sp2, "SP2-compatible", "Honeywell"),
     0x271A: (sp2, "SP2-compatible", "Honeywell"),
+    0x271D: (sp2, "Ego", "Efergy"),
     0x2720: (sp2, "SP mini", "Broadlink"),
     0x2728: (sp2, "SP2-compatible", "URANT"),
     0x2733: (sp2, "SP3", "Broadlink"),
