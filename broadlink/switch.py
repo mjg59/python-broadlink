@@ -37,7 +37,7 @@ class mp1(device):
         sid_mask = 0x01 << (sid - 1)
         self.set_power_mask(sid_mask, state)
 
-    def check_power_raw(self) -> bool:
+    def check_power_raw(self) -> int:
         """Return the power state of the device in raw format."""
         packet = bytearray(16)
         packet[0x00] = 0x0A
