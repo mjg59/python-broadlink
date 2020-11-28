@@ -553,10 +553,9 @@ class tornado(device):
             'checksum_lbit': 0
         }
 
-        if (received_state['state'] == True):
-            if (args['mode'] == 'heating' or args['mode'] == 'fan' or args['mode'] == 'drying'):
-                args['checksum_lbit'] = 1
-                if (args['swing_h'] == 'ON'):
-                    args['checksum_lbit'] = 0
-
+        if (args['mode'] == 'heating' or args['mode'] == 'fan' or args['mode'] == 'drying'):
+            args['checksum_lbit'] = 1
+            if (args['swing_h'] == 'ON'):
+                args['checksum_lbit'] = 0
+        
         return self.set_advanced(**args)
