@@ -454,7 +454,9 @@ class xsq(device):
         SUFFIX = [0, 0, 0, 0, 0]  # 5B
         payload = PREFIX + MIDDLE + SUFFIX
 
-        assert ((target_temp >= 16) and (target_temp <= 32) and ((target_temp * 2) % 1 == 0))
+        target_temp = round(target_temp * 2) / 2
+        if not (target_temp >= 16 and target_temp <= 32):
+            raise ValueError('target_temp out of range, value: {}'.format(target_temp))
 
         if swing_v == 'OFF':
             swing_L = 0b111
