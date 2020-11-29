@@ -240,8 +240,8 @@ class hysen(device):
         self.send_request(input_payload)
 
 
-class tornado(device):
-    """Controls Tornado TOP SQ X series air conditioners."""
+class xsq(device):
+    """Controls Tornado SMART X SQ series air conditioners."""
     def __init__(self, *args, **kwargs):
         device.__init__(self, *args, **kwargs)
         self.type = "Tornado air conditioner"
@@ -284,11 +284,11 @@ class tornado(device):
         return (self._decode(response))
 
     def get_state(
-            self,
-            payload_debug: bool = False,
-            unidentified_commands_debug: bool = False,
-            checksum_debug: bool = False
-            ) -> dict:
+        self,
+        payload_debug: bool = False,
+        unidentified_commands_debug: bool = False,
+        checksum_debug: bool = False
+    ) -> dict:
         """Returns a dictionary with the unit's parameters.
 
         Args:
@@ -315,7 +315,7 @@ class tornado(device):
         data = {}
         data['state'] = payload[0x14] & 0x20 == 0x20
         data['target_temp'] = (8 + (payload[0x0c] >> 3)
-                               + (0 if ((payload[0xe] & 0b10000000) == 0) else 0.5))
+                               + (0.0 if ((payload[0xe] & 0b10000000) == 0) else 0.5))
 
         swing_v = payload[0x0c] & 0b111
         swing_h = (payload[0x0d] & 0b11100000) >> 5
@@ -531,7 +531,6 @@ class tornado(device):
         # payload[0x17] = always 0x00
         payload[0x18] = cmnd_18
 
-        # 0x19-0x1a - checksum
         checksum = self._calculate_checksum(payload[:0x19])
         payload[0x19] = checksum[0] - checksum_lbit
         payload[0x1a] = checksum[1]
@@ -539,6 +538,11 @@ class tornado(device):
         response = self.send_packet(0x6a, bytearray(payload))
         check_error(response[0x22:0x24])
         response_payload = self._decode(response)
+        # Response payloads are 16 bytes long.
+        # The first 12 bytes are always 0e 00 bb 00 07 00 00 00 04 00 01 01,
+        # the next two should be the checksum of the sent command
+        # and the last two are the checksum of the response,
+        # calculated with the target 0x2000d (probably, only minimally tested).
         return response_payload
 
     def set_partial(
@@ -559,7 +563,7 @@ class tornado(device):
     ) -> bytes:
         """Retrieves the current state and changes only the specified parameters.
 
-        Uses `get_state` and `set_advanced` internally."""
+        Uses `get_state` and `set_advanced` internally (see it for usage)."""
 
         try:
             received_state = self.get_state()
