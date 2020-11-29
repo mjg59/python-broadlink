@@ -281,11 +281,17 @@ class tornado(device):
         check_error(response[0x22:0x24])
         return (self._decode(response))
 
-    def get_state(self, payload_debug: bool = None) -> dict:
+    def get_state(self,
+        payload_debug: bool = False,
+        unidentified_commands_debug: bool = False,
+        checksum_debug: bool = False
+        ) -> dict:
         """Returns a dictionary with the unit's parameters.
         
         Args:
             payload_debug (Optional[bool]): add the received payload for debugging
+            unidentified_commands_debug (Optional[bool]): add cmnd_0d_rmask, cmnd_0e_rmask and cmnd_18 for debugging
+            checksum_debug (Optional[bool]): try to calculate checksum and compare with actual
         
         Returns:
             dict:
@@ -298,9 +304,6 @@ class tornado(device):
                 sleep (bool): 
                 display (bool):
                 health (bool):
-                cmnd_0d_rmask (int): unknown
-                cmnd_0e_rmask (int): unknown
-                cmnd_18 (int): unknown
         """
         payload = self._send_short_payload(1)
         if (len(payload) != 32):
@@ -362,23 +365,33 @@ class tornado(device):
         data['sleep'] = bool(payload[0x11] & 0b100)
         data['display'] = (payload[0x16] & 0x10 == 0x10)
         data['health'] = (payload[0x14] & 0b11 == 0b11)
-        data['cmnd_0d_rmask'] = payload[0x0d] & 0xf
-        data['cmnd_0e_rmask'] = payload[0x0e] & 0xf
-        data['cmnd_18'] = payload[0x18]
 
-        checksum = self._calculate_checksum(payload[:0x19]) # checksum=(payload[0x1a] << 8) + payload[0x19]
+        if (unidentified_commands_debug):
+            data['cmnd_0d_rmask'] = payload[0x0d] & 0xf
+            data['cmnd_0e_rmask'] = payload[0x0e] & 0xf
+            data['cmnd_18'] = payload[0x18]
 
-        if (payload[0x19] == checksum[0] and payload[0x1a] == checksum[1]):
-            pass # success
-        else:
-            print('checksum fail', ['{:02x}'.format(x) for x in checksum])
+        if (checksum_debug):
+            checksum = list(self._calculate_checksum(payload[:0x19]))
+
+            # a kludge to make the checksum work
+            if (data['mode'] == 'heating' or data['mode'] == 'fan' or data['mode'] == 'drying'):
+                if swing_h == 'OFF':
+                    checksum[0] += 1
+                    pass
+
+            if (payload[0x19] == checksum[0] and payload[0x1a] == checksum[1]):
+                pass # success
+            else:
+                print('in get_state, checksum fail: calculated {:02x} {:02x}, actual {:02x} {:02x}' \
+                        .format(checksum[0], checksum[1], payload[0x19], payload[0x1a]))
 
         if (payload_debug):
             data['received_payload'] = payload
 
         return data
 
-    def get_ac_info(self, payload_debug: bool = None) -> dict:
+    def get_ac_info(self, payload_debug: bool = False) -> dict:
         """Returns dictionary with A/C info...
         Not implemented yet, except power state.
 
@@ -406,10 +419,10 @@ class tornado(device):
         sleep: bool,
         display: bool,
         health: bool,
-        cmnd_0d_rmask: int,
-        cmnd_0e_rmask: int,
-        cmnd_18: int,
-        checksum_lbit: int
+        cmnd_0d_rmask: int = 0b100,
+        cmnd_0e_rmask: int = 0b1101,
+        cmnd_18: int = 0b101,
+        checksum_lbit: int = None,
     ) -> bytes:
         """Set paramaters of unit and return response. All parameters need to be specified.
         
@@ -423,10 +436,10 @@ class tornado(device):
             sleep (bool) 
             display (bool)
             health (bool)
-            cmnd_0d_rmask (int): unknown
-            cmnd_0e_rmask (int): unknown
-            cmnd_18 (int): unknown
-            checksum_lbit (int): subtracted from the left byte of the checksum
+            cmnd_0d_rmask (Optional[int]): override an unidentified command
+            cmnd_0e_rmask (Optional[int]): override an unidentified command
+            cmnd_18 (Optional[int]): override an unidentified command
+            checksum_lbit (Optional[int]): subtracted from the left byte of the checksum
         """
         
         PREFIX = [0x19, 0x00, 0xbb, 0x00, 0x06, 0x80, 0x00, 0x00, 0x0f, 0x00, 0x01, 0x01] # 12B
@@ -440,6 +453,8 @@ class tornado(device):
             swing_L = 0b111
         elif (swing_v == 'ON'):
             swing_L = 0b000
+        elif (int(swing_v) >= 0 and int(swing_v) <= 5):
+            swing_L = int(swing_v)
         else:
             raise ValueError('unrecognized swing vertical value {}'.format(swing_v))
 
@@ -447,10 +462,22 @@ class tornado(device):
             swing_R = 0b111
         elif (swing_h == 'ON'):
             swing_R = 0b000
-        elif (swing_h >= 0 and swing_v <= 5):
-            swing_R = str(swing_v)
         else:
             raise ValueError('unrecognized swing horizontal value {}'.format(swing_h))
+
+        if (mode == 'auto'):
+            mode_1 = 0x00
+        elif (mode == 'cooling'):
+            mode_1 = 0x20
+        elif (mode == 'drying'):
+            mode_1 = 0x40
+        elif (mode == 'heating'):
+            mode_1 = 0x80
+        elif (mode == 'fan'):
+            mode_1 = 0xc0
+            # target_temp is irrelevant in this case
+        else:
+            raise ValueError('unrecognized mode value: {}'.format(mode))
 
         if (speed == 'low'):
             speed_L, speed_R = 0x60, 0x00
@@ -460,34 +487,31 @@ class tornado(device):
             speed_L, speed_R = 0x20, 0x00
         elif (speed == 'mute'):
             speed_L, speed_R = 0x40, 0x80
-            assert (mode == 'F')
+            if mode != 'fan':
+                raise ValueError('mute speed is only available in fan mode')
         elif (speed == 'turbo'):
-            speed_R = 0x40
             speed_L = 0x20 # doesn't matter
+            speed_R = 0x40
+            if not (mode == 'cooling' or mode == 'heating'):
+                raise ValueError('turbo speed is only available in cooling and heating modes')
         elif (speed == 'auto'):
             speed_L, speed_R = 0xa0, 0x00
         else:
             raise ValueError('unrecognized speed value: {}'.format(speed))
 
-        if (mode == 'auto'):
-            mode_1 = 0x00
-        elif (mode == 'cooling'):
-            mode_1 = 0x20
-        elif (mode == 'drying'):
-            mode_1 = 0x40
-            cmnd_0e_rmask = 0x16
-        elif (mode == 'heating'):
-            mode_1 = 0x80
-        elif (mode == 'fan'):
-            mode_1 = 0xc0
-            target_temp = 24.0
-            if speed == 'turbo':
-                raise ValueError('speed cannot be {} in fan mode'.format(speed))
+        # a kludge to make the checksum work
+        if checksum_lbit != None: # allow for override
+            pass
+        elif (mode == 'heating' or mode == 'fan' or mode == 'drying'): 
+            if (swing_h == 'OFF'):
+                checksum_lbit = 1
+            else:
+                checksum_lbit = 0
         else:
-            raise ValueError('unrecognized mode value: {}'.format(mode))
+            checksum_lbit = 0
 
         payload[0x0c] = ((int(target_temp) - 8 << 3) | swing_L)
-        payload[0x0d] = (int(swing_R) << 5) | cmnd_0d_rmask
+        payload[0x0d] = (swing_R << 5) | cmnd_0d_rmask
         payload[0x0e] = (0b10000000 if (target_temp % 1 == 0.5) else 0b0) | cmnd_0e_rmask
         payload[0x0f] = speed_L
         payload[0x10] = speed_R
@@ -520,9 +544,10 @@ class tornado(device):
         sleep: bool = None,
         display: bool = None,
         health: bool = None,
-        cmnd_0d_rmask: int = 0b100,
-        cmnd_0e_rmask: int = 0b1101,
-        cmnd_18: int = 0b101,
+        cmnd_0d_rmask: int = None,
+        cmnd_0e_rmask: int = None,
+        cmnd_18: int = None,
+        checksum_lbit = None
     ) -> bytes:
         """Retrieves the current state and changes only the specified parameters.
         
@@ -546,16 +571,17 @@ class tornado(device):
             'swing_h': swing_h if swing_h != None else received_state['swing_h'],
             'sleep': sleep if sleep != None else received_state['sleep'],
             'display': display if display != None else received_state['display'],
-            'health': health if health != None else received_state['health'],
-            'cmnd_0d_rmask': cmnd_0d_rmask,
-            'cmnd_0e_rmask': cmnd_0e_rmask,
-            'cmnd_18': cmnd_18,
-            'checksum_lbit': 0
+            'health': health if health != None else received_state['health']
         }
 
-        if (args['mode'] == 'heating' or args['mode'] == 'fan' or args['mode'] == 'drying'):
-            args['checksum_lbit'] = 1
-            if (args['swing_h'] == 'ON'):
-                args['checksum_lbit'] = 0
+        # Allow overriding of optional parameters
+        if cmnd_0d_rmask != None:
+            args['cmnd_0d_rmask'] = cmnd_0d_rmask
+        if cmnd_0e_rmask != None:
+            args['cmnd_0e_rmask'] = cmnd_0e_rmask
+        if cmnd_18 != None:
+            args['cmnd_18'] = cmnd_18
+        if checksum_lbit != None:
+            args['checksum_lbit'] = checksum_lbit
         
         return self.set_advanced(**args)
