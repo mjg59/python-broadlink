@@ -120,7 +120,7 @@ class device:
         self.model = model
         self.manufacturer = manufacturer
         self.is_locked = is_locked
-        self.count = random.randrange(0xFFFF)
+        self.count = random.randint(0x8000, 0xFFFF)
         self.iv = bytes.fromhex("562e17996d093d28ddb3ba695a2e6f58")
         self.id = bytes(4)
         self.type = "Unknown"
@@ -202,7 +202,6 @@ class device:
         if len(key) % 16 != 0:
             return False
 
-        self.count = int.from_bytes(response[0x28:0x30], "little")
         self.id = payload[0x03::-1]
         self.update_aes(key)
         return True
@@ -264,7 +263,7 @@ class device:
 
     def send_packet(self, command: int, payload: bytes) -> bytes:
         """Send a packet to the device."""
-        self.count = (self.count + 1) & 0xFFFF
+        self.count = ((self.count + 1) | 0x8000) & 0xFFFF
         packet = bytearray(0x38)
         packet[0x00] = 0x5A
         packet[0x01] = 0xA5
