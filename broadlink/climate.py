@@ -239,27 +239,29 @@ class hysen(device):
 
         self.send_request(input_payload)
 
+
 class tornado(device):
     """Controls Tornado TOP SQ X series air conditioners."""
     def __init__(self, *args, **kwargs):
         device.__init__(self, *args, **kwargs)
         self.type = "Tornado air conditioner"
-    
+
     def _decode(self, response) -> bytes:
         payload = self.decrypt(bytes(response[0x38:]))
         return payload
-    
-    def _calculate_checksum(self, packet:bytes, target:int=0x20017) -> tuple:
+
+    def _calculate_checksum(self, packet: bytes, target: int = 0x20017) -> tuple:
         """Calculate checksum of given array,
         by adding little endian words and subtracting from target.
-        
+
         Args:
-            packet (list/bytearray/bytes): 
+            packet (bytes): the packet without a checksum
+            target (int): the sum is subtracted it to create the checksum
         """
         result = target - (sum([v if i % 2 == 0 else v << 8 for i, v in enumerate(packet)]) & 0xffff)
         return (result & 0xff, (result >> 8) & 0xff)
 
-    def _send_short_payload(self, payload:int) -> bytes:
+    def _send_short_payload(self, payload: int) -> bytes:
         """Send a request for info from A/C unit and returns the response.
         0 = GET_AC_INFO, 1 = GET_STATES, 2 = GET_SLEEP_INFO, 3 = unknown function
         """
@@ -281,18 +283,19 @@ class tornado(device):
         check_error(response[0x22:0x24])
         return (self._decode(response))
 
-    def get_state(self,
-        payload_debug: bool = False,
-        unidentified_commands_debug: bool = False,
-        checksum_debug: bool = False
-        ) -> dict:
+    def get_state(
+            self,
+            payload_debug: bool = False,
+            unidentified_commands_debug: bool = False,
+            checksum_debug: bool = False
+            ) -> dict:
         """Returns a dictionary with the unit's parameters.
-        
+
         Args:
             payload_debug (Optional[bool]): add the received payload for debugging
             unidentified_commands_debug (Optional[bool]): add cmnd_0d_rmask, cmnd_0e_rmask and cmnd_18 for debugging
             checksum_debug (Optional[bool]): try to calculate checksum and compare with actual
-        
+
         Returns:
             dict:
                 state (bool): power
@@ -301,32 +304,33 @@ class tornado(device):
                 speed (str): mute, low, mid, high, turbo (available only in cooling)
                 swing_h (str): ON, OFF
                 swing_v (str): ON, OFF, 1, 2, 3, 4, 5 (fixed positions)
-                sleep (bool): 
+                sleep (bool):
                 display (bool):
                 health (bool):
         """
         payload = self._send_short_payload(1)
         if (len(payload) != 32):
             raise ValueError('unexpected payload size: {}'.format(len(payload)))
-        
+
         data = {}
         data['state'] = payload[0x14] & 0x20 == 0x20
-        data['target_temp'] = (payload[0x0c] >> 3) + 8 + (0.0 if ((payload[0xe] & 0b10000000) == 0) else 0.5)
+        data['target_temp'] = (8 + (payload[0x0c] >> 3)
+                               + (0 if ((payload[0xe] & 0b10000000) == 0) else 0.5))
 
         swing_v = payload[0x0c] & 0b111
         swing_h = (payload[0x0d] & 0b11100000) >> 5
-        if (swing_h == 0b111):
+        if swing_h == 0b111:
             data['swing_h'] = 'OFF'
-        elif (swing_h == 0b000):
+        elif swing_h == 0b000:
             data['swing_h'] = 'ON'
         else:
             data['swing_h'] = 'unrecognized value'
-        
-        if (swing_v == 0b111):
+
+        if swing_v == 0b111:
             data['swing_v'] = 'OFF'
-        elif (swing_v == 0b000):
+        elif swing_v == 0b000:
             data['swing_v'] = 'ON'
-        elif (swing_v >= 0 and swing_v <=5):
+        elif (swing_v >= 0 and swing_v <= 5):
             data['swing_v'] = str(swing_v)
         else:
             data['swing_v'] = 'unrecognized value'
@@ -346,7 +350,7 @@ class tornado(device):
             data['mode'] = 'unrecognized value'
 
         speed_L = payload[0x0f]
-        speed_R = payload[0x10] 
+        speed_R = payload[0x10]
         if speed_L == 0x60 and speed_R == 0x00:
             data['speed'] = 'low'
         elif speed_L == 0x40 and speed_R == 0x00:
@@ -375,16 +379,16 @@ class tornado(device):
             checksum = list(self._calculate_checksum(payload[:0x19]))
 
             # a kludge to make the checksum work
-            if (data['mode'] == 'heating' or data['mode'] == 'fan' or data['mode'] == 'drying'):
+            if data['mode'] in ('heating', 'drying', 'fan'):
                 if swing_h == 'OFF':
                     checksum[0] += 1
-                    pass
 
             if (payload[0x19] == checksum[0] and payload[0x1a] == checksum[1]):
-                pass # success
+                pass  # success
             else:
-                print('in get_state, checksum fail: calculated {:02x} {:02x}, actual {:02x} {:02x}' \
-                        .format(checksum[0], checksum[1], payload[0x19], payload[0x1a]))
+                print('in get_state, checksum fail: \
+                      calculated {:02x} {:02x}, actual {:02x} {:02x}'
+                      .format(checksum[0], checksum[1], payload[0x19], payload[0x1a]))
 
         if (payload_debug):
             data['received_payload'] = payload
@@ -402,14 +406,15 @@ class tornado(device):
 
         # first 13 bytes are the same: 22 00 bb 00 07 00 00 00 18 00 01 21 c0
         data = {}
-        data['state'] = True if (payload[0x0d] & 0b1 == 0b1) else False
+        data['state'] = payload[0x0d] & 0b1 == 0b1
 
         if (payload_debug):
             data['received_payload'] = payload
 
         return data
 
-    def set_advanced(self,
+    def set_advanced(
+        self,
         state: bool,
         mode: str,
         target_temp: float,
@@ -422,18 +427,18 @@ class tornado(device):
         cmnd_0d_rmask: int = 0b100,
         cmnd_0e_rmask: int = 0b1101,
         cmnd_18: int = 0b101,
-        checksum_lbit: int = None,
+        checksum_lbit: int = None
     ) -> bytes:
         """Set paramaters of unit and return response. All parameters need to be specified.
-        
+
         Args:
             state (bool): power
             target_temp (float): temperature set point 16<n<32
             mode (str): cooling, heating, fan, dry, auto
-            speed (str): mute, low, mid, high, turbo (available only for cooling) 
+            speed (str): mute, low, mid, high, turbo (available only for cooling)
             swing_h (str): ON, OFF
             swing_v (str): ON, OFF, 1, 2, 3, 4, 5 (fixed positions)
-            sleep (bool) 
+            sleep (bool)
             display (bool)
             health (bool)
             cmnd_0d_rmask (Optional[int]): override an unidentified command
@@ -441,26 +446,28 @@ class tornado(device):
             cmnd_18 (Optional[int]): override an unidentified command
             checksum_lbit (Optional[int]): subtracted from the left byte of the checksum
         """
-        
-        PREFIX = [0x19, 0x00, 0xbb, 0x00, 0x06, 0x80, 0x00, 0x00, 0x0f, 0x00, 0x01, 0x01] # 12B
-        MIDDLE = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] # 13B + 2B checksum
-        SUFFIX = [0, 0, 0, 0, 0] # 5B
+
+        PREFIX = [0x19, 0x00, 0xbb, 0x00, 0x06, 0x80, 0x00, 0x00, 0x0f, 0x00,
+                  0x01, 0x01]  # 12B
+        MIDDLE = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                  0, 0, 0, 0, 0]  # 13B + 2B checksum
+        SUFFIX = [0, 0, 0, 0, 0]  # 5B
         payload = PREFIX + MIDDLE + SUFFIX
 
         assert ((target_temp >= 16) and (target_temp <= 32) and ((target_temp * 2) % 1 == 0))
 
-        if (swing_v == 'OFF'):
+        if swing_v == 'OFF':
             swing_L = 0b111
-        elif (swing_v == 'ON'):
+        elif swing_v == 'ON':
             swing_L = 0b000
         elif (int(swing_v) >= 0 and int(swing_v) <= 5):
             swing_L = int(swing_v)
         else:
             raise ValueError('unrecognized swing vertical value {}'.format(swing_v))
 
-        if (swing_h == 'OFF'):
+        if swing_h == 'OFF':
             swing_R = 0b111
-        elif (swing_h == 'ON'):
+        elif swing_h == 'ON':
             swing_R = 0b000
         else:
             raise ValueError('unrecognized swing horizontal value {}'.format(swing_h))
@@ -479,38 +486,38 @@ class tornado(device):
         else:
             raise ValueError('unrecognized mode value: {}'.format(mode))
 
-        if (speed == 'low'):
+        if speed == 'low':
             speed_L, speed_R = 0x60, 0x00
-        elif (speed == 'mid'):
+        elif speed == 'mid':
             speed_L, speed_R = 0x40, 0x00
-        elif (speed  == 'high'):
+        elif speed == 'high':
             speed_L, speed_R = 0x20, 0x00
-        elif (speed == 'mute'):
+        elif speed == 'mute':
             speed_L, speed_R = 0x40, 0x80
             if mode != 'fan':
                 raise ValueError('mute speed is only available in fan mode')
-        elif (speed == 'turbo'):
-            speed_L = 0x20 # doesn't matter
+        elif speed == 'turbo':
+            speed_L = 0x20  # doesn't matter
             speed_R = 0x40
-            if not (mode == 'cooling' or mode == 'heating'):
+            if mode not in ('cooling', 'heating'):
                 raise ValueError('turbo speed is only available in cooling and heating modes')
-        elif (speed == 'auto'):
+        elif speed == 'auto':
             speed_L, speed_R = 0xa0, 0x00
         else:
             raise ValueError('unrecognized speed value: {}'.format(speed))
 
         # a kludge to make the checksum work
-        if checksum_lbit != None: # allow for override
+        if checksum_lbit is not None:  # allow for override
             pass
-        elif (mode == 'heating' or mode == 'fan' or mode == 'drying'): 
-            if (swing_h == 'OFF'):
+        elif mode in ('heating', 'drying', 'fan'):
+            if swing_h == 'OFF':
                 checksum_lbit = 1
             else:
                 checksum_lbit = 0
         else:
             checksum_lbit = 0
 
-        payload[0x0c] = ((int(target_temp) - 8 << 3) | swing_L)
+        payload[0x0c] = (int(target_temp) - 8 << 3) | swing_L
         payload[0x0d] = (swing_R << 5) | cmnd_0d_rmask
         payload[0x0e] = (0b10000000 if (target_temp % 1 == 0.5) else 0b0) | cmnd_0e_rmask
         payload[0x0f] = speed_L
@@ -520,12 +527,12 @@ class tornado(device):
         # payload[0x13] = always 0x00
         payload[0x14] = (0b11 if health else 0b00) | (0b100000 if state else 0b000000)
         # payload[0x15] = always 0x00
-        payload[0x16] = 0b10000 if display else 0b00000 # 0b_00 also changes
+        payload[0x16] = 0b10000 if display else 0b00000  # 0b_00 also changes
         # payload[0x17] = always 0x00
         payload[0x18] = cmnd_18
-        
+
         # 0x19-0x1a - checksum
-        checksum = self._calculate_checksum(payload[:0x19]) # checksum=(payload[0x1a] << 8) + payload[0x19]
+        checksum = self._calculate_checksum(payload[:0x19])
         payload[0x19] = checksum[0] - checksum_lbit
         payload[0x1a] = checksum[1]
 
@@ -534,7 +541,8 @@ class tornado(device):
         response_payload = self._decode(response)
         return response_payload
 
-    def set_partial(self,
+    def set_partial(
+        self,
         state: bool = None,
         mode: str = None,
         target_temp: float = None,
@@ -547,41 +555,42 @@ class tornado(device):
         cmnd_0d_rmask: int = None,
         cmnd_0e_rmask: int = None,
         cmnd_18: int = None,
-        checksum_lbit = None
+        checksum_lbit: int = None
     ) -> bytes:
         """Retrieves the current state and changes only the specified parameters.
-        
+
         Uses `get_state` and `set_advanced` internally."""
 
         try:
             received_state = self.get_state()
         except ValueError as e:
             if str(e) == "unexpected payload size: 48":
-                # Occasionally you will get 48 byte payloads. Reading these isn't implemented yet but a retry should suffice.
+                # Occasionally you will get 48 byte payloads, reading these
+                # isn't implemented yet but a retry should suffice.
                 received_state = self.get_state()
             else:
                 raise
 
         args = {
-            'state': state if state != None else received_state['state'],
-            'mode': mode if mode != None else received_state['mode'],
-            'target_temp': target_temp if target_temp != None else received_state['target_temp'],
-            'speed': speed if speed != None else received_state['speed'],
-            'swing_v': swing_v if swing_v != None else received_state['swing_v'],
-            'swing_h': swing_h if swing_h != None else received_state['swing_h'],
-            'sleep': sleep if sleep != None else received_state['sleep'],
-            'display': display if display != None else received_state['display'],
-            'health': health if health != None else received_state['health']
+            'state': state if state is not None else received_state['state'],
+            'mode': mode if mode is not None else received_state['mode'],
+            'target_temp': target_temp if target_temp is not None else received_state['target_temp'],
+            'speed': speed if speed is not None else received_state['speed'],
+            'swing_v': swing_v if swing_v is not None else received_state['swing_v'],
+            'swing_h': swing_h if swing_h is not None else received_state['swing_h'],
+            'sleep': sleep if sleep is not None else received_state['sleep'],
+            'display': display if display is not None else received_state['display'],
+            'health': health if health is not None else received_state['health']
         }
 
         # Allow overriding of optional parameters
-        if cmnd_0d_rmask != None:
+        if cmnd_0d_rmask is not None:
             args['cmnd_0d_rmask'] = cmnd_0d_rmask
-        if cmnd_0e_rmask != None:
+        if cmnd_0e_rmask is not None:
             args['cmnd_0e_rmask'] = cmnd_0e_rmask
-        if cmnd_18 != None:
+        if cmnd_18 is not None:
             args['cmnd_18'] = cmnd_18
-        if checksum_lbit != None:
+        if checksum_lbit is not None:
             args['checksum_lbit'] = checksum_lbit
-        
+
         return self.set_advanced(**args)
