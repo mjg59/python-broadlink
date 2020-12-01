@@ -250,17 +250,22 @@ class sq1(device):
         payload = self.decrypt(bytes(response[0x38:]))
         return payload
 
-    def _calculate_checksum(self, packet: bytes, target: int = 0x20017) -> bytes:
+    def _calculate_checksum(self, payload: bytes, byteorder: str) -> bytes:
         """Calculate checksum of given array,
-        by adding little endian words and subtracting from target.
+        by adding little endian words and subtracting from 0xffff.
+
+        The first two bytes of most packets in the class are the length of the
+        payload and should be cropped out when using this function.
 
         Args:
-            packet (bytes): the packet without a checksum
-            target (int): the sum is subtracted it to create the checksum
+            payload (bytes): the payload
+            byteorder (str): byte order to return the results in
         """
-        result = target - (sum([v if i % 2 == 0 else v << 8 for i, v in enumerate(packet)]) & 0xffff)
-        result &= 0xffff
-        return result.to_bytes(2, 'little')
+        s = sum([v if i % 2 == 0 else v << 8 for i, v in enumerate(payload)])
+        # trim the overflow and add it smallest bit
+        s = (s & 0xffff) + (s >> 16)
+        result = (0xffff - s)
+        return result.to_bytes(2, byteorder)
 
     def _send_short_payload(self, payload: int) -> bytes:
         """Send a request for info from A/C unit and returns the response.
@@ -278,7 +283,7 @@ class sq1(device):
             packet[0x00] = 0xd0
             packet[0x01] = 0x07
         else:
-            raise ValueError('unrecognized payload type: {}'.format(payload))
+            raise ValueError(f'unrecognized payload type: {payload}')
 
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
@@ -287,15 +292,13 @@ class sq1(device):
     def get_state(
         self,
         payload_debug: bool = False,
-        unidentified_commands_debug: bool = False,
-        checksum_debug: bool = False
+        unidentified_commands_debug: bool = False
     ) -> dict:
         """Returns a dictionary with the unit's parameters.
 
         Args:
-            payload_debug (Optional[bool]): add the received payload for debugging
+            payload_debug (Optional[bool]): prints the received payload
             unidentified_commands_debug (Optional[bool]): add cmnd_0d_rmask, cmnd_0e_rmask and cmnd_18 for debugging
-            checksum_debug (Optional[bool]): try to calculate checksum and compare with actual
 
         Returns:
             dict:
@@ -313,12 +316,12 @@ class sq1(device):
         """
         payload = self._send_short_payload(1)
         if (len(payload) != 32):
-            raise ValueError('unexpected payload size: {}'.format(len(payload)))
+            raise ValueError(f'unexpected payload size: {len(payload)}')
 
         data = {}
         data['state'] = payload[0x14] & 0x20 == 0x20
         data['target_temp'] = (8 + (payload[0x0c] >> 3)
-                               + (0.0 if ((payload[0xe] & 0b10000000) == 0) else 0.5))
+                               + (0.0 if (payload[0xe] & 0b10000000) == 0 else 0.5))
 
         swing_v = payload[0x0c] & 0b111
         swing_h = (payload[0x0d] & 0b11100000) >> 5
@@ -382,22 +385,13 @@ class sq1(device):
             data['cmnd_0e_rmask'] = payload[0x0e] & 0xf
             data['cmnd_18'] = payload[0x18]
 
-        if (checksum_debug):
-            checksum = self._calculate_checksum(payload[:0x19])
-
-            # a kludge to make the checksum work
-            if data['mode'] in ('heating', 'drying', 'fan'):
-                if swing_h == 'OFF':
-                    checksum[0] += 1
-
-            if (payload[0x19] == checksum[0] and payload[0x1a] == checksum[1]):
-                pass  # success
-            else:
-                print(f'in get_state, checksum fail: calculated '
-                      f'{checksum.hex()} actual {payload[0x19:0x1b].hex()}')
+        checksum = self._calculate_checksum(payload[2:0x19], 'little')
+        if payload[0x19:0x1b] != checksum:
+            print(f'get_state, checksum fail: calculated '
+                  f'{checksum.hex()} actual {payload[0x19:0x1b].hex()}')
 
         if (payload_debug):
-            data['received_payload'] = payload
+            print(payload.hex(' '))
 
         return data
 
@@ -405,7 +399,7 @@ class sq1(device):
         """Returns dictionary with A/C info.
 
         Args:
-            payload_debug (Optional[bool]): add the received payload for debugging
+            payload_debug (Optional[bool]): print the received payload
 
         Returns:
             dict:
@@ -417,7 +411,7 @@ class sq1(device):
             raise ValueError(f'get_ac_info, unexpected payload size: {len(payload)}')
 
         # The first 13 bytes are the same: 22 00 bb 00 07 00 00 00 18 00 01 21 c0,
-        # bytes 0x23,0x24 are the checksum of [:0x22] calculated with target 0x20020.
+        # bytes 0x23,0x24 are the checksum
         # bytes 0x25 forward are always empty
         data = {}
         data['state'] = payload[0x0d] & 0b1 == 0b1
@@ -426,8 +420,13 @@ class sq1(device):
         if ambient_temp:
             data['ambient_temp'] = ambient_temp + float(payload[0x21] & 0b00011111) / 10.0
 
+        checksum = self._calculate_checksum(payload[2:0x23], 'big')
+        if (payload[0x23:0x25] != checksum):
+            print(f'in get_ac_state, checksum fail: calculated '
+                  f'{checksum.hex()} actual {payload[0x23:0x25].hex()}')
+
         if (payload_debug):
-            data['received_payload'] = payload
+            print(payload.hex(' '))
 
         return data
 
@@ -447,9 +446,11 @@ class sq1(device):
         cmnd_0d_rmask: int = 0b100,
         cmnd_0e_rmask: int = 0b1101,
         cmnd_18: int = 0b101,
-        checksum_lbit: int = None
+        payload_debug: bool = False
     ) -> bytes:
-        """Set paramaters of unit and return response. All parameters need to be specified.
+        """Set parameters of unit.
+
+        Use `set_partial` to modify only some parameters.
 
         Args:
             state (bool): power
@@ -466,7 +467,10 @@ class sq1(device):
             cmnd_0d_rmask (Optional[int]): override an unidentified option
             cmnd_0e_rmask (Optional[int]): override an unidentified option
             cmnd_18 (Optional[int]): override an unidentified option
-            checksum_lbit (Optional[int]): subtracted from the left byte of the checksum
+            payload_debug (Optional[bool]): print the constructed payload
+
+        Returns:
+            True for verified success.
         """
 
         PREFIX = [0x19, 0x00, 0xbb, 0x00, 0x06, 0x80, 0x00, 0x00, 0x0f, 0x00,
@@ -530,20 +534,10 @@ class sq1(device):
         else:
             raise ValueError(f'unrecognized speed value: {speed}')
 
-        # a kludge to make the checksum work
-        if checksum_lbit is not None:  # allow for override
-            pass
-        elif mode in ('heating', 'drying', 'fan'):
-            if swing_h == 'OFF':
-                checksum_lbit = 1
-            else:
-                checksum_lbit = 0
-        else:
-            checksum_lbit = 0
-
         payload[0x0c] = (int(target_temp) - 8 << 3) | swing_L
         payload[0x0d] = (swing_R << 5) | cmnd_0d_rmask
-        payload[0x0e] = (0b10000000 if (target_temp % 1 == 0.5) else 0b0) | cmnd_0e_rmask
+        payload[0x0e] = (0b10000000 if (target_temp % 1 == 0.5) else 0b0
+                         | cmnd_0e_rmask)
         payload[0x0f] = speed_L
         payload[0x10] = speed_R
         payload[0x11] = mode_1 | (0b100 if sleep else 0b000)
@@ -558,9 +552,11 @@ class sq1(device):
         # payload[0x17] = always 0x00
         payload[0x18] = cmnd_18
 
-        checksum = self._calculate_checksum(payload[:0x19])
-        payload[0x19] = checksum[0] - checksum_lbit
-        payload[0x1a] = checksum[1]
+        checksum = self._calculate_checksum(payload[2:0x19], 'little')
+        payload[0x19:0x1b] = checksum
+
+        if (payload_debug):
+            print(payload.hex(' '))
 
         response = self.send_packet(0x6a, bytearray(payload))
         check_error(response[0x22:0x24])
@@ -568,9 +564,13 @@ class sq1(device):
         # Response payloads are 16 bytes long.
         # The first 12 bytes are always 0e 00 bb 00 07 00 00 00 04 00 01 01,
         # the next two should be the checksum of the sent command
-        # and the last two are the checksum of the response,
-        # calculated with the target 0x2000d (probably, only minimally tested).
-        return response_payload
+        # and the last two are the checksum of the response.
+        if (response_payload[0xe:0x10]
+                == self._calculate_checksum(response_payload[2:0xe], 'little')):
+            if response_payload[0xc:0xe] == checksum:
+                return True
+
+        return False
 
     def set_partial(
         self,
@@ -588,18 +588,18 @@ class sq1(device):
         cmnd_0d_rmask: int = None,
         cmnd_0e_rmask: int = None,
         cmnd_18: int = None,
-        checksum_lbit: int = None
-    ) -> bytes:
+        payload_debug: bool = False
+    ) -> bool:
         """Retrieves the current state and changes only the specified parameters.
 
-        Uses `get_state` and `set_advanced` internally (see it for usage)."""
+        Uses `get_state` and `set_advanced` internally (see usage there)."""
 
         try:
             received_state = self.get_state()
         except ValueError as e:
             if str(e) == "unexpected payload size: 48":
-                # Occasionally you will get 48 byte payloads, reading these
-                # isn't implemented yet but a retry should suffice.
+                # Occasionally a 48 byte payload gets mixed in,
+                # a retry should suffice.
                 received_state = self.get_state()
             else:
                 raise
@@ -615,7 +615,8 @@ class sq1(device):
             'display': display if display is not None else received_state['display'],
             'health': health if health is not None else received_state['health'],
             'clean': clean if clean is not None else received_state['clean'],
-            'mildew': mildew if mildew is not None else received_state['mildew']
+            'mildew': mildew if mildew is not None else received_state['mildew'],
+            'payload_debug': payload_debug
         }
 
         # Allow overriding of optional parameters
@@ -625,7 +626,5 @@ class sq1(device):
             args['cmnd_0e_rmask'] = cmnd_0e_rmask
         if cmnd_18 is not None:
             args['cmnd_18'] = cmnd_18
-        if checksum_lbit is not None:
-            args['checksum_lbit'] = checksum_lbit
 
         return self.set_advanced(**args)
