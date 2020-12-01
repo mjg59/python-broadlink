@@ -240,17 +240,17 @@ class hysen(device):
         self.send_request(input_payload)
 
 
-class xsq(device):
+class sq1(device):
     """Controls Tornado SMART X SQ series air conditioners."""
     def __init__(self, *args, **kwargs):
         device.__init__(self, *args, **kwargs)
-        self.type = "Tornado air conditioner"
+        self.type = "Tornado SQ air conditioner"
 
     def _decode(self, response) -> bytes:
         payload = self.decrypt(bytes(response[0x38:]))
         return payload
 
-    def _calculate_checksum(self, packet: bytes, target: int = 0x20017) -> tuple:
+    def _calculate_checksum(self, packet: bytes, target: int = 0x20017) -> bytes:
         """Calculate checksum of given array,
         by adding little endian words and subtracting from target.
 
@@ -259,7 +259,8 @@ class xsq(device):
             target (int): the sum is subtracted it to create the checksum
         """
         result = target - (sum([v if i % 2 == 0 else v << 8 for i, v in enumerate(packet)]) & 0xffff)
-        return (result & 0xff, (result >> 8) & 0xff)
+        result &= 0xffff
+        return result.to_bytes(2, 'little')
 
     def _send_short_payload(self, payload: int) -> bytes:
         """Send a request for info from A/C unit and returns the response.
@@ -307,6 +308,8 @@ class xsq(device):
                 sleep (bool):
                 display (bool):
                 health (bool):
+                clean (bool):
+                mildew (bool)
         """
         payload = self._send_short_payload(1)
         if (len(payload) != 32):
@@ -367,8 +370,12 @@ class xsq(device):
             data['speed'] = 'unrecognized value'
 
         data['sleep'] = bool(payload[0x11] & 0b100)
-        data['display'] = (payload[0x16] & 0x10 == 0x10)
-        data['health'] = (payload[0x14] & 0b11 == 0b11)
+
+        data['health'] = bool(payload[0x14] & 0b10)
+        data['clean'] = bool(payload[0x14] & 0b100)
+
+        data['display'] = bool(payload[0x16] & 0b10000)
+        data['mildew'] = bool(payload[0x16] & 0b1000)
 
         if (unidentified_commands_debug):
             data['cmnd_0d_rmask'] = payload[0x0d] & 0xf
@@ -376,7 +383,7 @@ class xsq(device):
             data['cmnd_18'] = payload[0x18]
 
         if (checksum_debug):
-            checksum = list(self._calculate_checksum(payload[:0x19]))
+            checksum = self._calculate_checksum(payload[:0x19])
 
             # a kludge to make the checksum work
             if data['mode'] in ('heating', 'drying', 'fan'):
@@ -386,9 +393,8 @@ class xsq(device):
             if (payload[0x19] == checksum[0] and payload[0x1a] == checksum[1]):
                 pass  # success
             else:
-                print('in get_state, checksum fail: \
-                      calculated {:02x} {:02x}, actual {:02x} {:02x}'
-                      .format(checksum[0], checksum[1], payload[0x19], payload[0x1a]))
+                print(f'in get_state, checksum fail: calculated '
+                      f'{checksum.hex()} actual {payload[0x19:0x1b].hex()}')
 
         if (payload_debug):
             data['received_payload'] = payload
@@ -396,17 +402,29 @@ class xsq(device):
         return data
 
     def get_ac_info(self, payload_debug: bool = False) -> dict:
-        """Returns dictionary with A/C info...
-        Not implemented yet, except power state.
+        """Returns dictionary with A/C info.
 
         Args:
             payload_debug (Optional[bool]): add the received payload for debugging
+
+        Returns:
+            dict:
+                state (bool): power
+                ambient_temp (float): ambient temperature
         """
         payload = self._send_short_payload(0)
+        if (len(payload) != 48):
+            raise ValueError(f'get_ac_info, unexpected payload size: {len(payload)}')
 
-        # first 13 bytes are the same: 22 00 bb 00 07 00 00 00 18 00 01 21 c0
+        # The first 13 bytes are the same: 22 00 bb 00 07 00 00 00 18 00 01 21 c0,
+        # bytes 0x23,0x24 are the checksum of [:0x22] calculated with target 0x20020.
+        # bytes 0x25 forward are always empty
         data = {}
         data['state'] = payload[0x0d] & 0b1 == 0b1
+
+        ambient_temp = payload[0x11] & 0b00011111
+        if ambient_temp:
+            data['ambient_temp'] = ambient_temp + float(payload[0x21] & 0b00011111) / 10.0
 
         if (payload_debug):
             data['received_payload'] = payload
@@ -424,6 +442,8 @@ class xsq(device):
         sleep: bool,
         display: bool,
         health: bool,
+        clean: bool,
+        mildew: bool,
         cmnd_0d_rmask: int = 0b100,
         cmnd_0e_rmask: int = 0b1101,
         cmnd_18: int = 0b101,
@@ -441,9 +461,11 @@ class xsq(device):
             sleep (bool)
             display (bool)
             health (bool)
-            cmnd_0d_rmask (Optional[int]): override an unidentified command
-            cmnd_0e_rmask (Optional[int]): override an unidentified command
-            cmnd_18 (Optional[int]): override an unidentified command
+            clean (bool)
+            mildew (bool)
+            cmnd_0d_rmask (Optional[int]): override an unidentified option
+            cmnd_0e_rmask (Optional[int]): override an unidentified option
+            cmnd_18 (Optional[int]): override an unidentified option
             checksum_lbit (Optional[int]): subtracted from the left byte of the checksum
         """
 
@@ -456,7 +478,7 @@ class xsq(device):
 
         target_temp = round(target_temp * 2) / 2
         if not (target_temp >= 16 and target_temp <= 32):
-            raise ValueError('target_temp out of range, value: {}'.format(target_temp))
+            raise ValueError(f'target_temp out of range, value: {target_temp}')
 
         if swing_v == 'OFF':
             swing_L = 0b111
@@ -465,14 +487,14 @@ class xsq(device):
         elif (int(swing_v) >= 0 and int(swing_v) <= 5):
             swing_L = int(swing_v)
         else:
-            raise ValueError('unrecognized swing vertical value {}'.format(swing_v))
+            raise ValueError(f'unrecognized swing vertical value {swing_v}')
 
         if swing_h == 'OFF':
             swing_R = 0b111
         elif swing_h == 'ON':
             swing_R = 0b000
         else:
-            raise ValueError('unrecognized swing horizontal value {}'.format(swing_h))
+            raise ValueError(f'unrecognized swing horizontal value {swing_h}')
 
         if (mode == 'auto'):
             mode_1 = 0x00
@@ -486,7 +508,7 @@ class xsq(device):
             mode_1 = 0xc0
             # target_temp is irrelevant in this case
         else:
-            raise ValueError('unrecognized mode value: {}'.format(mode))
+            raise ValueError(f'unrecognized mode value {mode}')
 
         if speed == 'low':
             speed_L, speed_R = 0x60, 0x00
@@ -506,7 +528,7 @@ class xsq(device):
         elif speed == 'auto':
             speed_L, speed_R = 0xa0, 0x00
         else:
-            raise ValueError('unrecognized speed value: {}'.format(speed))
+            raise ValueError(f'unrecognized speed value: {speed}')
 
         # a kludge to make the checksum work
         if checksum_lbit is not None:  # allow for override
@@ -527,9 +549,12 @@ class xsq(device):
         payload[0x11] = mode_1 | (0b100 if sleep else 0b000)
         # payload[0x12] = always 0x00
         # payload[0x13] = always 0x00
-        payload[0x14] = (0b11 if health else 0b00) | (0b100000 if state else 0b000000)
+        payload[0x14] = (0b100000 if state else 0b000000
+                         | 0b100 if clean else 0b000
+                         | 0b11 if health else 0b00)
         # payload[0x15] = always 0x00
-        payload[0x16] = 0b10000 if display else 0b00000  # 0b_00 also changes
+        payload[0x16] = (0b10000 if display else 0b00000
+                         | 0b1000 if mildew else 0b0000)
         # payload[0x17] = always 0x00
         payload[0x18] = cmnd_18
 
@@ -558,6 +583,8 @@ class xsq(device):
         sleep: bool = None,
         display: bool = None,
         health: bool = None,
+        clean: bool = None,
+        mildew: bool = None,
         cmnd_0d_rmask: int = None,
         cmnd_0e_rmask: int = None,
         cmnd_18: int = None,
@@ -586,7 +613,9 @@ class xsq(device):
             'swing_h': swing_h if swing_h is not None else received_state['swing_h'],
             'sleep': sleep if sleep is not None else received_state['sleep'],
             'display': display if display is not None else received_state['display'],
-            'health': health if health is not None else received_state['health']
+            'health': health if health is not None else received_state['health'],
+            'clean': clean if clean is not None else received_state['clean'],
+            'mildew': mildew if mildew is not None else received_state['mildew']
         }
 
         # Allow overriding of optional parameters
