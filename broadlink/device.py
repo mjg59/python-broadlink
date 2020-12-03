@@ -70,13 +70,14 @@ def scan(
     packet[0x20] = checksum & 0xFF
     packet[0x21] = checksum >> 8
 
-    starttime = time.time()
+    start_time = time.time()
     discovered = []
 
     try:
-        while (time.time() - starttime) < timeout:
+        while (time.time() - start_time) < timeout:
+            time_left = timeout - (time.time() - start_time)
+            conn.settimeout(min(1, time_left))
             conn.sendto(packet, (discover_ip_address, discover_ip_port))
-            conn.settimeout(1)
 
             while True:
                 try:
@@ -308,16 +309,20 @@ class device:
         packet[0x21] = checksum >> 8
 
         start_time = time.time()
+        timeout = self.timeout
+
         with self.lock:
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as conn:
                 while True:
+                    time_left = timeout - (time.time() - start_time)
+                    conn.settimeout(min(5, time_left))
+                    conn.sendto(packet, self.host)
+
                     try:
-                        conn.sendto(packet, self.host)
-                        conn.settimeout(1)
                         resp, _ = conn.recvfrom(2048)
                         break
                     except socket.timeout:
-                        if (time.time() - start_time) > self.timeout:
+                        if (time.time() - start_time) > timeout:
                             raise exception(-4000)  # Network timeout.
 
         if len(resp) < 0x30:
