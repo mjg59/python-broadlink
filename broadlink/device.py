@@ -308,11 +308,11 @@ class device:
         packet[0x20] = checksum & 0xFF
         packet[0x21] = checksum >> 8
 
-        start_time = time.time()
-        timeout = self.timeout
-
         with self.lock:
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as conn:
+                timeout = self.timeout
+                start_time = time.time()
+
                 while True:
                     time_left = timeout - (time.time() - start_time)
                     conn.settimeout(min(5, time_left))
