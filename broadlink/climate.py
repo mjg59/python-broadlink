@@ -272,11 +272,9 @@ class sq1(device):
         """Encode payload i.e. add length to beginning, checksum after payload,
         and pad size.
         """
-        import struct
         length = 2 + len(payload)  # length prefix
         packet_length = ((length - 1) // 16 + 1) * 16
-        packet = bytearray(2)
-        struct.pack_into("<H", packet, 0, length)
+        packet = bytearray([length, 0])
         packet.extend(payload)
         packet.extend(self._calculate_checksum(packet[2:], 'little'))
         packet.extend([0] * (packet_length - len(packet)))  # round size to 16
@@ -353,7 +351,7 @@ class sq1(device):
             0x20: 'cooling',
             0x40: 'drying',
             0x80: 'heating',
-            0xc0: 'fan',
+            0xc0: 'fan'
         }.get(payload[0x11] &~ 0b111, 'unrecognized value')  # noqa E225
 
         data['speed'] = {
@@ -492,18 +490,15 @@ class sq1(device):
         else:
             raise ValueError(f"unrecognized swing horizontal value {args['swing_h']}")
 
-        if (args['mode'] == 'auto'):
-            mode_1 = 0x00
-        elif (args['mode'] == 'cooling'):
-            mode_1 = 0x20
-        elif (args['mode'] == 'drying'):
-            mode_1 = 0x40
-        elif (args['mode'] == 'heating'):
-            mode_1 = 0x80
-        elif (args['mode'] == 'fan'):
-            mode_1 = 0xc0
-            # target_temp is irrelevant in this case
-        else:
+        try:
+            mode_1 = {
+                'auto': 0x00,
+                'cooling': 0x20,
+                'drying': 0x40,
+                'heating': 0x80,
+                'fan': 0xc0
+            }[args['mode']]
+        except KeyError:
             raise ValueError(f"unrecognized mode value {args['mode']}")
 
         if args['mute'] and args['turbo']:
@@ -521,15 +516,14 @@ class sq1(device):
         else:
             speed_R = 0x00
 
-        if args['speed'] == 'low':
-            speed_L = 0x60
-        elif args['speed'] == 'mid':
-            speed_L = 0x40
-        elif args['speed'] == 'high':
-            speed_L = 0x20
-        elif args['speed'] == 'auto':
-            speed_L = 0xa0
-        else:
+        try:
+            speed_L = {
+                'high': 0x20,
+                'mid': 0x40,
+                'low': 0x60,
+                'auto': 0xa0
+            }[args['speed']]
+        except KeyError:
             raise ValueError(f"unrecognized speed value: {args['speed']}")
 
         payload[0x0a] = (int(args['target_temp']) - 8 << 3) | swing_L
