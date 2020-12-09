@@ -1,5 +1,6 @@
 """Support for climate control."""
 from typing import List
+import logging
 
 from .device import device
 from .exceptions import check_error
@@ -289,34 +290,28 @@ class sq1(device):
         check_error(response[0x22:0x24])
         return (self._decode(response))
 
-    def get_state(
-        self,
-        payload_debug: bool = False,
-        unidentified_commands_debug: bool = False
-    ) -> dict:
+    def get_state(self) -> dict:
         """Returns a dictionary with the unit's parameters.
-
-        Args:
-            payload_debug (Optional[bool]): prints the received payload
-            unidentified_commands_debug (Optional[bool]): add cmnd_0d_rmask, cmnd_0e_rmask and cmnd_18 for debugging
 
         Returns:
             dict:
                 state (bool): power
                 target_temp (float): temperature set point 16<n<32
                 mode (str): cooling, heating, fan, dry, auto
-                speed (str): mute, low, mid, high, turbo (available only in cooling)
+                speed (str): low, mid, high, auto
+                mute (bool):
+                turbo (bool):
                 swing_h (str): ON, OFF
                 swing_v (str): ON, OFF, 1, 2, 3, 4, 5 (fixed positions)
                 sleep (bool):
                 display (bool):
                 health (bool):
                 clean (bool):
-                mildew (bool)
+                mildew (bool):
         """
         payload = self._send_short_payload(1)
         if (len(payload) != 32):
-            raise ValueError(f'unexpected payload size: {len(payload)}')
+            raise RuntimeError(f'unexpected payload size: {len(payload)}')
 
         data = {}
         data['state'] = payload[0x14] & 0x20 == 0x20
@@ -341,7 +336,7 @@ class sq1(device):
         else:
             data['swing_v'] = 'unrecognized value'
 
-        mode = payload[0x11] >> 3 << 3
+        mode = payload[0x11] &~ 0b111  # noqa E225
         if mode == 0x00:
             data['mode'] = 'auto'
         elif mode == 0x20:
@@ -355,22 +350,19 @@ class sq1(device):
         else:
             data['mode'] = 'unrecognized value'
 
-        speed_L = payload[0x0f]
-        speed_R = payload[0x10]
-        if speed_L == 0x60 and speed_R == 0x00:
+        if payload[0x0f] == 0x60:
             data['speed'] = 'low'
-        elif speed_L == 0x40 and speed_R == 0x00:
+        elif payload[0x0f] == 0x40:
             data['speed'] = 'mid'
-        elif speed_L == 0x20 and speed_R == 0x00:
+        elif payload[0x0f] == 0x20:
             data['speed'] = 'high'
-        elif speed_L == 0x40 and speed_R == 0x80:
-            data['speed'] = 'mute'
-        elif speed_R == 0x40:
-            data['speed'] = 'turbo'
-        elif speed_L == 0xa0 and speed_R == 0x00:
+        elif payload[0x0f] == 0xa0:
             data['speed'] = 'auto'
         else:
             data['speed'] = 'unrecognized value'
+
+        data['mute'] = bool(payload[0x10] == 0x80)
+        data['turbo'] = bool(payload[0x10] == 0x40)
 
         data['sleep'] = bool(payload[0x11] & 0b100)
 
@@ -380,26 +372,20 @@ class sq1(device):
         data['display'] = bool(payload[0x16] & 0b10000)
         data['mildew'] = bool(payload[0x16] & 0b1000)
 
-        if (unidentified_commands_debug):
-            data['cmnd_0d_rmask'] = payload[0x0d] & 0xf
-            data['cmnd_0e_rmask'] = payload[0x0e] & 0xf
-            data['cmnd_18'] = payload[0x18]
-
         checksum = self._calculate_checksum(payload[2:0x19], 'little')
         if payload[0x19:0x1b] != checksum:
-            print(f'get_state, checksum fail: calculated '
-                  f'{checksum.hex()} actual {payload[0x19:0x1b].hex()}')
+            logging.warning("checksum fail: calculated %s actual %s",
+                            checksum.hex(), payload[0x19:0x1b].hex())
 
-        if (payload_debug):
-            print(payload.hex(' '))
+        logging.debug("Received payload:\n%s", payload.hex(' '))
+        logging.debug("0d[R] mask: %x, 0e[R] mask: %x, cmnd_18: %x",
+                      payload[0x0d] & 0xf, payload[0x0e] & 0xf, payload[0x18])
+        logging.debug("Data: %s", data)
 
         return data
 
-    def get_ac_info(self, payload_debug: bool = False) -> dict:
+    def get_ac_info(self) -> dict:
         """Returns dictionary with A/C info.
-
-        Args:
-            payload_debug (Optional[bool]): print the received payload
 
         Returns:
             dict:
@@ -408,7 +394,7 @@ class sq1(device):
         """
         payload = self._send_short_payload(0)
         if (len(payload) != 48):
-            raise ValueError(f'get_ac_info, unexpected payload size: {len(payload)}')
+            raise ValueError(f"get_ac_info, unexpected payload size: {len(payload)}")
 
         # The first 13 bytes are the same: 22 00 bb 00 07 00 00 00 18 00 01 21 c0,
         # bytes 0x23,0x24 are the checksum
@@ -422,145 +408,154 @@ class sq1(device):
 
         checksum = self._calculate_checksum(payload[2:0x23], 'big')
         if (payload[0x23:0x25] != checksum):
-            print(f'in get_ac_state, checksum fail: calculated '
-                  f'{checksum.hex()} actual {payload[0x23:0x25].hex()}')
+            logging.warning("checksum fail: calculated %s actual %s",
+                            checksum.hex(), payload[0x23:0x25].hex())
 
-        if (payload_debug):
-            print(payload.hex(' '))
+        logging.debug("Received payload:\n%s", payload.hex(' '))
 
         return data
 
-    def set_advanced(
-        self,
-        state: bool,
-        mode: str,
-        target_temp: float,
-        speed: str,
-        swing_v: str,
-        swing_h: str,
-        sleep: bool,
-        display: bool,
-        health: bool,
-        clean: bool,
-        mildew: bool,
-        cmnd_0d_rmask: int = 0b100,
-        cmnd_0e_rmask: int = 0b1101,
-        cmnd_18: int = 0b101,
-        payload_debug: bool = False
-    ) -> bytes:
+    def set_state(self, args: dict) -> bytes:
         """Set parameters of unit.
 
-        Use `set_partial` to modify only some parameters.
-
         Args:
-            state (bool): power
-            target_temp (float): temperature set point 16<n<32
-            mode (str): cooling, heating, fan, dry, auto
-            speed (str): mute, low, mid, high, turbo (available only for cooling)
-            swing_h (str): ON, OFF
-            swing_v (str): ON, OFF, 1, 2, 3, 4, 5 (fixed positions)
-            sleep (bool)
-            display (bool)
-            health (bool)
-            clean (bool)
-            mildew (bool)
-            cmnd_0d_rmask (Optional[int]): override an unidentified option
-            cmnd_0e_rmask (Optional[int]): override an unidentified option
-            cmnd_18 (Optional[int]): override an unidentified option
-            payload_debug (Optional[bool]): print the constructed payload
+            args: if any are missing the current state will be retrived with `get_state`
+                state (bool): power
+                target_temp (float): temperature set point 16<n<32
+                mode (str): cooling, heating, fan, dry, auto
+                speed (str): low, mid, high, auto
+                mute (bool):
+                turbo (bool):
+                swing_h (str): ON, OFF
+                swing_v (str): ON, OFF, 1, 2, 3, 4, 5 (fixed positions)
+                sleep (bool)
+                display (bool)
+                health (bool)
+                clean (bool)
+                mildew (bool)
 
         Returns:
-            True for verified success.
+            True for success, verified by the unit's response.
         """
+        cmnd_0d_rmask = 0b100
+        cmnd_0e_rmask = 0b1101
+        cmnd_18 = 0b101
+
+        keys = ['state', 'mode', 'target_temp', 'speed', 'swing_v', 'swing_h', 'sleep', 'display', 'health', 'clean', 'mildew']
+        unknown_keys = [key for key in args.keys() if key not in keys]
+        if len(unknown_keys) > 0:
+            raise ValueError(f"unknown argument(s) {unknown_keys}")
+
+        missing_keys = [key for key in keys if key not in args]
+        if len(missing_keys) > 0:
+            try:
+                received_state = self.get_state()
+            except RuntimeError as e:
+                if "unexpected payload size: 48" in str(e):
+                    # Occasionally a 48 byte payload gets mixed in,
+                    # a retry should suffice.
+                    received_state = self.get_state()
+                else:
+                    raise(e)
+            logging.debug("raw args %s", args)
+            received_state.update(args)
+            args = received_state
+            logging.debug("filled args %s", args)
 
         PREFIX = [0x19, 0x00, 0xbb, 0x00, 0x06, 0x80, 0x00, 0x00, 0x0f, 0x00,
                   0x01, 0x01]  # 12B
         MIDDLE = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                   0, 0, 0, 0, 0]  # 13B + 2B checksum
         SUFFIX = [0, 0, 0, 0, 0]  # 5B
-        payload = PREFIX + MIDDLE + SUFFIX
+        payload = bytearray(PREFIX + MIDDLE + SUFFIX)
 
-        target_temp = round(target_temp * 2) / 2
-        if not (target_temp >= 16 and target_temp <= 32):
-            raise ValueError(f'target_temp out of range, value: {target_temp}')
+        args['target_temp'] = round(args['target_temp'] * 2) / 2
+        if not (args['target_temp'] >= 16 and args['target_temp'] <= 32):
+            raise ValueError(f"target_temp out of range, value: {args['target_temp']}")
 
-        if swing_v == 'OFF':
+        if args['swing_v'] == 'OFF':
             swing_L = 0b111
-        elif swing_v == 'ON':
+        elif args['swing_v'] == 'ON':
             swing_L = 0b000
-        elif (int(swing_v) >= 0 and int(swing_v) <= 5):
-            swing_L = int(swing_v)
+        elif (int(args['swing_v']) >= 0 and int(args['swing_v']) <= 5):
+            swing_L = int(args['swing_v'])
         else:
-            raise ValueError(f'unrecognized swing vertical value {swing_v}')
+            raise ValueError(f"unrecognized swing vertical value {args['swing_v']}")
 
-        if swing_h == 'OFF':
+        if args['swing_h'] == 'OFF':
             swing_R = 0b111
-        elif swing_h == 'ON':
+        elif args['swing_h'] == 'ON':
             swing_R = 0b000
         else:
-            raise ValueError(f'unrecognized swing horizontal value {swing_h}')
+            raise ValueError(f"unrecognized swing horizontal value {args['swing_h']}")
 
-        if (mode == 'auto'):
+        if (args['mode'] == 'auto'):
             mode_1 = 0x00
-        elif (mode == 'cooling'):
+        elif (args['mode'] == 'cooling'):
             mode_1 = 0x20
-        elif (mode == 'drying'):
+        elif (args['mode'] == 'drying'):
             mode_1 = 0x40
-        elif (mode == 'heating'):
+        elif (args['mode'] == 'heating'):
             mode_1 = 0x80
-        elif (mode == 'fan'):
+        elif (args['mode'] == 'fan'):
             mode_1 = 0xc0
             # target_temp is irrelevant in this case
         else:
-            raise ValueError(f'unrecognized mode value {mode}')
+            raise ValueError(f"unrecognized mode value {args['mode']}")
 
-        if speed == 'low':
-            speed_L, speed_R = 0x60, 0x00
-        elif speed == 'mid':
-            speed_L, speed_R = 0x40, 0x00
-        elif speed == 'high':
-            speed_L, speed_R = 0x20, 0x00
-        elif speed == 'mute':
-            speed_L, speed_R = 0x40, 0x80
-            if mode != 'fan':
-                raise ValueError('mute speed is only available in fan mode')
-        elif speed == 'turbo':
-            speed_L = 0x20  # doesn't matter
+        if args['mute'] and args['turbo']:
+            raise ValueError("mute and turbo can't be on at once")
+        elif args['mute']:
+            speed_R = 0x80
+            if args['mode'] != 'fan':
+                raise ValueError("mute is only available in fan mode")
+            args['speed'] = 'low'
+        elif args['turbo']:
             speed_R = 0x40
-            if mode not in ('cooling', 'heating'):
-                raise ValueError('turbo speed is only available in cooling and heating modes')
-        elif speed == 'auto':
-            speed_L, speed_R = 0xa0, 0x00
+            if args['mode'] not in ('cooling', 'heating'):
+                raise ValueError("turbo is only available in cooling/heating")
+            args['speed'] = 'high'
         else:
-            raise ValueError(f'unrecognized speed value: {speed}')
+            speed_R = 0x00
 
-        payload[0x0c] = (int(target_temp) - 8 << 3) | swing_L
+        if args['speed'] == 'low':
+            speed_L = 0x60
+        elif args['speed'] == 'mid':
+            speed_L = 0x40
+        elif args['speed'] == 'high':
+            speed_L = 0x20
+        elif args['speed'] == 'auto':
+            speed_L = 0xa0
+        else:
+            raise ValueError(f"unrecognized speed value: {args['speed']}")
+
+        payload[0x0c] = (int(args['target_temp']) - 8 << 3) | swing_L
         payload[0x0d] = (swing_R << 5) | cmnd_0d_rmask
-        payload[0x0e] = (0b10000000 if (target_temp % 1 == 0.5) else 0b0
+        payload[0x0e] = (0b10000000 if (args['target_temp'] % 1 == 0.5) else 0
                          | cmnd_0e_rmask)
         payload[0x0f] = speed_L
         payload[0x10] = speed_R
-        payload[0x11] = mode_1 | (0b100 if sleep else 0b000)
+        payload[0x11] = mode_1 | (0b100 if args['sleep'] else 0b000)
         # payload[0x12] = always 0x00
         # payload[0x13] = always 0x00
-        payload[0x14] = (0b100000 if state else 0b000000
-                         | 0b100 if clean else 0b000
-                         | 0b11 if health else 0b00)
+        payload[0x14] = (0b100000 if args['state'] else 0b000000
+                         | 0b100 if args['clean'] else 0b000
+                         | 0b11 if args['health'] else 0b00)
         # payload[0x15] = always 0x00
-        payload[0x16] = (0b10000 if display else 0b00000
-                         | 0b1000 if mildew else 0b0000)
+        payload[0x16] = (0b10000 if args['display'] else 0b00000
+                         | 0b1000 if args['mildew'] else 0b0000)
         # payload[0x17] = always 0x00
         payload[0x18] = cmnd_18
 
         checksum = self._calculate_checksum(payload[2:0x19], 'little')
         payload[0x19:0x1b] = checksum
 
-        if (payload_debug):
-            print(payload.hex(' '))
+        logging.debug("Received payload:\n%s", payload.hex(' '))
 
         response = self.send_packet(0x6a, bytearray(payload))
         check_error(response[0x22:0x24])
         response_payload = self._decode(response)
+        logging.debug("Response payload:\n%s", response_payload.hex(' '))
         # Response payloads are 16 bytes long.
         # The first 12 bytes are always 0e 00 bb 00 07 00 00 00 04 00 01 01,
         # the next two should be the checksum of the sent command
@@ -569,62 +564,8 @@ class sq1(device):
                 == self._calculate_checksum(response_payload[2:0xe], 'little')):
             if response_payload[0xc:0xe] == checksum:
                 return True
+            else:
+                logging.warning("Checksum in response %s different from sent payload %s",
+                                response_payload[0xc:0xe].hex(), checksum.hex())
 
         return False
-
-    def set_partial(
-        self,
-        state: bool = None,
-        mode: str = None,
-        target_temp: float = None,
-        speed: str = None,
-        swing_v: str = None,
-        swing_h: str = None,
-        sleep: bool = None,
-        display: bool = None,
-        health: bool = None,
-        clean: bool = None,
-        mildew: bool = None,
-        cmnd_0d_rmask: int = None,
-        cmnd_0e_rmask: int = None,
-        cmnd_18: int = None,
-        payload_debug: bool = False
-    ) -> bool:
-        """Retrieves the current state and changes only the specified parameters.
-
-        Uses `get_state` and `set_advanced` internally (see usage there)."""
-
-        try:
-            received_state = self.get_state()
-        except ValueError as e:
-            if str(e) == "unexpected payload size: 48":
-                # Occasionally a 48 byte payload gets mixed in,
-                # a retry should suffice.
-                received_state = self.get_state()
-            else:
-                raise
-
-        args = {
-            'state': state if state is not None else received_state['state'],
-            'mode': mode if mode is not None else received_state['mode'],
-            'target_temp': target_temp if target_temp is not None else received_state['target_temp'],
-            'speed': speed if speed is not None else received_state['speed'],
-            'swing_v': swing_v if swing_v is not None else received_state['swing_v'],
-            'swing_h': swing_h if swing_h is not None else received_state['swing_h'],
-            'sleep': sleep if sleep is not None else received_state['sleep'],
-            'display': display if display is not None else received_state['display'],
-            'health': health if health is not None else received_state['health'],
-            'clean': clean if clean is not None else received_state['clean'],
-            'mildew': mildew if mildew is not None else received_state['mildew'],
-            'payload_debug': payload_debug
-        }
-
-        # Allow overriding of optional parameters
-        if cmnd_0d_rmask is not None:
-            args['cmnd_0d_rmask'] = cmnd_0d_rmask
-        if cmnd_0e_rmask is not None:
-            args['cmnd_0e_rmask'] = cmnd_0e_rmask
-        if cmnd_18 is not None:
-            args['cmnd_18'] = cmnd_18
-
-        return self.set_advanced(**args)
