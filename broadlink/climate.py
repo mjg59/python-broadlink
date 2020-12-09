@@ -333,48 +333,35 @@ class sq1(device):
         data['target_temp'] = (8 + (payload[0x0c] >> 3)
                                + (0.0 if (payload[0xe] & 0b10000000) == 0 else 0.5))
 
-        swing_v = payload[0x0c] & 0b111
-        swing_h = (payload[0x0d] & 0b11100000) >> 5
-        if swing_h == 0b111:
-            data['swing_h'] = 'OFF'
-        elif swing_h == 0b000:
-            data['swing_h'] = 'ON'
-        else:
-            data['swing_h'] = 'unrecognized value'
+        data['swing_h'] = {
+            0b000: 'ON',
+            0b111: 'OFF'
+        }.get((payload[0x0d] & 0b11100000) >> 5, 'unrecognized value')
 
-        if swing_v == 0b111:
-            data['swing_v'] = 'OFF'
-        elif swing_v == 0b000:
-            data['swing_v'] = 'ON'
-        elif (swing_v >= 0 and swing_v <= 5):
-            data['swing_v'] = str(swing_v)
-        else:
-            data['swing_v'] = 'unrecognized value'
+        data['swing_v'] = {
+            0b000: 'ON',
+            1: '1',
+            2: '2',
+            3: '3',
+            4: '4',
+            5: '5',
+            0b111: 'OFF'
+        }.get(payload[0x0c] & 0b111, 'unrecognized value')
 
-        mode = payload[0x11] &~ 0b111  # noqa E225
-        if mode == 0x00:
-            data['mode'] = 'auto'
-        elif mode == 0x20:
-            data['mode'] = 'cooling'
-        elif mode == 0x40:
-            data['mode'] = 'drying'
-        elif mode == 0x80:
-            data['mode'] = 'heating'
-        elif mode == 0xc0:
-            data['mode'] = 'fan'
-        else:
-            data['mode'] = 'unrecognized value'
+        data['mode'] = {
+            0x00: 'auto',
+            0x20: 'cooling',
+            0x40: 'drying',
+            0x80: 'heating',
+            0xc0: 'fan',
+        }.get(payload[0x11] &~ 0b111, 'unrecognized value')  # noqa E225
 
-        if payload[0x0f] == 0x60:
-            data['speed'] = 'low'
-        elif payload[0x0f] == 0x40:
-            data['speed'] = 'mid'
-        elif payload[0x0f] == 0x20:
-            data['speed'] = 'high'
-        elif payload[0x0f] == 0xa0:
-            data['speed'] = 'auto'
-        else:
-            data['speed'] = 'unrecognized value'
+        data['speed'] = {
+            0x20: 'high',
+            0x40: 'mid',
+            0x60: 'low',
+            0xa0: 'auto'
+        }.get(payload[0x0f], 'unrecognized value')
 
         data['mute'] = bool(payload[0x10] == 0x80)
         data['turbo'] = bool(payload[0x10] == 0x40)
@@ -400,7 +387,7 @@ class sq1(device):
         return data
 
     def get_ac_info(self) -> dict:
-        """Returns dictionary with A/C info.
+        """Returns dictionary with AC info.
 
         Returns:
             dict:
@@ -473,7 +460,7 @@ class sq1(device):
                     # a retry should suffice.
                     received_state = self.get_state()
                 else:
-                    raise(e)
+                    raise e
             logging.debug("raw args %s", args)
             received_state.update(args)
             args = received_state
