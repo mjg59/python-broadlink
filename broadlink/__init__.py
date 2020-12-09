@@ -66,6 +66,7 @@ SUPPORTED_TYPES = {
     0x27CD: (rm, "RM mini 3", "Broadlink"),
     0x27D0: (rm, "RM mini 3", "Broadlink"),
     0x27D1: (rm, "RM mini 3", "Broadlink"),
+    0x27D3: (rm, "RM mini 3", "Broadlink"),
     0x27DE: (rm, "RM mini 3", "Broadlink"),
     0x51DA: (rm4, "RM4 mini", "Broadlink"),
     0x5F36: (rm4, "RM mini 3", "Broadlink"),
