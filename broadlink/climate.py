@@ -263,7 +263,7 @@ class sq1(device):
             byteorder (str): byte order to return the results in
         """
         s = sum([v if i % 2 == 0 else v << 8 for i, v in enumerate(payload)])
-        # trim the overflow and add it smallest bit
+        # trim the overflow and add it to smallest bit
         s = (s & 0xffff) + (s >> 16)
         result = (0xffff - s)
         return result.to_bytes(2, byteorder)
@@ -329,7 +329,7 @@ class sq1(device):
         data = {}
         data['state'] = payload[0x14] & 0x20 == 0x20
         data['target_temp'] = (8 + (payload[0x0c] >> 3)
-                               + (0.0 if (payload[0xe] & 0b10000000) == 0 else 0.5))
+                               + (0.0 if (payload[0xe] & 0b10000000) == 0 else 0.5))  # noqa E501
 
         data['swing_h'] = {
             0b000: 'ON',
@@ -394,17 +394,18 @@ class sq1(device):
         """
         payload = self._send_short_payload(0)
         if (len(payload) != 48):
-            raise ValueError(f"get_ac_info, unexpected payload size: {len(payload)}")
+            raise ValueError(f"unexpected payload size: {len(payload)}")
 
-        # The first 13 bytes are the same: 22 00 bb 00 07 00 00 00 18 00 01 21 c0,
-        # bytes 0x23,0x24 are the checksum
-        # bytes 0x25 forward are always empty
+        # Length is 34 (0x22), the next 11 bytes are
+        # the same: bb 00 07 00 00 00 18 00 01 21 c0,
+        # bytes 0x23,0x24 are the checksum.
         data = {}
         data['state'] = payload[0x0d] & 0b1 == 0b1
 
         ambient_temp = payload[0x11] & 0b00011111
         if ambient_temp:
-            data['ambient_temp'] = ambient_temp + float(payload[0x21] & 0b00011111) / 10.0
+            data['ambient_temp'] = (ambient_temp
+                                    + float(payload[0x21] & 0b00011111) / 10.0)
 
         checksum = self._calculate_checksum(payload[2:0x23], 'big')
         if (payload[0x23:0x25] != checksum):
@@ -419,7 +420,7 @@ class sq1(device):
         """Set parameters of unit.
 
         Args:
-            args: if any are missing the current state will be retrived with `get_state`
+            args (dict): if any are missing the current value will be retrived
                 state (bool): power
                 target_temp (float): temperature set point 16<n<32
                 mode (str): cooling, heating, fan, dry, auto
@@ -472,7 +473,7 @@ class sq1(device):
 
         args['target_temp'] = round(args['target_temp'] * 2) / 2
         if not (args['target_temp'] >= 16 and args['target_temp'] <= 32):
-            raise ValueError(f"target_temp out of range, value: {args['target_temp']}")
+            raise ValueError(f"target_temp out of range, value: {args['target_temp']}")  # noqa E501
 
         if args['swing_v'] == 'OFF':
             swing_L = 0b111
@@ -481,14 +482,14 @@ class sq1(device):
         elif (int(args['swing_v']) >= 0 and int(args['swing_v']) <= 5):
             swing_L = int(args['swing_v'])
         else:
-            raise ValueError(f"unrecognized swing vertical value {args['swing_v']}")
+            raise ValueError(f"unrecognized swing vertical value {args['swing_v']}")  # noqa E501
 
         if args['swing_h'] == 'OFF':
             swing_R = 0b111
         elif args['swing_h'] == 'ON':
             swing_R = 0b000
         else:
-            raise ValueError(f"unrecognized swing horizontal value {args['swing_h']}")
+            raise ValueError(f"unrecognized swing horizontal value {args['swing_h']}")  # noqa E501
 
         try:
             mode_1 = {
@@ -558,11 +559,13 @@ class sq1(device):
         # the next two should be the checksum of the sent command
         # and the last two are the checksum of the response.
         if (response_payload[0xe:0x10]
-                == self._calculate_checksum(response_payload[2:0xe], 'little')):
+                == self._calculate_checksum(response_payload[2:0xe], 'little')):  # noqa E501
             if response_payload[0xc:0xe] == checksum:
                 return True
             else:
-                logging.warning("Checksum in response %s different from sent payload %s",
-                                response_payload[0xc:0xe].hex(), checksum.hex())
+                logging.warning(
+                    "Checksum in response %s different from sent payload %s",
+                    response_payload[0xc:0xe].hex(), checksum.hex()
+                )
 
         return False
