@@ -268,25 +268,40 @@ class sq1(device):
         result = (0xffff - s)
         return result.to_bytes(2, byteorder)
 
-    def _send_short_payload(self, payload: int) -> bytes:
-        """Send a request for info from A/C unit and returns the response.
-        0 = GET_AC_INFO, 1 = GET_STATES, 2 = GET_SLEEP_INFO, 3 = unknown function
+    def _encode(self, payload: bytes) -> bytes:
+        """Encode payload i.e. add length to beginning, checksum after payload,
+        and pad size.
         """
-        header = bytearray([0x0c, 0x00, 0xbb, 0x00, 0x06, 0x80, 0x00, 0x00, 0x02, 0x00])
-        if (payload == 0):
-            packet = header + bytes([0x21, 0x01, 0x1b, 0x7e])
-        elif (payload == 1):
-            packet = header + bytes([0x11, 0x01, 0x2b, 0x7e])
-        elif (payload == 2):
-            packet = header + bytes([0x41, 0x01, 0xfb, 0x7d])
-        elif (payload == 3):
-            packet = bytearray(16)
-            packet[0x00] = 0xd0
-            packet[0x01] = 0x07
-        else:
-            raise ValueError(f'unrecognized payload type: {payload}')
+        import struct
+        length = 2 + len(payload)  # length prefix
+        packet_length = ((length - 1) // 16 + 1) * 16
+        packet = bytearray(2)
+        struct.pack_into("<H", packet, 0, length)
+        packet.extend(payload)
+        packet.extend(self._calculate_checksum(packet[2:], 'little'))
+        packet.extend([0] * (packet_length - len(packet)))  # round size to 16
 
-        response = self.send_packet(0x6a, packet)
+        return packet
+
+    def _send_short_payload(self, payload: int) -> bytes:
+        """Send a request for info from AC unit and returns the response.
+        0 = GET_AC_INFO, 1 = GET_STATES, 2 = GET_SLEEP_INFO
+        """
+        packet = bytearray([0xbb, 0x00, 0x06, 0x80, 0x00, 0x00, 0x02, 0x00])
+        if (payload == 0):
+            packet.extend([0x21, 0x01])
+        elif (payload == 1):
+            packet.extend([0x11, 0x01])
+        elif (payload == 2):
+            packet.extend([0x41, 0x01])
+        # elif (payload == 3):
+        #     packet = bytearray(16)
+        #     packet[0x00] = 0xd0
+        #     packet[0x01] = 0x07
+        else:
+            raise ValueError(f"unrecognized payload type: {payload}")
+
+        response = self.send_packet(0x6a, self._encode(packet))
         check_error(response[0x22:0x24])
         return (self._decode(response))
 
@@ -311,7 +326,7 @@ class sq1(device):
         """
         payload = self._send_short_payload(1)
         if (len(payload) != 32):
-            raise RuntimeError(f'unexpected payload size: {len(payload)}')
+            raise RuntimeError(f"unexpected payload size: {len(payload)}")
 
         data = {}
         data['state'] = payload[0x14] & 0x20 == 0x20
@@ -378,7 +393,7 @@ class sq1(device):
                             checksum.hex(), payload[0x19:0x1b].hex())
 
         logging.debug("Received payload:\n%s", payload.hex(' '))
-        logging.debug("0d[R] mask: %x, 0e[R] mask: %x, cmnd_18: %x",
+        logging.debug("0b[R] mask: %x, 0c[R] mask: %x, cmnd_16: %x",
                       payload[0x0d] & 0xf, payload[0x0e] & 0xf, payload[0x18])
         logging.debug("Data: %s", data)
 
@@ -437,11 +452,13 @@ class sq1(device):
         Returns:
             True for success, verified by the unit's response.
         """
-        cmnd_0d_rmask = 0b100
-        cmnd_0e_rmask = 0b1101
-        cmnd_18 = 0b101
+        cmnd_0b_rmask = 0b100
+        cmnd_0c_rmask = 0b1101
+        cmnd_16 = 0b101
 
-        keys = ['state', 'mode', 'target_temp', 'speed', 'swing_v', 'swing_h', 'sleep', 'display', 'health', 'clean', 'mildew']
+        keys = ['state', 'mode', 'target_temp', 'speed', 'mute', 'turbo',
+                'swing_v', 'swing_h', 'sleep', 'display', 'health', 'clean',
+                'mildew']
         unknown_keys = [key for key in args.keys() if key not in keys]
         if len(unknown_keys) > 0:
             raise ValueError(f"unknown argument(s) {unknown_keys}")
@@ -462,12 +479,11 @@ class sq1(device):
             args = received_state
             logging.debug("filled args %s", args)
 
-        PREFIX = [0x19, 0x00, 0xbb, 0x00, 0x06, 0x80, 0x00, 0x00, 0x0f, 0x00,
-                  0x01, 0x01]  # 12B
+        PREFIX = [0xbb, 0x00, 0x06, 0x80, 0x00, 0x00, 0x0f, 0x00,
+                  0x01, 0x01]  # 10B
         MIDDLE = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                  0, 0, 0, 0, 0]  # 13B + 2B checksum
-        SUFFIX = [0, 0, 0, 0, 0]  # 5B
-        payload = bytearray(PREFIX + MIDDLE + SUFFIX)
+                  0, 0, 0]  # 13B
+        payload = bytearray(PREFIX + MIDDLE)
 
         args['target_temp'] = round(args['target_temp'] * 2) / 2
         if not (args['target_temp'] >= 16 and args['target_temp'] <= 32):
@@ -529,30 +545,30 @@ class sq1(device):
         else:
             raise ValueError(f"unrecognized speed value: {args['speed']}")
 
-        payload[0x0c] = (int(args['target_temp']) - 8 << 3) | swing_L
-        payload[0x0d] = (swing_R << 5) | cmnd_0d_rmask
-        payload[0x0e] = (0b10000000 if (args['target_temp'] % 1 == 0.5) else 0
-                         | cmnd_0e_rmask)
-        payload[0x0f] = speed_L
-        payload[0x10] = speed_R
-        payload[0x11] = mode_1 | (0b100 if args['sleep'] else 0b000)
-        # payload[0x12] = always 0x00
-        # payload[0x13] = always 0x00
-        payload[0x14] = (0b100000 if args['state'] else 0b000000
+        payload[0x0a] = (int(args['target_temp']) - 8 << 3) | swing_L
+        payload[0x0b] = (swing_R << 5) | cmnd_0b_rmask
+        payload[0x0c] = (0b10000000 if (args['target_temp'] % 1 == 0.5) else 0
+                         | cmnd_0c_rmask)
+        payload[0x0d] = speed_L
+        payload[0x0e] = speed_R
+        payload[0x0f] = mode_1 | (0b100 if args['sleep'] else 0b000)
+        # payload[0x10] = always 0x00
+        # payload[0x11] = always 0x00
+        payload[0x12] = (0b100000 if args['state'] else 0b000000
                          | 0b100 if args['clean'] else 0b000
                          | 0b11 if args['health'] else 0b00)
-        # payload[0x15] = always 0x00
-        payload[0x16] = (0b10000 if args['display'] else 0b00000
+        # payload[0x13] = always 0x00
+        payload[0x14] = (0b10000 if args['display'] else 0b00000
                          | 0b1000 if args['mildew'] else 0b0000)
-        # payload[0x17] = always 0x00
-        payload[0x18] = cmnd_18
+        # payload[0x15] = always 0x00
+        payload[0x16] = cmnd_16
 
-        checksum = self._calculate_checksum(payload[2:0x19], 'little')
-        payload[0x19:0x1b] = checksum
+        checksum = self._calculate_checksum(payload, 'little')
+        payload = self._encode(payload)
 
-        logging.debug("Received payload:\n%s", payload.hex(' '))
+        logging.debug("Constructed payload:\n%s", payload.hex(' '))
 
-        response = self.send_packet(0x6a, bytearray(payload))
+        response = self.send_packet(0x6a, payload)
         check_error(response[0x22:0x24])
         response_payload = self._decode(response)
         logging.debug("Response payload:\n%s", response_payload.hex(' '))
