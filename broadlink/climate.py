@@ -1,6 +1,7 @@
 """Support for climate control."""
 from typing import List
 import logging
+from enum import IntEnum, unique
 
 from .device import device
 from .exceptions import check_error
@@ -243,6 +244,40 @@ class hysen(device):
 
 class sq1(device):
     """Controls Tornado SMART X SQ series air conditioners."""
+
+    REQUEST_PREFIX = bytes([0xbb, 0x00, 0x06, 0x80])
+    RESPONSE_PREFIX = bytes([0xbb, 0x00, 0x07, 0x00])
+
+    @unique
+    class Mode(IntEnum):
+        AUTO = 0
+        COOLING = 0x20
+        DRYING = 0x40
+        HEATING = 0x80
+        FAN = 0xc0
+
+    @unique
+    class Speed(IntEnum):
+        HIGH = 0x20
+        MID = 0x40
+        LOW = 0x60
+        AUTO = 0xa0
+
+    @unique
+    class Swing_H(IntEnum):
+        ON = 0b000,
+        OFF = 0b111
+
+    @unique
+    class Swing_V(IntEnum):
+        ON = 0b000,
+        POS_1 = 1
+        POS_2 = 2
+        POS_3 = 3
+        POS_4 = 4
+        POS_5 = 5
+        OFF = 0b111
+
     def __init__(self, *args, **kwargs):
         device.__init__(self, *args, **kwargs)
         self.type = "Tornado SQ air conditioner"
@@ -251,7 +286,7 @@ class sq1(device):
         payload = self.decrypt(bytes(response[0x38:]))
         return payload
 
-    def _calculate_checksum(self, payload: bytes, byteorder: str) -> bytes:
+    def _calculate_checksum(self, payload: bytes) -> int:
         """Calculate checksum of given array,
         by adding little endian words and subtracting from 0xffff.
 
@@ -260,44 +295,30 @@ class sq1(device):
 
         Args:
             payload (bytes): the payload
-            byteorder (str): byte order to return the results in
         """
         s = sum([v if i % 2 == 0 else v << 8 for i, v in enumerate(payload)])
         # trim the overflow and add it to smallest bit
         s = (s & 0xffff) + (s >> 16)
-        result = (0xffff - s)
-        return result.to_bytes(2, byteorder)
+        return (0xffff - s)
 
     def _encode(self, payload: bytes) -> bytes:
-        """Encode payload i.e. add length to beginning, checksum after payload,
-        and pad size.
-        """
-        length = 2 + len(payload)  # length prefix
-        packet_length = ((length - 1) // 16 + 1) * 16
-        packet = bytearray([length, 0])
-        packet.extend(payload)
-        packet.extend(self._calculate_checksum(packet[2:], 'little'))
-        packet.extend([0] * (packet_length - len(packet)))  # round size to 16
-
-        return packet
+        """Encode payload (add length to beginning, checksum after payload)."""
+        payload = self.REQUEST_PREFIX + payload
+        checksum = self._calculate_checksum(payload).to_bytes(2, 'little')
+        return (len(payload) + 2).to_bytes(2, 'little') + payload + checksum
 
     def _send_short_payload(self, payload: int) -> bytes:
         """Send a request for info from AC unit and returns the response.
         0 = GET_AC_INFO, 1 = GET_STATES, 2 = GET_SLEEP_INFO
         """
-        packet = bytearray([0xbb, 0x00, 0x06, 0x80, 0x00, 0x00, 0x02, 0x00])
-        if (payload == 0):
-            packet.extend([0x21, 0x01])
-        elif (payload == 1):
-            packet.extend([0x11, 0x01])
-        elif (payload == 2):
-            packet.extend([0x41, 0x01])
-        # elif (payload == 3):
-        #     packet = bytearray(16)
-        #     packet[0x00] = 0xd0
-        #     packet[0x01] = 0x07
-        else:
-            raise ValueError(f"unrecognized payload type: {payload}")
+        packet = bytes(
+            [0x00, 0x00, 0x02, 0x00]
+            + {
+                0: [0x21, 0x01],
+                1: [0x11, 0x01],
+                2: [0x41, 0x01]
+            }[payload]
+        )
 
         response = self.send_packet(0x6a, self._encode(packet))
         check_error(response[0x22:0x24])
@@ -310,12 +331,12 @@ class sq1(device):
             dict:
                 state (bool): power
                 target_temp (float): temperature set point 16<n<32
-                mode (str): cooling, heating, fan, dry, auto
-                speed (str): low, mid, high, auto
+                mode (sq1.Mode): COOLING, HEATING, FAN, DRY, AUTO
+                speed (sq1.Speed): LOW, MID, HIGH, AUTO
                 mute (bool):
                 turbo (bool):
-                swing_h (str): ON, OFF
-                swing_v (str): ON, OFF, 1, 2, 3, 4, 5 (fixed positions)
+                swing_h (sq1.Swing_H): ON, OFF
+                swing_v (sq1.Swing_V): ON, OFF, POS_1, POS_2, POS_3, POS_4, POS_5
                 sleep (bool):
                 display (bool):
                 health (bool):
@@ -331,35 +352,12 @@ class sq1(device):
         data['target_temp'] = (8 + (payload[0x0c] >> 3)
                                + (0.0 if (payload[0xe] & 0b10000000) == 0 else 0.5))  # noqa E501
 
-        data['swing_h'] = {
-            0b000: 'ON',
-            0b111: 'OFF'
-        }.get((payload[0x0d] & 0b11100000) >> 5, 'unrecognized value')
+        data['swing_h'] = self.Swing_H((payload[0x0d] & 0b11100000) >> 5)
+        data['swing_v'] = self.Swing_V(payload[0x0c] & 0b111)
 
-        data['swing_v'] = {
-            0b000: 'ON',
-            1: '1',
-            2: '2',
-            3: '3',
-            4: '4',
-            5: '5',
-            0b111: 'OFF'
-        }.get(payload[0x0c] & 0b111, 'unrecognized value')
+        data['mode'] = self.Mode(payload[0x11] & ~ 0b111)
 
-        data['mode'] = {
-            0x00: 'auto',
-            0x20: 'cooling',
-            0x40: 'drying',
-            0x80: 'heating',
-            0xc0: 'fan'
-        }.get(payload[0x11] &~ 0b111, 'unrecognized value')  # noqa E225
-
-        data['speed'] = {
-            0x20: 'high',
-            0x40: 'mid',
-            0x60: 'low',
-            0xa0: 'auto'
-        }.get(payload[0x0f], 'unrecognized value')
+        data['speed'] = self.Speed(payload[0x0f])
 
         data['mute'] = bool(payload[0x10] == 0x80)
         data['turbo'] = bool(payload[0x10] == 0x40)
@@ -372,7 +370,8 @@ class sq1(device):
         data['display'] = bool(payload[0x16] & 0b10000)
         data['mildew'] = bool(payload[0x16] & 0b1000)
 
-        checksum = self._calculate_checksum(payload[2:0x19], 'little')
+        checksum = self._calculate_checksum(payload[2:0x19]
+                                            ).to_bytes(2, 'little')
         if payload[0x19:0x1b] != checksum:
             logging.warning("checksum fail: calculated %s actual %s",
                             checksum.hex(), payload[0x19:0x1b].hex())
@@ -407,7 +406,7 @@ class sq1(device):
             data['ambient_temp'] = (ambient_temp
                                     + float(payload[0x21] & 0b00011111) / 10.0)
 
-        checksum = self._calculate_checksum(payload[2:0x23], 'big')
+        checksum = self._calculate_checksum(payload[2:0x23]).to_bytes(2, 'big')
         if (payload[0x23:0x25] != checksum):
             logging.warning("checksum fail: calculated %s actual %s",
                             checksum.hex(), payload[0x23:0x25].hex())
@@ -416,19 +415,19 @@ class sq1(device):
 
         return data
 
-    def set_state(self, args: dict) -> bytes:
+    def set_state(self, args: dict) -> bool:
         """Set parameters of unit.
 
         Args:
             args (dict): if any are missing the current value will be retrived
                 state (bool): power
                 target_temp (float): temperature set point 16<n<32
-                mode (str): cooling, heating, fan, dry, auto
-                speed (str): low, mid, high, auto
+                mode (sq1.Mode): COOLING, HEATING, FAN, DRY, AUTO
+                speed (sq1.Speed): LOW, MID, HIGH, AUTO
                 mute (bool):
                 turbo (bool):
-                swing_h (str): ON, OFF
-                swing_v (str): ON, OFF, 1, 2, 3, 4, 5 (fixed positions)
+                swing_h (sq1.Swing_H): ON, OFF
+                swing_v (sq1.Swing_V): ON, OFF, POS_1, POS_2, POS_3, POS_4, POS_5
                 sleep (bool)
                 display (bool)
                 health (bool)
@@ -438,9 +437,9 @@ class sq1(device):
         Returns:
             True for success, verified by the unit's response.
         """
-        cmnd_0b_rmask = 0b100
-        cmnd_0c_rmask = 0b1101
-        cmnd_16 = 0b101
+        CMND_0B_RMASK = 0b100
+        CMND_0C_RMASK = 0b1101
+        CMND_16 = 0b101
 
         keys = ['state', 'mode', 'target_temp', 'speed', 'mute', 'turbo',
                 'swing_v', 'swing_h', 'sleep', 'display', 'health', 'clean',
@@ -460,47 +459,28 @@ class sq1(device):
                     received_state = self.get_state()
                 else:
                     raise e
-            logging.debug("raw args %s", args)
+            logging.debug("Raw args %s", args)
             received_state.update(args)
             args = received_state
-            logging.debug("filled args %s", args)
-
-        PREFIX = [0xbb, 0x00, 0x06, 0x80, 0x00, 0x00, 0x0f, 0x00,
-                  0x01, 0x01]  # 10B
-        MIDDLE = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                  0, 0, 0]  # 13B
-        payload = bytearray(PREFIX + MIDDLE)
+            logging.debug("Filled args %s", args)
 
         args['target_temp'] = round(args['target_temp'] * 2) / 2
         if not (args['target_temp'] >= 16 and args['target_temp'] <= 32):
             raise ValueError(f"target_temp out of range, value: {args['target_temp']}")  # noqa E501
 
-        if args['swing_v'] == 'OFF':
-            swing_L = 0b111
-        elif args['swing_v'] == 'ON':
-            swing_L = 0b000
-        elif (int(args['swing_v']) >= 0 and int(args['swing_v']) <= 5):
-            swing_L = int(args['swing_v'])
-        else:
-            raise ValueError(f"unrecognized swing vertical value {args['swing_v']}")  # noqa E501
+        if not isinstance(args['swing_h'], self.Swing_H):
+            raise ValueError("{} isn't a {} object".format(
+                args['swing_h'], self.Swing_H.__qualname__))
+        swing_R = args['swing_h'].value
+        if not isinstance(args['swing_v'], self.Swing_V):
+            raise ValueError("{} isn't a {} object".format(
+                args['swing_v'], self.Swing_V.__qualname__))
+        swing_L = args['swing_v'].value
 
-        if args['swing_h'] == 'OFF':
-            swing_R = 0b111
-        elif args['swing_h'] == 'ON':
-            swing_R = 0b000
-        else:
-            raise ValueError(f"unrecognized swing horizontal value {args['swing_h']}")  # noqa E501
-
-        try:
-            mode_1 = {
-                'auto': 0x00,
-                'cooling': 0x20,
-                'drying': 0x40,
-                'heating': 0x80,
-                'fan': 0xc0
-            }[args['mode']]
-        except KeyError:
-            raise ValueError(f"unrecognized mode value {args['mode']}")
+        if not isinstance(args['mode'], self.Mode):
+            raise ValueError("{} isn't a {} object".format(
+                args['mode'], self.Mode.__qualname__))
+        mode = args['mode'].value
 
         if args['mute'] and args['turbo']:
             raise ValueError("mute and turbo can't be on at once")
@@ -508,46 +488,47 @@ class sq1(device):
             speed_R = 0x80
             if args['mode'] != 'fan':
                 raise ValueError("mute is only available in fan mode")
-            args['speed'] = 'low'
+            args['speed'] = self.Speed.LOW
         elif args['turbo']:
             speed_R = 0x40
             if args['mode'] not in ('cooling', 'heating'):
                 raise ValueError("turbo is only available in cooling/heating")
-            args['speed'] = 'high'
+            args['speed'] = self.Speed.HIGH
         else:
             speed_R = 0x00
 
-        try:
-            speed_L = {
-                'high': 0x20,
-                'mid': 0x40,
-                'low': 0x60,
-                'auto': 0xa0
-            }[args['speed']]
-        except KeyError:
-            raise ValueError(f"unrecognized speed value: {args['speed']}")
+        if not isinstance(args['speed'], self.Speed):
+            raise ValueError("{} isn't a {} object".format(
+                args['speed'], self.Speed.__qualname__))
+        speed_L = args['speed'].value
 
-        payload[0x0a] = (int(args['target_temp']) - 8 << 3) | swing_L
-        payload[0x0b] = (swing_R << 5) | cmnd_0b_rmask
-        payload[0x0c] = (0b10000000 if (args['target_temp'] % 1 == 0.5) else 0
-                         | cmnd_0c_rmask)
-        payload[0x0d] = speed_L
-        payload[0x0e] = speed_R
-        payload[0x0f] = mode_1 | (0b100 if args['sleep'] else 0b000)
-        # payload[0x10] = always 0x00
-        # payload[0x11] = always 0x00
-        payload[0x12] = (0b100000 if args['state'] else 0b000000
-                         | 0b100 if args['clean'] else 0b000
-                         | 0b11 if args['health'] else 0b00)
-        # payload[0x13] = always 0x00
-        payload[0x14] = (0b10000 if args['display'] else 0b00000
-                         | 0b1000 if args['mildew'] else 0b0000)
-        # payload[0x15] = always 0x00
-        payload[0x16] = cmnd_16
-
-        checksum = self._calculate_checksum(payload, 'little')
-        payload = self._encode(payload)
-
+        payload = self._encode(bytes(
+            [
+                0x00,
+                0x00,
+                0x0f,
+                0x00,
+                0x01,
+                0x01,
+                (int(args['target_temp']) - 8 << 3) | swing_L,
+                (swing_R << 5) | CMND_0B_RMASK,
+                (0b10000000 if (args['target_temp'] % 1 == 0.5) else 0
+                 | CMND_0C_RMASK),
+                speed_L,
+                speed_R,
+                mode | (0b100 if args['sleep'] else 0b000),
+                0x00,
+                0x00,
+                (0b100000 if args['state'] else 0b000000
+                 | 0b100 if args['clean'] else 0b000
+                 | 0b11 if args['health'] else 0b00),
+                0x00,
+                (0b10000 if args['display'] else 0b00000
+                 | 0b1000 if args['mildew'] else 0b0000),
+                0x00,
+                CMND_16
+            ]
+        ))
         logging.debug("Constructed payload:\n%s", payload.hex(' '))
 
         response = self.send_packet(0x6a, payload)
@@ -558,14 +539,15 @@ class sq1(device):
         # The first 12 bytes are always 0e 00 bb 00 07 00 00 00 04 00 01 01,
         # the next two should be the checksum of the sent command
         # and the last two are the checksum of the response.
-        if (response_payload[0xe:0x10]
-                == self._calculate_checksum(response_payload[2:0xe], 'little')):  # noqa E501
-            if response_payload[0xc:0xe] == checksum:
+
+        if (response_payload[0xe:0x10] == self._calculate_checksum(
+                response_payload[2:0xe]).to_bytes(2, 'little')):
+            if response_payload[0xc:0xe] == payload[0x19:0x1b]:
                 return True
             else:
                 logging.warning(
                     "Checksum in response %s different from sent payload %s",
-                    response_payload[0xc:0xe].hex(), checksum.hex()
+                    response_payload[0xc:0xe].hex(), payload[0x19:0x1b].hex()
                 )
 
         return False
