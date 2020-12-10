@@ -468,19 +468,11 @@ class sq1(device):
         if not (args['target_temp'] >= 16 and args['target_temp'] <= 32):
             raise ValueError(f"target_temp out of range, value: {args['target_temp']}")  # noqa E501
 
-        if not isinstance(args['swing_h'], self.Swing_H):
-            raise ValueError("{} isn't a {} object".format(
-                args['swing_h'], self.Swing_H.__qualname__))
-        swing_R = args['swing_h'].value
-        if not isinstance(args['swing_v'], self.Swing_V):
-            raise ValueError("{} isn't a {} object".format(
-                args['swing_v'], self.Swing_V.__qualname__))
-        swing_L = args['swing_v'].value
+        # Creating a new instance verifies the type
+        swing_R = self.Swing_H(args['swing_h']).value
+        swing_L = self.Swing_V(args['swing_v']).value
 
-        if not isinstance(args['mode'], self.Mode):
-            raise ValueError("{} isn't a {} object".format(
-                args['mode'], self.Mode.__qualname__))
-        mode = args['mode'].value
+        mode = self.Mode(args['mode']).value
 
         if args['mute'] and args['turbo']:
             raise ValueError("mute and turbo can't be on at once")
@@ -497,10 +489,7 @@ class sq1(device):
         else:
             speed_R = 0x00
 
-        if not isinstance(args['speed'], self.Speed):
-            raise ValueError("{} isn't a {} object".format(
-                args['speed'], self.Speed.__qualname__))
-        speed_L = args['speed'].value
+        speed_L = self.Speed(args['speed']).value
 
         payload = self._encode(bytes(
             [
@@ -549,5 +538,9 @@ class sq1(device):
                     "Checksum in response %s different from sent payload %s",
                     response_payload[0xc:0xe].hex(), payload[0x19:0x1b].hex()
                 )
+        else:
+            logging.warning(
+                "Unable to verify request because response appears to be bad."
+            )
 
         return False
