@@ -19,6 +19,11 @@ class rm(device):
         resp = self.send_packet(0x6A, packet)
         check_error(resp[0x22:0x24])
         payload = self.decrypt(resp[0x38:])
+        p_checksum = struct.unpack("<H", resp[0x34:0x36])[0]
+
+        if p_checksum != sum(payload, 0xBEAF) & 0xFFFF:
+            raise exception(-4011)  # Received encrypted data packet check error.
+
         return payload[0x4:]
 
     def check_data(self) -> bytes:
@@ -84,7 +89,15 @@ class rm4(rm):
         resp = self.send_packet(0x6A, packet)
         check_error(resp[0x22:0x24])
         payload = self.decrypt(resp[0x38:])
+        p_checksum = struct.unpack("<H", resp[0x34:0x36])[0]
         p_len = struct.unpack("<H", payload[:0x2])[0]
+
+        if p_len > len(payload[0x2:]):
+            raise exception(-4010)  # Received encrypted data packet length error.
+
+        if p_checksum != sum(payload, 0xBEAF) & 0xFFFF:
+            raise exception(-4011)  # Received encrypted data packet check error.
+
         return payload[0x6:p_len+2]
 
     def find_rf_packet(self) -> bool:
