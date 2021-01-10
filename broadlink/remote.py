@@ -58,7 +58,9 @@ class rm(device):
     def check_sensors(self) -> dict:
         """Return the state of the sensors."""
         resp = self._send(0x1)
-        return {"temperature": resp[0x0] + resp[0x1] / 10.0}
+        temperature = struct.unpack("<bb", resp[:0x2])
+        temperature = temperature[0x0] + temperature[0x1] / 10.0
+        return {"temperature": temperature}
 
 
 class rm4(rm):
@@ -90,7 +92,7 @@ class rm4(rm):
     def check_sensors(self) -> dict:
         """Return the state of the sensors."""
         resp = self._send(0x24)
-        return {
-            "temperature": resp[0x0] + resp[0x1] / 100.0,
-            "humidity": resp[0x2] + resp[0x3] / 100.0,
-        }
+        temperature = struct.unpack("<bb", resp[:0x2])
+        temperature = temperature[0x0] + temperature[0x1] / 100.0
+        humidity = resp[0x2] + resp[0x3] / 100.0
+        return {"temperature": temperature, "humidity": humidity}

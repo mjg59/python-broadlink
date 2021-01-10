@@ -1,4 +1,6 @@
 """Support for sensors."""
+import struct
+
 from .device import device
 from .exceptions import check_error
 
@@ -33,10 +35,15 @@ class a1(device):
         response = self.send_packet(0x6A, packet)
         check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
-        data = bytearray(payload[0x4:])
+        data = payload[0x4:]
+
+        temperature = struct.unpack("<bb", data[:0x2])
+        temperature = temperature[0x0] + temperature[0x1] / 10.0
+        humidity = data[0x2] + data[0x3] / 10.0
+
         return {
-            "temperature": data[0x0] + data[0x1] / 10.0,
-            "humidity": data[0x2] + data[0x3] / 10.0,
+            "temperature": temperature,
+            "humidity": humidity,
             "light": data[0x4],
             "air_quality": data[0x6],
             "noise": data[0x8],
