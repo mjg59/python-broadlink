@@ -2,7 +2,7 @@
 import struct
 
 from .device import device
-from .exceptions import check_error
+from .exceptions import check_error, exception
 
 
 class rm(device):
@@ -60,7 +60,14 @@ class rm(device):
         resp = self._send(0x1)
         temperature = struct.unpack("<bb", resp[:0x2])
         temperature = temperature[0x0] + temperature[0x1] / 10.0
-        return {"temperature": temperature}
+
+        try:
+            if not -5 <= temperature <= 85:
+                raise ValueError("Temperature out of range: %s" % temperature)
+            return {"temperature": temperature}
+
+        except ValueError as err:
+            raise exception(-4026, "The device returned malformed data", resp) from err
 
 
 class rm4(rm):
@@ -95,4 +102,15 @@ class rm4(rm):
         temperature = struct.unpack("<bb", resp[:0x2])
         temperature = temperature[0x0] + temperature[0x1] / 100.0
         humidity = resp[0x2] + resp[0x3] / 100.0
-        return {"temperature": temperature, "humidity": humidity}
+
+        try:
+            if not -25 <= temperature <= 85:
+                raise ValueError("Temperature out of range: %s" % temperature)
+
+            if humidity > 100:
+                raise ValueError("Humidity out of range: %s" % humidity)
+
+            return {"temperature": temperature, "humidity": humidity}
+
+        except ValueError as err:
+            raise exception(-4026, "The device returned malformed data", resp) from err
