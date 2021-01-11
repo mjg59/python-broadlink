@@ -262,7 +262,7 @@ class device:
         """Return device type."""
         return self.type
 
-    def send_packet(self, command: int, payload: bytes) -> bytes:
+    def send_packet(self, command: int, payload: bytes, retry_intvl: float = 1.0) -> bytes:
         """Send a packet to the device."""
         self.count = ((self.count + 1) | 0x8000) & 0xFFFF
         packet = bytearray(0x38)
@@ -315,11 +315,11 @@ class device:
 
                 while True:
                     time_left = timeout - (time.time() - start_time)
-                    conn.settimeout(min(5, time_left))
+                    conn.settimeout(min(retry_intvl, time_left))
                     conn.sendto(packet, self.host)
 
                     try:
-                        resp, _ = conn.recvfrom(2048)
+                        resp = conn.recvfrom(2048)[0]
                         break
                     except socket.timeout:
                         if (time.time() - start_time) > timeout:
