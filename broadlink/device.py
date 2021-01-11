@@ -154,18 +154,18 @@ class device:
     def update_aes(self, key: bytes) -> None:
         """Update AES."""
         self.aes = Cipher(
-            algorithms.AES(key), modes.CBC(self.iv), backend=default_backend()
+            algorithms.AES(bytes(key)), modes.CBC(self.iv), backend=default_backend()
         )
 
     def encrypt(self, payload: bytes) -> bytes:
         """Encrypt the payload."""
         encryptor = self.aes.encryptor()
-        return encryptor.update(payload) + encryptor.finalize()
+        return encryptor.update(bytes(payload)) + encryptor.finalize()
 
     def decrypt(self, payload: bytes) -> bytes:
         """Decrypt the payload."""
         decryptor = self.aes.decryptor()
-        return decryptor.update(payload) + decryptor.finalize()
+        return decryptor.update(bytes(payload)) + decryptor.finalize()
 
     def auth(self) -> bool:
         """Authenticate to the device."""
