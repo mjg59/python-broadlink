@@ -70,13 +70,14 @@ def scan(
     packet[0x20] = checksum & 0xFF
     packet[0x21] = checksum >> 8
 
-    starttime = time.time()
+    start_time = time.time()
     discovered = []
 
     try:
-        while (time.time() - starttime) < timeout:
+        while (time.time() - start_time) < timeout:
+            time_left = timeout - (time.time() - start_time)
+            conn.settimeout(min(1, time_left))
             conn.sendto(packet, (discover_ip_address, discover_ip_port))
-            conn.settimeout(1)
 
             while True:
                 try:
@@ -261,7 +262,7 @@ class device:
         """Return device type."""
         return self.type
 
-    def send_packet(self, command: int, payload: bytes) -> bytes:
+    def send_packet(self, command: int, payload: bytes, retry_intvl: float = 1.0) -> bytes:
         """Send a packet to the device."""
         self.count = ((self.count + 1) | 0x8000) & 0xFFFF
         packet = bytearray(0x38)
@@ -307,22 +308,22 @@ class device:
         packet[0x20] = checksum & 0xFF
         packet[0x21] = checksum >> 8
 
-        start_time = time.time()
         with self.lock:
-            conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as conn:
+                timeout = self.timeout
+                start_time = time.time()
 
-            while True:
-                try:
+                while True:
+                    time_left = timeout - (time.time() - start_time)
+                    conn.settimeout(min(retry_intvl, time_left))
                     conn.sendto(packet, self.host)
-                    conn.settimeout(1)
-                    resp, _ = conn.recvfrom(2048)
-                    break
-                except socket.timeout:
-                    if (time.time() - start_time) > self.timeout:
-                        conn.close()
-                        raise exception(-4000)  # Network timeout.
-            conn.close()
+
+                    try:
+                        resp = conn.recvfrom(2048)[0]
+                        break
+                    except socket.timeout:
+                        if (time.time() - start_time) > timeout:
+                            raise exception(-4000)  # Network timeout.
 
         if len(resp) < 0x30:
             raise exception(-4007)  # Length error.
