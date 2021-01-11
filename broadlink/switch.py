@@ -312,6 +312,18 @@ class sp4b(sp4):
         device.__init__(self, *args, **kwargs)
         self.type = "SP4B"
 
+    def get_state(self) -> dict:
+        """Get full state of device."""
+        state = super().get_state()
+
+        # Convert sensor data to float. Remove keys if sensors are not supported.
+        sensor_attrs = ["current", "volt", "power", "totalconsum", "overload"]
+        for attr in sensor_attrs:
+            value = state.pop(attr, -1)
+            if value != -1:
+                state[attr] = value / 1000
+        return state
+
     def _encode(self, flag: int, state: dict) -> bytes:
         """Encode a message."""
         payload = json.dumps(state, separators=(",", ":")).encode()
