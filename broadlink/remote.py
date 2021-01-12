@@ -13,10 +13,10 @@ class rm(device):
         device.__init__(self, *args, **kwargs)
         self.type = "RM2"
 
-    def _send(self, command: int, data: bytes = b'', retry_intvl: float = 1.0) -> bytes:
+    def _send(self, command: int, data: bytes = b'') -> bytes:
         """Send a packet to the device."""
         packet = struct.pack("<I", command) + data
-        resp = self.send_packet(0x6A, packet, retry_intvl=retry_intvl)
+        resp = self.send_packet(0x6A, packet)
         check_error(resp[0x22:0x24])
         payload = self.decrypt(resp[0x38:])
         return payload[0x4:]
@@ -27,7 +27,7 @@ class rm(device):
 
     def send_data(self, data: bytes) -> None:
         """Send a code to the device."""
-        self._send(0x2, data=data, retry_intvl=5)
+        self._send(0x2, data)
 
     def enter_learning(self) -> None:
         """Enter infrared learning mode."""
@@ -71,10 +71,10 @@ class rm4(rm):
         device.__init__(self, *args, **kwargs)
         self.type = "RM4"
 
-    def _send(self, command: int, data: bytes = b'', retry_intvl: float = 1.0) -> bytes:
+    def _send(self, command: int, data: bytes = b'') -> bytes:
         """Send a packet to the device."""
         packet = struct.pack("<HI", len(data) + 4, command) + data
-        resp = self.send_packet(0x6A, packet, retry_intvl=retry_intvl)
+        resp = self.send_packet(0x6A, packet)
         check_error(resp[0x22:0x24])
         payload = self.decrypt(resp[0x38:])
         p_len = struct.unpack("<H", payload[:0x2])[0]
