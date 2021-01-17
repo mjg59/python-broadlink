@@ -51,6 +51,7 @@ SUPPORTED_TYPES = {
     0x51E2: (sp4b, "AHC/U-01", "BG Electrical"),
     0x6111: (sp4b, "MCB1", "Broadlink"),
     0x6113: (sp4b, "SCB1E", "Broadlink"),
+    0x5115: (sp4b, "SCB1E", "Broadlink"),
     0x618B: (sp4b, "SP4L-EU", "Broadlink"),
     0x6489: (sp4b, "SP4L-AU", "Broadlink"),
     0x648B: (sp4b, "SP4M-US", "Broadlink"),
