@@ -129,3 +129,20 @@ Check power state on a SmartPowerStrip:
 ```
 state = devices[0].check_power()
 ```
+
+Get state on a bulb
+```
+state=devices[0].get_state()
+```
+
+Set a state on a bulb
+```
+devices[0].set_state(pwr=0)
+devices[0].set_state(pwr=1)
+devices[0].set_state(brightness=75)
+devices[0].set_state(bulb_colormode=0)
+devices[0].set_state(blue=255)
+devices[0].set_state(red=0)
+devices[0].set_state(green=128)
+devices[0].set_state(bulb_colormode=1)
+```
