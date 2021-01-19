@@ -46,10 +46,9 @@ class rm(device):
         resp = self._send(0x1A)
         return resp[0] == 1
 
-    def find_rf_packet(self) -> bool:
+    def find_rf_packet(self) -> None:
         """Enter radiofrequency learning mode."""
-        resp = self._send(0x1B)
-        return resp[0] == 1
+        self._send(0x1B)
 
     def check_temperature(self) -> float:
         """Return the temperature."""
