@@ -4,7 +4,7 @@ import socket
 from typing import Generator, List, Union, Tuple
 
 from .alarm import S1C
-from .climate import hysen
+from .climate import hysen, sq1
 from .cover import dooya
 from .device import device, ping, scan
 from .exceptions import exception
@@ -105,11 +105,11 @@ SUPPORTED_TYPES = {
     0x60C8: (lb1, "LB1", "Broadlink"),
     0x6112: (lb1, "LB1", "Broadlink"),
     0x2722: (S1C, "S2KIT", "Broadlink"),
+    0X4E2A: (sq1, "SQ", "Tornado"),
     0x4EAD: (hysen, "HY02B05H", "Hysen"),
     0x4E4D: (dooya, "DT360E-45/20", "Dooya"),
     0x51E3: (bg1, "BG800/BG900", "BG Electrical"),
 }
-
 
 def gendevice(
     dev_type: int,
