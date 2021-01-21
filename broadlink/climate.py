@@ -263,12 +263,12 @@ class hvac(device):
         AUTO = 0xa0
 
     @unique
-    class SwingH(IntEnum):
-        ON = 0b000,
+    class SwHoriz(IntEnum):
+        ON = 0b000
         OFF = 0b111
 
     @unique
-    class SwingV(IntEnum):
+    class SwVert(IntEnum):
         ON = 0b000,
         POS1 = 1
         POS2 = 2
@@ -362,8 +362,8 @@ class hvac(device):
         data['target_temp'] = (8 + (payload[0x0c] >> 3)
                                + (0.0 if (payload[0xe] & 0b10000000) == 0 else 0.5))  # noqa E501
 
-        data['swing_h'] = self.SwingH((payload[0x0d] & 0b11100000) >> 5)
-        data['swing_v'] = self.SwingV(payload[0x0c] & 0b111)
+        data['swing_h'] = self.SwHoriz((payload[0x0d] & 0b11100000) >> 5)
+        data['swing_v'] = self.SwVert(payload[0x0c] & 0b111)
 
         data['mode'] = self.Mode(payload[0x11] & ~ 0b111)
 
@@ -466,35 +466,35 @@ class hvac(device):
             raise ValueError(f"target_temp out of range: {state['target_temp']}")  # noqa E501
 
         # Creating a new instance verifies the type
-        swing_R = self.SwingH(state['swing_h'])
-        swing_L = self.SwingV(state['swing_v'])
+        swing_r = self.SwHoriz(state['swing_h'])
+        swing_l = self.SwVert(state['swing_v'])
 
         mode = self.Mode(state['mode'])
 
         if state['mute'] and state['turbo']:
             raise ValueError("mute and turbo can't be on at once")
         elif state['mute']:
-            speed_R = 0x80
+            speed_r = 0x80
             if state['mode'] != 'fan':
                 raise ValueError("mute is only available in fan mode")
             state['speed'] = self.Speed.LOW
         elif state['turbo']:
-            speed_R = 0x40
+            speed_r = 0x40
             if state['mode'] not in ('cooling', 'heating'):
                 raise ValueError("turbo is only available in cooling/heating")
             state['speed'] = self.Speed.HIGH
         else:
-            speed_R = 0x00
+            speed_r = 0x00
 
-        speed_L = self.Speed(state['speed'])
+        speed_l = self.Speed(state['speed'])
 
         data = bytes(
             [
-                (int(state['target_temp']) - 8 << 3) | swing_L,
-                (swing_R << 5) | CMND_0B_RMASK,
+                (int(state['target_temp']) - 8 << 3) | swing_l,
+                (swing_r << 5) | CMND_0B_RMASK,
                 ((state['target_temp'] % 1 == 0.5) << 7) | CMND_0C_RMASK,
-                speed_L,
-                speed_R,
+                speed_l,
+                speed_r,
                 mode | (state['sleep'] << 2),
                 0x00,
                 0x00,
