@@ -240,8 +240,12 @@ class hysen(device):
         self.send_request(input_payload)
 
 
-class sq1(device):
-    """Controls Tornado SMART X SQ series air conditioners."""
+class hvac(device):
+    """Controls a HVAC.
+
+    Supported models:
+    - Tornado SMART X SQ series.
+    """
 
     @unique
     class Mode(IntEnum):
@@ -275,7 +279,7 @@ class sq1(device):
 
     def __init__(self, *args, **kwargs):
         device.__init__(self, *args, **kwargs)
-        self.type = "Tornado SQ air conditioner"
+        self.type = "HVAC"
 
     def _decode(self, response) -> bytes:
         # RESPONSE_PREFIX = bytes([0xbb, 0x00, 0x07, 0x00, 0x00, 0x00])
@@ -333,12 +337,12 @@ class sq1(device):
             dict:
                 power (bool):
                 target_temp (float): temperature set point 16<n<32
-                mode (sq1.Mode)
-                speed (sq1.Speed)
+                mode (hvac.Mode)
+                speed (hvac.Speed)
                 mute (bool):
                 turbo (bool):
-                swing_h (sq1.SwingH)
-                swing_v (sq1.SwingV)
+                swing_h (hvac.SwHoriz)
+                swing_v (hvac.SwVert)
                 sleep (bool):
                 display (bool):
                 health (bool):
@@ -415,12 +419,12 @@ class sq1(device):
             state (dict): if any are missing the current value will be retrived
                 power (bool):
                 target_temp (float): temperature set point 16<n<32
-                mode (sq1.Mode)
-                speed (sq1.Speed)
+                mode (hvac.Mode)
+                speed (hvac.Speed)
                 mute (bool):
                 turbo (bool):
-                swing_h (sq1.SwingH)
-                swing_v (sq1.SwingV)
+                swing_h (hvac.SwHoriz)
+                swing_v (hvac.SwVert)
                 sleep (bool):
                 display (bool):
                 health (bool):
