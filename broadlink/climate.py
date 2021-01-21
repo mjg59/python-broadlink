@@ -250,32 +250,32 @@ class hvac(device):
     @unique
     class Mode(IntEnum):
         AUTO = 0
-        COOLING = 0x20
-        DRYING = 0x40
-        HEATING = 0x80
-        FAN = 0xc0
+        COOLING = 1
+        DRYING = 2
+        HEATING = 3
+        FAN = 4
 
     @unique
     class Speed(IntEnum):
-        HIGH = 0x20
-        MID = 0x40
-        LOW = 0x60
-        AUTO = 0xa0
+        HIGH = 1
+        MID = 2
+        LOW = 3
+        AUTO = 5
 
     @unique
     class SwHoriz(IntEnum):
-        ON = 0b000
-        OFF = 0b111
+        ON = 0
+        OFF = 7
 
     @unique
     class SwVert(IntEnum):
-        ON = 0b000,
+        ON = 0
         POS1 = 1
         POS2 = 2
         POS3 = 3
         POS4 = 4
         POS5 = 5
-        OFF = 0b111
+        OFF = 7
 
     def __init__(self, *args, **kwargs):
         device.__init__(self, *args, **kwargs)
@@ -362,12 +362,12 @@ class hvac(device):
         data['target_temp'] = (8 + (payload[0x0c] >> 3)
                                + (0.0 if (payload[0xe] & 0b10000000) == 0 else 0.5))  # noqa E501
 
-        data['swing_h'] = self.SwHoriz((payload[0x0d] & 0b11100000) >> 5)
         data['swing_v'] = self.SwVert(payload[0x0c] & 0b111)
+        data['swing_h'] = self.SwHoriz(payload[0x0d] >> 5)
 
-        data['mode'] = self.Mode(payload[0x11] & ~ 0b111)
+        data['mode'] = self.Mode(payload[0x11] >> 5)
 
-        data['speed'] = self.Speed(payload[0x0f])
+        data['speed'] = self.Speed(payload[0x0f] >> 5)
 
         data['mute'] = bool(payload[0x10] == 0x80)
         data['turbo'] = bool(payload[0x10] == 0x40)
@@ -486,16 +486,14 @@ class hvac(device):
         else:
             speed_r = 0x00
 
-        speed_l = self.Speed(state['speed'])
-
         data = bytes(
             [
                 (int(state['target_temp']) - 8 << 3) | swing_l,
                 (swing_r << 5) | CMND_0B_RMASK,
                 ((state['target_temp'] % 1 == 0.5) << 7) | CMND_0C_RMASK,
-                speed_l,
+                self.Speed(state['speed']) << 5,
                 speed_r,
-                mode | (state['sleep'] << 2),
+                mode << 5 | (state['sleep'] << 2),
                 0x00,
                 0x00,
                 (state['power'] << 5 | state['clean'] << 2 | 0b11 if state['health'] else 0b00),
