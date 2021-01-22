@@ -249,6 +249,7 @@ class hvac(device):
 
     @unique
     class Mode(IntEnum):
+        """Enumerates modes."""
         AUTO = 0
         COOLING = 1
         DRYING = 2
@@ -257,6 +258,7 @@ class hvac(device):
 
     @unique
     class Speed(IntEnum):
+        """Enumerates fan speed."""
         HIGH = 1
         MID = 2
         LOW = 3
@@ -264,11 +266,13 @@ class hvac(device):
 
     @unique
     class SwHoriz(IntEnum):
+        """Enumerates horizontal swing."""
         ON = 0
         OFF = 7
 
     @unique
     class SwVert(IntEnum):
+        """Enumerates vertical swing."""
         ON = 0
         POS1 = 1
         POS2 = 2
@@ -281,50 +285,40 @@ class hvac(device):
         device.__init__(self, *args, **kwargs)
         self.type = "HVAC"
 
-    def _decode(self, response) -> bytes:
-        # RESPONSE_PREFIX = bytes([0xbb, 0x00, 0x07, 0x00, 0x00, 0x00])
-        payload = self.decrypt(bytes(response[0x38:]))
-
-        length = int.from_bytes(payload[:2], 'little')
-        checksum = self._calculate_checksum(
-            payload[2:length]).to_bytes(2, 'little')
-        if checksum == payload[length:length+2]:
-            logging.debug("Checksum incorrect (calculated %s actual %s).",
-                          checksum.hex(), payload[length:length+2].hex())
-
-        return payload
-
-    def _calculate_checksum(self, payload: bytes) -> int:
-        """Calculate checksum of given array,
-        by adding little endian words and subtracting from 0xffff.
-
-        The first two bytes of most packets in the class are the length of the
-        payload and should be cropped out when using this function.
-
-        Args:
-            payload (bytes): the payload
-        """
-        s = sum([v if i % 2 == 0 else v << 8 for i, v in enumerate(payload)])
+    def _crc(self, data: bytes) -> int:
+        """Calculate CRC of a byte object."""
+        s = sum([v if i % 2 == 0 else v << 8 for i, v in enumerate(data)])
         # trim the overflow and add it to smallest bit
         s = (s & 0xffff) + (s >> 16)
-        return (0xffff - s)
+        return (0xffff - s)  # TODO: fix: we can't return negative values
 
     def _encode(self, data: bytes) -> bytes:
         """Encode data for transport."""
-        payload = struct.pack("HHHH", 0x00BB, 0x8006, 0x0000, len(data)) + data
-        logging.debug("Payload:\n%s", payload.hex(' '))
-        checksum = self._calculate_checksum(payload).to_bytes(2, 'little')
-        return (len(payload) + 2).to_bytes(2, 'little') + payload + checksum
+        packet = bytearray(10)
+        p_len = 8 + len(data)
+        struct.pack_into("<HHHHH", packet, 0, p_len, 0x00BB, 0x8006, 0, len(data))
+        packet += data
+        packet += self._crc(packet[2:]).to_bytes(2, "little")
+        return packet
 
-    def _send_command(self, command: int, data: bytes = b'') -> bytes:
-        """Send a command to the unit.
+    def _decode(self, response: bytes) -> bytes:
+        """Decode data from transport."""
+        # payload[2:10] == bytes([0xbb, 0x00, 0x07, 0x00, 0x00, 0x00])
+        payload = self.decrypt(response[0x38:])
+        p_len = int.from_bytes(payload[:2], "little")
+        checksum = int.from_bytes(payload[p_len:p_len+2], "little")
 
-        Known commands:
-        - Get AC info: 0x0121
-        - Get states: 0x0111
-        - Get sleep info: 0x0141
-        """
-        packet = self._encode(command.to_bytes(2, "little") + data)
+        if checksum != self._crc(payload[2:p_len]):
+            logging.debug(
+                "Checksum incorrect (calculated %s actual %s).",
+                checksum.hex(), payload[p_len:p_len+2].hex()
+            )
+        return payload  # TODO: return payload[10:p_len]
+
+    def _send(self, command: int, data: bytes = b'') -> bytes:
+        """Send a command to the unit."""
+        command = bytes([((command << 4) | 1), 1])
+        packet = self._encode(command + data)
         logging.debug("Payload:\n%s", packet.hex(' '))
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
@@ -349,40 +343,33 @@ class hvac(device):
                 clean (bool):
                 mildew (bool):
         """
-        payload = self._send_command(0x111)
-        if (len(payload) != 32):
-            raise RuntimeError(f"unexpected payload size: {len(payload)}")
+        resp = self._send(0x1)
 
-        logging.debug("Received payload:\n%s", payload.hex(' '))
+        if (len(resp) != 32):
+            raise ValueError(f"unexpected resp size: {len(resp)}")
+
+        logging.debug("Received resp:\n%s", resp.hex(' '))
         logging.debug("0b[R] mask: %x, 0c[R] mask: %x, cmnd_16: %x",
-                      payload[0x0d] & 0xf, payload[0x0e] & 0xf, payload[0x18])
+                      resp[0xD] & 0xF, resp[0xE] & 0xF, resp[0xE])
 
-        data = {}
-        data['power'] = payload[0x14] & 0x20 == 0x20
-        data['target_temp'] = (8 + (payload[0x0c] >> 3)
-                               + (0.0 if (payload[0xe] & 0b10000000) == 0 else 0.5))  # noqa E501
+        state = {}
+        state['power'] = resp[0x14] & 0x20 == 0x20
+        state['target_temp'] = 8 + (resp[0x0C] >> 3) + (resp[0xE] >> 7) * 0.5
+        state['swing_v'] = self.SwVert(resp[0x0C] & 0b111)
+        state['swing_h'] = self.SwHoriz(resp[0x0D] >> 5)
+        state['mode'] = self.Mode(resp[0x11] >> 5)
+        state['speed'] = self.Speed(resp[0x0F] >> 5)
+        state['mute'] = bool(resp[0x10] == 0x80)
+        state['turbo'] = bool(resp[0x10] == 0x40)
+        state['sleep'] = bool(resp[0x11] & 1 << 2)
+        state['health'] = bool(resp[0x14] & 1 << 1)
+        state['clean'] = bool(resp[0x14] & 1 << 2)
+        state['display'] = bool(resp[0x16] & 1 << 4)
+        state['mildew'] = bool(resp[0x16] & 1 << 3)
 
-        data['swing_v'] = self.SwVert(payload[0x0c] & 0b111)
-        data['swing_h'] = self.SwHoriz(payload[0x0d] >> 5)
+        logging.debug("State: %s", state)
 
-        data['mode'] = self.Mode(payload[0x11] >> 5)
-
-        data['speed'] = self.Speed(payload[0x0f] >> 5)
-
-        data['mute'] = bool(payload[0x10] == 0x80)
-        data['turbo'] = bool(payload[0x10] == 0x40)
-
-        data['sleep'] = bool(payload[0x11] & 0b100)
-
-        data['health'] = bool(payload[0x14] & 0b10)
-        data['clean'] = bool(payload[0x14] & 0b100)
-
-        data['display'] = bool(payload[0x16] & 0b10000)
-        data['mildew'] = bool(payload[0x16] & 0b1000)
-
-        logging.debug("Data: %s", data)
-
-        return data
+        return state
 
     def get_ac_info(self) -> dict:
         """Returns dictionary with AC info.
@@ -392,27 +379,26 @@ class hvac(device):
                 state (bool): power
                 ambient_temp (float): ambient temperature
         """
-        payload = self._send_command(0x121)
-        if (len(payload) != 48):
-            raise ValueError(f"unexpected payload size: {len(payload)}")
+        resp = self._send(2)
+        if (len(resp) != 48):
+            raise ValueError(f"unexpected resp size: {len(resp)}")
 
-        logging.debug("Received payload:\n%s", payload.hex(' '))
+        logging.debug("Received resp:\n%s", resp.hex(' '))
 
         # Length is 34 (0x22), the next 11 bytes are
         # the same: bb 00 07 00 00 00 18 00 01 21 c0,
         # bytes 0x23,0x24 are the checksum.
-        data = {}
-        data['state'] = payload[0x0d] & 0b1 == 0b1
+        ac_info = {}
+        ac_info["state"] = resp[0x0D] & 1
 
-        ambient_temp = payload[0x11] & 0b00011111
-        if ambient_temp:
-            data['ambient_temp'] = (ambient_temp
-                                    + float(payload[0x21] & 0b00011111) / 10.0)
+        ambient_temp = resp[0x11] & 0b11111, resp[0x21] & 0b11111
+        if any(ambient_temp):
+            ac_info["ambient_temp"] = ambient_temp[0] + ambient_temp[1] / 10.0
 
-        logging.debug("Data: %s", data)
-        return data
+        logging.debug("AC info: %s", ac_info)
+        return ac_info
 
-    def set_state(self, state: dict) -> bool:
+    def set_state(self, state: dict) -> None:
         """Set parameters of unit.
 
         Args:
@@ -430,9 +416,6 @@ class hvac(device):
                 health (bool):
                 clean (bool):
                 mildew (bool):
-
-        Returns:
-            True for success, verified by the unit's response.
         """
         CMND_0B_RMASK = 0b100
         CMND_0C_RMASK = 0b1101
@@ -447,15 +430,7 @@ class hvac(device):
 
         missing_keys = [key for key in keys if key not in state]
         if len(missing_keys) > 0:
-            try:
-                received_state = self.get_state()
-            except RuntimeError as e:
-                if "unexpected payload size: 48" in str(e):
-                    # Occasionally a 48 byte payload gets mixed in,
-                    # a retry should suffice.
-                    received_state = self.get_state()
-                else:
-                    raise e
+            received_state = self.get_state()
             logging.debug("Raw state %s", state)
             received_state.update(state)
             state = received_state
@@ -486,26 +461,18 @@ class hvac(device):
         else:
             speed_r = 0x00
 
-        data = bytes(
-            [
-                (int(state['target_temp']) - 8 << 3) | swing_l,
-                (swing_r << 5) | CMND_0B_RMASK,
-                ((state['target_temp'] % 1 == 0.5) << 7) | CMND_0C_RMASK,
-                self.Speed(state['speed']) << 5,
-                speed_r,
-                mode << 5 | (state['sleep'] << 2),
-                0x00,
-                0x00,
-                (state['power'] << 5 | state['clean'] << 2 | 0b11 if state['health'] else 0b00),
-                0x00,
-                state['display'] << 4 | state['mildew'] << 3,
-                0x00,
-                CMND_16
-            ]
-        )
+        data = bytearray(0xD)
+        data[0x0] = (int(state['target_temp']) - 8 << 3) | swing_l
+        data[0x1] = (swing_r << 5) | CMND_0B_RMASK
+        data[0x2] = ((state['target_temp'] % 1 == 0.5) << 7) | CMND_0C_RMASK
+        data[0x3] = self.Speed(state['speed']) << 5
+        data[0x4] = speed_r
+        data[0x5] = mode << 5 | (state['sleep'] << 2)
+        data[0x8] = (state['power'] << 5 | state['clean'] << 2 | state['health'] * 0b11)
+        data[0xA] = state['display'] << 4 | state['mildew'] << 3
+        data[0xC] = CMND_16
+
         logging.debug("Constructed payload data:\n%s", data.hex(' '))
 
-        response_payload = self._send_command(0x0101, data)
+        response_payload = self._send(0, data)
         logging.debug("Response payload:\n%s", response_payload.hex(' '))
-        # Response payloads are 16 bytes long,
-        # Bytes 0d-0e are the checksum of the sent command.
