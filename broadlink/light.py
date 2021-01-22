@@ -89,18 +89,15 @@ class lb1(device):
     def _encode(self, flag: int, obj: typing.Any) -> bytes:
         """Encode a JSON packet."""
         # flag: 1 for reading, 2 for writing.
+        packet = bytearray(14)
         js = json.dumps(obj, separators=[',', ':']).encode()
         p_len = 12 + len(js)
-
-        packet = bytearray(14)
         struct.pack_into(
             "<HHHHBBI", packet, 0, p_len, 0xA5A5, 0x5A5A, 0, flag, 0xB, len(js)
         )
         packet += js
-
-        checksum = sum(packet[0x08:], 0xC0AD) & 0xFFFF
-        packet[0x06] = checksum & 0xFF
-        packet[0x07] = checksum >> 8
+        checksum = sum(packet[0x8:], 0xC0AD) & 0xFFFF
+        packet[0x6:0x8] = checksum.to_bytes(2, "little")
         return packet
 
     def _decode(self, response: bytes) -> typing.Any:
