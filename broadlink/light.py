@@ -1,4 +1,5 @@
 """Support for lights."""
+import enum
 import json
 import struct
 import typing
@@ -9,6 +10,13 @@ from .exceptions import check_error
 
 class lb1(device):
     """Controls a Broadlink LB1."""
+
+    @enum.unique
+    class ColorMode(enum.IntEnum):
+        """Enumerates color modes."""
+        RGB = 0
+        WHITE = 1
+        SCENE = 2
 
     def __init__(self, *args, **kwargs) -> None:
         """Initialize the controller."""
