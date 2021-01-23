@@ -3,7 +3,7 @@ import json
 import struct
 
 from .device import device
-from .exceptions import check_error
+from .exceptions import check_error, exception
 
 
 class mp1(device):
@@ -219,7 +219,11 @@ class sp2(device):
         check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
         energy = payload[0x7:0x4:-1].hex()
-        return int(energy) / 100
+
+        try:
+            return int(energy) / 100
+        except ValueError:  # Firmware issue
+            raise exception(-4026, "The device returned malformed data", payload[0x4:])
 
 
 class sp4(device):
