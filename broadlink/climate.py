@@ -303,17 +303,19 @@ class hvac(device):
 
     def _decode(self, response: bytes) -> bytes:
         """Decode data from transport."""
-        # payload[2:10] == bytes([0xbb, 0x00, 0x07, 0x00, 0x00, 0x00])
+        # payload[0x2:0x8] == bytes([0xbb, 0x00, 0x07, 0x00, 0x00, 0x00])
         payload = self.decrypt(response[0x38:])
-        p_len = int.from_bytes(payload[:2], "little")
+        p_len = int.from_bytes(payload[:0x2], "little")
         checksum = int.from_bytes(payload[p_len:p_len+2], "little")
 
-        if checksum != self._crc(payload[2:p_len]):
+        if checksum != self._crc(payload[0x2:p_len]):
             logging.debug(
                 "Checksum incorrect (calculated %s actual %s).",
                 checksum.hex(), payload[p_len:p_len+2].hex()
             )
-        return payload  # TODO: return payload[10:p_len]
+
+        d_len = int.from_bytes(payload[0x8:0xA], "little")
+        return payload[0xA:0xA+d_len]
 
     def _send(self, command: int, data: bytes = b'') -> bytes:
         """Send a command to the unit."""
@@ -322,7 +324,7 @@ class hvac(device):
         logging.debug("Payload:\n%s", packet.hex(' '))
         response = self.send_packet(0x6a, packet)
         check_error(response[0x22:0x24])
-        return self._decode(response)
+        return self._decode(response)[0x2:]
 
     def get_state(self) -> dict:
         """Returns a dictionary with the unit's parameters.
@@ -345,27 +347,27 @@ class hvac(device):
         """
         resp = self._send(0x1)
 
-        if (len(resp) != 32):
+        if (len(resp) != 0xF):
             raise ValueError(f"unexpected resp size: {len(resp)}")
 
         logging.debug("Received resp:\n%s", resp.hex(' '))
         logging.debug("0b[R] mask: %x, 0c[R] mask: %x, cmnd_16: %x",
-                      resp[0xD] & 0xF, resp[0xE] & 0xF, resp[0xE])
+                      resp[0x3] & 0xF, resp[0x4] & 0xF, resp[0x4])
 
         state = {}
-        state['power'] = resp[0x14] & 0x20 == 0x20
-        state['target_temp'] = 8 + (resp[0x0C] >> 3) + (resp[0xE] >> 7) * 0.5
-        state['swing_v'] = self.SwVert(resp[0x0C] & 0b111)
-        state['swing_h'] = self.SwHoriz(resp[0x0D] >> 5)
-        state['mode'] = self.Mode(resp[0x11] >> 5)
-        state['speed'] = self.Speed(resp[0x0F] >> 5)
-        state['mute'] = bool(resp[0x10] == 0x80)
-        state['turbo'] = bool(resp[0x10] == 0x40)
-        state['sleep'] = bool(resp[0x11] & 1 << 2)
-        state['health'] = bool(resp[0x14] & 1 << 1)
-        state['clean'] = bool(resp[0x14] & 1 << 2)
-        state['display'] = bool(resp[0x16] & 1 << 4)
-        state['mildew'] = bool(resp[0x16] & 1 << 3)
+        state['power'] = resp[0x8] & 0x20
+        state['target_temp'] = 8 + (resp[0x0] >> 3) + (resp[0x4] >> 7) * 0.5
+        state['swing_v'] = self.SwVert(resp[0x0] & 0b111)
+        state['swing_h'] = self.SwHoriz(resp[0x1] >> 5)
+        state['mode'] = self.Mode(resp[0x5] >> 5)
+        state['speed'] = self.Speed(resp[0x3] >> 5)
+        state['mute'] = bool(resp[0x4] == 0x80)
+        state['turbo'] = bool(resp[0x4] == 0x40)
+        state['sleep'] = bool(resp[0x5] & 1 << 2)
+        state['health'] = bool(resp[0x8] & 1 << 1)
+        state['clean'] = bool(resp[0x8] & 1 << 2)
+        state['display'] = bool(resp[0xA] & 1 << 4)
+        state['mildew'] = bool(resp[0xA] & 1 << 3)
 
         logging.debug("State: %s", state)
 
@@ -380,18 +382,15 @@ class hvac(device):
                 ambient_temp (float): ambient temperature
         """
         resp = self._send(2)
-        if (len(resp) != 48):
+        if (len(resp) != 0x18):
             raise ValueError(f"unexpected resp size: {len(resp)}")
 
         logging.debug("Received resp:\n%s", resp.hex(' '))
 
-        # Length is 34 (0x22), the next 11 bytes are
-        # the same: bb 00 07 00 00 00 18 00 01 21 c0,
-        # bytes 0x23,0x24 are the checksum.
         ac_info = {}
-        ac_info["state"] = resp[0x0D] & 1
+        ac_info["state"] = resp[0x1] & 1
 
-        ambient_temp = resp[0x11] & 0b11111, resp[0x21] & 0b11111
+        ambient_temp = resp[0x5] & 0b11111, resp[0x15] & 0b11111
         if any(ambient_temp):
             ac_info["ambient_temp"] = ambient_temp[0] + ambient_temp[1] / 10.0
 
