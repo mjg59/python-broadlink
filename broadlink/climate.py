@@ -251,9 +251,9 @@ class hvac(device):
     class Mode(IntEnum):
         """Enumerates modes."""
         AUTO = 0
-        COOLING = 1
-        DRYING = 2
-        HEATING = 3
+        COOL = 1
+        DRY = 2
+        HEAT = 3
         FAN = 4
 
     @unique
@@ -355,7 +355,7 @@ class hvac(device):
                       resp[0x3] & 0xF, resp[0x4] & 0xF, resp[0x4])
 
         state = {}
-        state['power'] = resp[0x8] & 0x20
+        state['power'] = resp[0x8] & 1 << 5
         state['target_temp'] = 8 + (resp[0x0] >> 3) + (resp[0x4] >> 7) * 0.5
         state['swing_v'] = self.SwVert(resp[0x0] & 0b111)
         state['swing_h'] = self.SwHoriz(resp[0x1] >> 5)
@@ -397,79 +397,59 @@ class hvac(device):
         logging.debug("AC info: %s", ac_info)
         return ac_info
 
-    def set_state(self, state: dict) -> None:
-        """Set parameters of unit.
+    def set_state(
+        self,
+        power: bool,
+        target_temp: float,  # 16<=target_temp<=32
+        mode: int,  # hvac.Mode
+        speed: int,  # hvac.Speed
+        mute: bool,
+        turbo: bool,
+        swing_h: int,  # hvac.SwHoriz
+        swing_v: int,  # hvac.SwVert
+        sleep: bool,
+        display: bool,
+        health: bool,
+        clean: bool,
+        mildew: bool,
+    ) -> None:
+        """Set the state of the device."""
+        # TODO: What does these values represent?
+        UNK0 = 0b100
+        UNK1 = 0b1101
+        UNK2 = 0b101
 
-        Args:
-            state (dict): if any are missing the current value will be retrived
-                power (bool):
-                target_temp (float): temperature set point 16<n<32
-                mode (hvac.Mode)
-                speed (hvac.Speed)
-                mute (bool):
-                turbo (bool):
-                swing_h (hvac.SwHoriz)
-                swing_v (hvac.SwVert)
-                sleep (bool):
-                display (bool):
-                health (bool):
-                clean (bool):
-                mildew (bool):
-        """
-        CMND_0B_RMASK = 0b100
-        CMND_0C_RMASK = 0b1101
-        CMND_16 = 0b101
+        target_temp = round(target_temp * 2) / 2
+        if not (16 <= target_temp <= 32):
+            raise ValueError(f"target_temp out of range: {target_temp}")
 
-        keys = ['power', 'mode', 'target_temp', 'speed', 'mute', 'turbo',
-                'swing_v', 'swing_h', 'sleep', 'display', 'health', 'clean',
-                'mildew']
-        unknown_keys = [key for key in state.keys() if key not in keys]
-        if len(unknown_keys) > 0:
-            raise ValueError(f"unknown argument(s) {unknown_keys}")
+        mode = self.Mode(mode)
 
-        missing_keys = [key for key in keys if key not in state]
-        if len(missing_keys) > 0:
-            received_state = self.get_state()
-            logging.debug("Raw state %s", state)
-            received_state.update(state)
-            state = received_state
-            logging.debug("Filled state %s", state)
-
-        state['target_temp'] = round(state['target_temp'] * 2) / 2
-        if not (16 <= state['target_temp'] <= 32):
-            raise ValueError(f"target_temp out of range: {state['target_temp']}")  # noqa E501
-
-        # Creating a new instance verifies the type
-        swing_r = self.SwHoriz(state['swing_h'])
-        swing_l = self.SwVert(state['swing_v'])
-
-        mode = self.Mode(state['mode'])
-
-        if state['mute'] and state['turbo']:
+        if mute and turbo:
             raise ValueError("mute and turbo can't be on at once")
-        elif state['mute']:
+        elif mute:
             speed_r = 0x80
-            if state['mode'] != 'fan':
+            if mode.name != "FAN":
                 raise ValueError("mute is only available in fan mode")
-            state['speed'] = self.Speed.LOW
-        elif state['turbo']:
+            speed = self.Speed.LOW
+        elif turbo:
             speed_r = 0x40
-            if state['mode'] not in ('cooling', 'heating'):
+            if mode.name not in {"COOL", "HEAT"}:
                 raise ValueError("turbo is only available in cooling/heating")
-            state['speed'] = self.Speed.HIGH
+            speed = self.Speed.HIGH
         else:
             speed_r = 0x00
 
         data = bytearray(0xD)
-        data[0x0] = (int(state['target_temp']) - 8 << 3) | swing_l
-        data[0x1] = (swing_r << 5) | CMND_0B_RMASK
-        data[0x2] = ((state['target_temp'] % 1 == 0.5) << 7) | CMND_0C_RMASK
-        data[0x3] = self.Speed(state['speed']) << 5
+        data[0x0] = (int(target_temp) - 8 << 3) | swing_v
+        data[0x1] = (swing_h << 5) | UNK0
+        data[0x2] = ((target_temp % 1 == 0.5) << 7) | UNK1
+        data[0x3] = speed << 5
         data[0x4] = speed_r
-        data[0x5] = mode << 5 | (state['sleep'] << 2)
-        data[0x8] = (state['power'] << 5 | state['clean'] << 2 | state['health'] * 0b11)
-        data[0xA] = state['display'] << 4 | state['mildew'] << 3
-        data[0xC] = CMND_16
+        data[0x5] = mode << 5 | (sleep << 2)
+        data[0x8] = (power << 5 | clean << 2 | health * 0b11)
+        data[0xA] = display << 4 | mildew << 3
+        data[0xC] = UNK2
 
         logging.debug("Constructed payload data:\n%s", data.hex(' '))
 
