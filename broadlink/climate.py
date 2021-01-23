@@ -383,7 +383,7 @@ class hvac(device):
 
         Returns:
             dict:
-                state (bool): power
+                power (bool): power
                 ambient_temp (float): ambient temperature
         """
         resp = self._send(2)
@@ -393,7 +393,7 @@ class hvac(device):
         logging.debug("Received resp:\n%s", resp.hex(' '))
 
         ac_info = {}
-        ac_info["state"] = resp[0x1] & 1
+        ac_info["power"] = resp[0x1] & 1
 
         ambient_temp = resp[0x5] & 0b11111, resp[0x15] & 0b11111
         if any(ambient_temp):
