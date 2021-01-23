@@ -265,6 +265,13 @@ class hvac(device):
         AUTO = 5
 
     @unique
+    class Preset(IntEnum):
+        """Enumerates presets."""
+        NORMAL = 0
+        TURBO = 1
+        MUTE = 2
+
+    @unique
     class SwHoriz(IntEnum):
         """Enumerates horizontal swing."""
         ON = 0
@@ -333,12 +340,11 @@ class hvac(device):
             dict:
                 power (bool):
                 target_temp (float): temperature set point 16<n<32
-                mode (hvac.Mode)
-                speed (hvac.Speed)
-                mute (bool):
-                turbo (bool):
-                swing_h (hvac.SwHoriz)
-                swing_v (hvac.SwVert)
+                mode (hvac.Mode):
+                speed (hvac.Speed):
+                preset (hvac.Preset):
+                swing_h (hvac.SwHoriz):
+                swing_v (hvac.SwVert):
                 sleep (bool):
                 display (bool):
                 health (bool):
@@ -361,8 +367,7 @@ class hvac(device):
         state['swing_h'] = self.SwHoriz(resp[0x1] >> 5)
         state['mode'] = self.Mode(resp[0x5] >> 5)
         state['speed'] = self.Speed(resp[0x3] >> 5)
-        state['mute'] = bool(resp[0x4] == 0x80)
-        state['turbo'] = bool(resp[0x4] == 0x40)
+        state['preset'] = self.Preset(resp[0x4] >> 6)
         state['sleep'] = bool(resp[0x5] & 1 << 2)
         state['health'] = bool(resp[0x8] & 1 << 1)
         state['clean'] = bool(resp[0x8] & 1 << 2)
@@ -403,8 +408,7 @@ class hvac(device):
         target_temp: float,  # 16<=target_temp<=32
         mode: int,  # hvac.Mode
         speed: int,  # hvac.Speed
-        mute: bool,
-        turbo: bool,
+        preset: int,  # hvac.Preset
         swing_h: int,  # hvac.SwHoriz
         swing_v: int,  # hvac.SwVert
         sleep: bool,
@@ -423,29 +427,22 @@ class hvac(device):
         if not (16 <= target_temp <= 32):
             raise ValueError(f"target_temp out of range: {target_temp}")
 
-        mode = self.Mode(mode)
-
-        if mute and turbo:
-            raise ValueError("mute and turbo can't be on at once")
-        elif mute:
-            speed_r = 0x80
-            if mode.name != "FAN":
+        if preset == self.Preset.MUTE:
+            if mode != self.Mode.FAN:
                 raise ValueError("mute is only available in fan mode")
             speed = self.Speed.LOW
-        elif turbo:
-            speed_r = 0x40
-            if mode.name not in {"COOL", "HEAT"}:
+
+        elif preset == self.Preset.TURBO:
+            if mode not in {self.Mode.COOL, self.Mode.HEAT}:
                 raise ValueError("turbo is only available in cooling/heating")
             speed = self.Speed.HIGH
-        else:
-            speed_r = 0x00
 
         data = bytearray(0xD)
         data[0x0] = (int(target_temp) - 8 << 3) | swing_v
         data[0x1] = (swing_h << 5) | UNK0
         data[0x2] = ((target_temp % 1 == 0.5) << 7) | UNK1
         data[0x3] = speed << 5
-        data[0x4] = speed_r
+        data[0x4] = preset << 6
         data[0x5] = mode << 5 | (sleep << 2)
         data[0x8] = (power << 5 | clean << 2 | health * 0b11)
         data[0xA] = display << 4 | mildew << 3
