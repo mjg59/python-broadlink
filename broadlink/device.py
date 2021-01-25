@@ -170,30 +170,10 @@ class device:
     def auth(self) -> bool:
         """Authenticate to the device."""
         payload = bytearray(0x50)
-        payload[0x04] = 0x31
-        payload[0x05] = 0x31
-        payload[0x06] = 0x31
-        payload[0x07] = 0x31
-        payload[0x08] = 0x31
-        payload[0x09] = 0x31
-        payload[0x0A] = 0x31
-        payload[0x0B] = 0x31
-        payload[0x0C] = 0x31
-        payload[0x0D] = 0x31
-        payload[0x0E] = 0x31
-        payload[0x0F] = 0x31
-        payload[0x10] = 0x31
-        payload[0x11] = 0x31
-        payload[0x12] = 0x31
+        payload[0x04:0x14] = [0x31]*16
         payload[0x1E] = 0x01
         payload[0x2D] = 0x01
-        payload[0x30] = ord("T")
-        payload[0x31] = ord("e")
-        payload[0x32] = ord("s")
-        payload[0x33] = ord("t")
-        payload[0x34] = ord(" ")
-        payload[0x35] = ord(" ")
-        payload[0x36] = ord("1")
+        payload[0x30:0x37] = "Test 1".encode()
 
         response = self.send_packet(0x65, payload)
         check_error(response[0x22:0x24])
