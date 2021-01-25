@@ -1,13 +1,21 @@
-Python control for Broadlink RM2, RM3 and RM4 series controllers
+Python control for Broadlink devices
 ===============================================
 
-A simple Python API for controlling IR/RF controllers from [Broadlink](http://www.ibroadlink.com/rm/). At present, the following devices are currently supported:
+A simple Python API for controlling Broadlink devices. At present, the following devices are supported:
 
-* RM Pro (referred to as RM2 in the codebase)
-* A1 sensor platform devices are supported
-* RM3 mini IR blaster
-* RM4 and RM4C mini blasters
-- SP2/SP3/SP4 smart plugs
+- Universal remotes: `RM pro`, `RM pro+`, `RM pro plus`, `RM mini 3`, `RM4 pro`, `RM4 mini`, `RM4C mini`, `RM4S`
+- Smart plugs: `SP1`, `SP2`, `SP mini`, `SP mini+`, `SP3`, `SP3S`, `SP4L`, `SP4M`
+- Power strips: `MP1-1K4S`, `MP1-1K3S2U`, `MP2`
+- Control box: `SC1`, `SCB1E`, `MCB1`
+- Sensors: `A1`
+- Alarm kit: `S1C`, `S2KIT`
+- Light bulb: `LB1`, `SB800TD`
+
+Other devices with Broadlink DNA:
+- Smart plugs: `Ankuoo NEO`, `Ankuoo NEO PRO`, `Efergy Ego`, `BG AHC/U-01`
+- Outlet: `BG 800`, `BG 900`
+- Curtain motor: `Dooya DT360E-45/20`
+- Thermostat: `Hysen HY02B05H`
 
 There is currently no support for the cloud API.
 
@@ -42,7 +50,7 @@ Using your machine's IP address with `local_ip_address`
 ```
 import broadlink
 
-devices = broadlink.discover(timeout=5, local_ip_address=192.168.0.100)
+devices = broadlink.discover(timeout=5, local_ip_address='192.168.0.100')
 ```
 
 Using your subnet's broadcast address with `discover_ip_address`
@@ -50,7 +58,7 @@ Using your subnet's broadcast address with `discover_ip_address`
 ```
 import broadlink
 
-devices = broadlink.discover(timeout=5, discover_ip_address=192.168.0.255)
+devices = broadlink.discover(timeout=5, discover_ip_address='192.168.0.255')
 ```
 
 Obtain the authentication key required for further communication:
