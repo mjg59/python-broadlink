@@ -3,13 +3,13 @@ import socket
 import threading
 import random
 import time
-from datetime import datetime
 from typing import Generator, Tuple, Union
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 from .exceptions import check_error, exception
+from .protocol import Datetime
 
 HelloResponse = Tuple[int, Tuple[str, int], str, str, bool]
 
@@ -33,42 +33,13 @@ def scan(
         port = 0
 
     packet = bytearray(0x30)
-
-    timezone = int(time.timezone / -3600)
-    if timezone < 0:
-        packet[0x08] = 0xFF + timezone - 1
-        packet[0x09] = 0xFF
-        packet[0x0A] = 0xFF
-        packet[0x0B] = 0xFF
-    else:
-        packet[0x08] = timezone
-        packet[0x09] = 0
-        packet[0x0A] = 0
-        packet[0x0B] = 0
-
-    year = datetime.now().year
-    packet[0x0C] = year & 0xFF
-    packet[0x0D] = year >> 8
-    packet[0x0E] = datetime.now().minute
-    packet[0x0F] = datetime.now().hour
-    subyear = str(year)[2:]
-    packet[0x10] = int(subyear)
-    packet[0x11] = datetime.now().isoweekday()
-    packet[0x12] = datetime.now().day
-    packet[0x13] = datetime.now().month
-
-    address = local_ip_address.split(".")
-    packet[0x18] = int(address[3])
-    packet[0x19] = int(address[2])
-    packet[0x1A] = int(address[1])
-    packet[0x1B] = int(address[0])
-    packet[0x1C] = port & 0xFF
-    packet[0x1D] = port >> 8
+    packet[0x08:0x14] = Datetime.pack(Datetime.now())
+    packet[0x18:0x1C] = socket.inet_aton(local_ip_address)[::-1]
+    packet[0x1C:0x1E] = port.to_bytes(2, "little")
     packet[0x26] = 6
 
     checksum = sum(packet, 0xBEAF) & 0xFFFF
-    packet[0x20] = checksum & 0xFF
-    packet[0x21] = checksum >> 8
+    packet[0x20:0x22] = checksum.to_bytes(2, "little")
 
     start_time = time.time()
     discovered = []
@@ -81,18 +52,19 @@ def scan(
 
             while True:
                 try:
-                    response, host = conn.recvfrom(1024)
+                    resp, host = conn.recvfrom(1024)
                 except socket.timeout:
                     break
 
-                devtype = response[0x34] | response[0x35] << 8
-                mac = bytes(reversed(response[0x3A:0x40]))
+                devtype = resp[0x34] | resp[0x35] << 8
+                mac = resp[0x3A:0x40][::-1]
+
                 if (host, mac, devtype) in discovered:
                     continue
                 discovered.append((host, mac, devtype))
 
-                name = response[0x40:].split(b"\x00")[0].decode("utf-8")
-                is_locked = bool(response[-1])
+                name = resp[0x40:].split(b"\x00")[0].decode()
+                is_locked = bool(resp[-1])
                 yield devtype, host, mac, name, is_locked
     finally:
         conn.close()
