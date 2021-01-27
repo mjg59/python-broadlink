@@ -46,10 +46,9 @@ class rm(device):
         resp = self._send(0x1A)
         return resp[0] == 1
 
-    def find_rf_packet(self) -> bool:
+    def find_rf_packet(self) -> None:
         """Enter radiofrequency learning mode."""
-        resp = self._send(0x1B)
-        return resp[0] == 1
+        self._send(0x1B)
 
     def check_temperature(self) -> float:
         """Return the temperature."""
@@ -79,11 +78,6 @@ class rm4(rm):
         payload = self.decrypt(resp[0x38:])
         p_len = struct.unpack("<H", payload[:0x2])[0]
         return payload[0x6:p_len+2]
-
-    def find_rf_packet(self) -> bool:
-        """Enter radiofrequency learning mode."""
-        self._send(0x1B)
-        return True
 
     def check_humidity(self) -> float:
         """Return the humidity."""
