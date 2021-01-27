@@ -98,6 +98,20 @@ def scan(
         conn.close()
 
 
+def ping(host: str, port: int = 80) -> None:
+    """Send a ping packet to a host or broadcast address.
+
+    This packet feeds the watchdog timer of firmwares >= v53.
+    Useful to prevent reboots when the cloud cannot be reached.
+    It must be sent every 2 minutes in such cases.
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as conn:
+        conn.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        packet = bytearray(0x30)
+        packet[0x26] = 1
+        conn.sendto(packet, (host, port))
+
+
 class device:
     """Controls a Broadlink device."""
 
@@ -229,6 +243,15 @@ class device:
         self.name = name
         self.is_locked = is_locked
         return True
+
+    def ping(self) -> None:
+        """Ping the device.
+
+        This packet feeds the watchdog timer of firmwares >= v53.
+        Useful to prevent reboots when the cloud cannot be reached.
+        It must be sent every 2 minutes in such cases.
+        """
+        ping(self.host[0], port=self.host[1])
 
     def get_fwversion(self) -> int:
         """Get firmware version."""
