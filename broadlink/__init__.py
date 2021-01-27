@@ -6,7 +6,7 @@ from typing import Generator, List, Union, Tuple
 from .alarm import S1C
 from .climate import hysen
 from .cover import dooya
-from .device import device, scan
+from .device import device, ping, scan
 from .exceptions import exception
 from .light import lb1
 from .remote import rm, rm4
