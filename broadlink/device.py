@@ -70,8 +70,8 @@ def scan(
         conn.close()
 
 
-def ping(host: str, port: int = 80) -> None:
-    """Send a ping packet to a host or broadcast address.
+def ping(address: str, port: int = 80) -> None:
+    """Send a ping packet to an address.
 
     This packet feeds the watchdog timer of firmwares >= v53.
     Useful to prevent reboots when the cloud cannot be reached.
@@ -81,7 +81,7 @@ def ping(host: str, port: int = 80) -> None:
         conn.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         packet = bytearray(0x30)
         packet[0x26] = 1
-        conn.sendto(packet, (host, port))
+        conn.sendto(packet, (address, port))
 
 
 class device:
