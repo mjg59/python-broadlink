@@ -8,16 +8,13 @@ from .exceptions import check_error
 class a1(device):
     """Controls a Broadlink A1."""
 
+    TYPE = "A1"
+
     _SENSORS_AND_LEVELS = (
         ("light", ("dark", "dim", "normal", "bright")),
         ("air_quality", ("excellent", "good", "normal", "bad")),
         ("noise", ("quiet", "normal", "noisy")),
     )
-
-    def __init__(self, *args, **kwargs) -> None:
-        """Initialize the controller."""
-        device.__init__(self, *args, **kwargs)
-        self.type = "A1"
 
     def check_sensors(self) -> dict:
         """Return the state of the sensors."""

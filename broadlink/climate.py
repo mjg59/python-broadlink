@@ -9,10 +9,7 @@ from .helpers import calculate_crc16
 class hysen(device):
     """Controls a Hysen HVAC."""
 
-    def __init__(self, *args, **kwargs) -> None:
-        """Initialize the controller."""
-        device.__init__(self, *args, **kwargs)
-        self.type = "Hysen heating controller"
+    TYPE = "Hysen heating controller"
 
     # Send a request
     # input_payload should be a bytearray, usually 6 bytes, e.g. bytearray([0x01,0x06,0x00,0x02,0x10,0x00])

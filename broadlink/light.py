@@ -11,17 +11,14 @@ from .exceptions import check_error
 class lb1(device):
     """Controls a Broadlink LB1."""
 
+    TYPE = "LB1"
+
     @enum.unique
     class ColorMode(enum.IntEnum):
         """Enumerates color modes."""
         RGB = 0
         WHITE = 1
         SCENE = 2
-
-    def __init__(self, *args, **kwargs) -> None:
-        """Initialize the controller."""
-        device.__init__(self, *args, **kwargs)
-        self.type = "LB1"
 
     def get_state(self) -> dict:
         """Return the power state of the device.

@@ -8,10 +8,7 @@ from .exceptions import check_error
 class dooya(device):
     """Controls a Dooya curtain motor."""
 
-    def __init__(self, *args, **kwargs) -> None:
-        """Initialize the controller."""
-        device.__init__(self, *args, **kwargs)
-        self.type = "Dooya DT360E"
+    TYPE = "Dooya DT360E"
 
     def _send(self, magic1: int, magic2: int) -> int:
         """Send a packet to the device."""

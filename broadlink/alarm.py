@@ -6,16 +6,13 @@ from .exceptions import check_error
 class S1C(device):
     """Controls a Broadlink S1C."""
 
+    TYPE = "S1C"
+
     _SENSORS_TYPES = {
         0x31: "Door Sensor",  # 49 as hex
         0x91: "Key Fob",  # 145 as hex, as serial on fob corpse
         0x21: "Motion Sensor",  # 33 as hex
     }
-
-    def __init__(self, *args, **kwargs) -> None:
-        """Initialize the controller."""
-        device.__init__(self, *args, **kwargs)
-        self.type = "S1C"
 
     def get_sensors_status(self) -> dict:
         """Return the state of the sensors."""

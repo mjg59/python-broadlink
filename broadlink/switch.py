@@ -9,10 +9,7 @@ from .exceptions import check_error
 class mp1(device):
     """Controls a Broadlink MP1."""
 
-    def __init__(self, *args, **kwargs) -> None:
-        """Initialize the controller."""
-        device.__init__(self, *args, **kwargs)
-        self.type = "MP1"
+    TYPE = "MP1"
 
     def set_power_mask(self, sid_mask: int, state: bool) -> None:
         """Set the power state of the device."""
@@ -70,10 +67,7 @@ class mp1(device):
 class bg1(device):
     """Controls a BG Electrical smart outlet."""
 
-    def __init__(self, *args, **kwargs) -> None:
-        """Initialize the controller."""
-        device.__init__(self, *args, **kwargs)
-        self.type = "BG1"
+    TYPE = "BG1"
 
     def get_state(self) -> dict:
         """Return the power state of the device.
@@ -151,10 +145,7 @@ class bg1(device):
 class sp1(device):
     """Controls a Broadlink SP1."""
 
-    def __init__(self, *args, **kwargs) -> None:
-        """Initialize the device."""
-        device.__init__(self, *args, **kwargs)
-        self.type = "SP1"
+    TYPE = "SP1"
 
     def set_power(self, state: bool) -> None:
         """Set the power state of the device."""
@@ -167,10 +158,7 @@ class sp1(device):
 class sp2(device):
     """Controls a Broadlink SP2."""
 
-    def __init__(self, *args, **kwargs) -> None:
-        """Initialize the controller."""
-        device.__init__(self, *args, **kwargs)
-        self.type = "SP2"
+    TYPE = "SP2"
 
     def set_power(self, state: bool) -> None:
         """Set the power state of the device."""
@@ -225,10 +213,7 @@ class sp2(device):
 class sp4(device):
     """Controls a Broadlink SP4."""
 
-    def __init__(self, *args, **kwargs) -> None:
-        """Initialize the controller."""
-        device.__init__(self, *args, **kwargs)
-        self.type = "SP4"
+    TYPE = "SP4"
 
     def set_power(self, state: bool) -> None:
         """Set the power state of the device."""
@@ -307,10 +292,7 @@ class sp4(device):
 class sp4b(sp4):
     """Controls a Broadlink SP4 (type B)."""
 
-    def __init__(self, *args, **kwargs) -> None:
-        """Initialize the controller."""
-        device.__init__(self, *args, **kwargs)
-        self.type = "SP4B"
+    TYPE = "SP4B"
 
     def get_state(self) -> dict:
         """Get full state of device."""
