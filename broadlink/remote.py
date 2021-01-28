@@ -8,10 +8,7 @@ from .exceptions import check_error
 class rm(device):
     """Controls a Broadlink RM."""
 
-    def __init__(self, *args, **kwargs) -> None:
-        """Initialize the controller."""
-        device.__init__(self, *args, **kwargs)
-        self.type = "RM2"
+    TYPE = "RM2"
 
     def _send(self, command: int, data: bytes = b'') -> bytes:
         """Send a packet to the device."""
@@ -65,10 +62,7 @@ class rm(device):
 class rm4(rm):
     """Controls a Broadlink RM4."""
 
-    def __init__(self, *args, **kwargs) -> None:
-        """Initialize the controller."""
-        device.__init__(self, *args, **kwargs)
-        self.type = "RM4"
+    TYPE = "RM4"
 
     def _send(self, command: int, data: bytes = b'') -> bytes:
         """Send a packet to the device."""

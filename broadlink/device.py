@@ -87,6 +87,8 @@ def ping(address: str, port: int = 80) -> None:
 class device:
     """Controls a Broadlink device."""
 
+    TYPE = "Unknown"
+
     def __init__(
         self,
         host: Tuple[str, int],
@@ -110,7 +112,7 @@ class device:
         self.count = random.randint(0x8000, 0xFFFF)
         self.iv = bytes.fromhex("562e17996d093d28ddb3ba695a2e6f58")
         self.id = 0
-        self.type = "Unknown"
+        self.type = self.TYPE  # For backwards compatibility.
         self.lock = threading.Lock()
 
         self.aes = None
