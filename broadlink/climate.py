@@ -2,17 +2,22 @@
 from typing import List
 
 from .device import device
-from .exceptions import check_error
+from .exceptions import check_error, exception
 from .helpers import calculate_crc16
 
 
-class hysen(device):
-    """Controls a Hysen HVAC."""
+class th(device):
+    """Controls a thermostat.
+
+    This product has Broadlink DNA and is manufactured by different
+    companies and sold under different brands (Beca Energy, Beok, Decdeal,
+    Floureon, Hysen etc).
+    """
 
     def __init__(self, *args, **kwargs) -> None:
         """Initialize the controller."""
         device.__init__(self, *args, **kwargs)
-        self.type = "Hysen heating controller"
+        self.type = "TH"
 
     # Send a request
     # input_payload should be a bytearray, usually 6 bytes, e.g. bytearray([0x01,0x06,0x00,0x02,0x10,0x00])
@@ -40,15 +45,13 @@ class hysen(device):
         # experimental check on CRC in response (first 2 bytes are len, and trailing bytes are crc)
         response_payload_len = response_payload[0]
         if response_payload_len + 2 > len(response_payload):
-            raise ValueError(
-                "hysen_response_error", "first byte of response is not length"
-            )
+            raise ValueError(-4010, "Received encrypted data packet length error.")
         crc = calculate_crc16(response_payload[2:response_payload_len])
         if (response_payload[response_payload_len] == crc & 0xFF) and (
             response_payload[response_payload_len + 1] == (crc >> 8) & 0xFF
         ):
             return response_payload[2:response_payload_len]
-        raise ValueError("hysen_response_error", "CRC check on response failed")
+        raise ValueError(-4011, "Received encrypted data packet check error.")
 
     def get_temp(self) -> int:
         """Return the room temperature in degrees celsius."""
@@ -238,3 +241,16 @@ class hysen(device):
             input_payload.append(int(weekend[i]["temp"] * 2))
 
         self.send_request(input_payload)
+
+
+class hysen(th):
+    """Controls a hysen heating thermostat.
+
+    This class is for backwards compatibility.
+    Use the "th" class instead.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        """Initialize the controller."""
+        device.__init__(self, *args, **kwargs)
+        self.type = "Hysen heating controller"
