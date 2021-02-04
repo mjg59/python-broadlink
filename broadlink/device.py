@@ -161,7 +161,7 @@ class device:
         payload[0x04:0x14] = [0x31]*16
         payload[0x1E] = 0x01
         payload[0x2D] = 0x01
-        payload[0x30:0x37] = "Test 1".encode()
+        payload[0x30:0x36] = "Test 1".encode()
 
         response = self.send_packet(0x65, payload)
         check_error(response[0x22:0x24])
