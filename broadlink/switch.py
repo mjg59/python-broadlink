@@ -164,6 +164,44 @@ class sp2(device):
         """Set the power state of the device."""
         packet = bytearray(16)
         packet[0] = 2
+        packet[4] = int(bool(state))
+        response = self.send_packet(0x6A, packet)
+        check_error(response[0x22:0x24])
+
+    def check_power(self) -> bool:
+        """Return the power state of the device."""
+        packet = bytearray(16)
+        packet[0] = 1
+        response = self.send_packet(0x6A, packet)
+        check_error(response[0x22:0x24])
+        payload = self.decrypt(response[0x38:])
+        return bool(payload[0x4])
+
+
+class sp2s(sp2):
+    """Controls a Broadlink SP2S."""
+
+    TYPE = "SP2S"
+
+    def get_energy(self) -> float:
+        """Return the power consumption in W."""
+        packet = bytearray(16)
+        packet[0] = 4
+        response = self.send_packet(0x6A, packet)
+        check_error(response[0x22:0x24])
+        payload = self.decrypt(response[0x38:])
+        return int.from_bytes(payload[0x4:0x7], "little") / 1000
+
+
+class sp3(device):
+    """Controls a Broadlink SP3."""
+
+    TYPE = "SP3"
+
+    def set_power(self, state: bool) -> None:
+        """Set the power state of the device."""
+        packet = bytearray(16)
+        packet[0] = 2
         if self.check_nightlight():
             packet[4] = 3 if state else 2
         else:
@@ -199,6 +237,12 @@ class sp2(device):
         check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
         return bool(payload[0x4] == 2 or payload[0x4] == 3 or payload[0x4] == 0xFF)
+
+
+class sp3s(sp2):
+    """Controls a Broadlink SP3S."""
+
+    TYPE = "SP3S"
 
     def get_energy(self) -> float:
         """Return the power consumption in W."""

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The python-broadlink library."""
 import socket
-from typing import Generator, List, Union, Tuple
+from typing import Generator, List, Tuple, Union
 
 from .alarm import S1C
 from .climate import hysen
@@ -11,21 +11,16 @@ from .exceptions import exception
 from .light import lb1
 from .remote import rm, rm4
 from .sensor import a1
-from .switch import bg1, mp1, sp1, sp2, sp4, sp4b
-
+from .switch import bg1, mp1, sp1, sp2, sp2s, sp3, sp3s, sp4, sp4b
 
 SUPPORTED_TYPES = {
     0x0000: (sp1, "SP1", "Broadlink"),
     0x2711: (sp2, "SP2", "Broadlink"),
-    0x2716: (sp2, "NEO PRO", "Ankuoo"),
     0x2717: (sp2, "NEO", "Ankuoo"),
     0x2719: (sp2, "SP2-compatible", "Honeywell"),
     0x271A: (sp2, "SP2-compatible", "Honeywell"),
-    0x271D: (sp2, "Ego", "Efergy"),
     0x2720: (sp2, "SP mini", "Broadlink"),
     0x2728: (sp2, "SP2-compatible", "URANT"),
-    0x2733: (sp2, "SP3", "Broadlink"),
-    0x2736: (sp2, "SP mini+", "Broadlink"),
     0x273E: (sp2, "SP mini", "Broadlink"),
     0x7530: (sp2, "SP2", "Broadlink (OEM)"),
     0x7539: (sp2, "SP2-IL", "Broadlink (OEM)"),
@@ -37,10 +32,14 @@ SUPPORTED_TYPES = {
     0x7918: (sp2, "SP2", "Broadlink (OEM)"),
     0x7919: (sp2, "SP2-compatible", "Honeywell"),
     0x791A: (sp2, "SP2-compatible", "Honeywell"),
-    0x7D00: (sp2, "SP3-EU", "Broadlink (OEM)"),
     0x7D0D: (sp2, "SP mini 3", "Broadlink (OEM)"),
-    0x9479: (sp2, "SP3S-US", "Broadlink"),
-    0x947A: (sp2, "SP3S-EU", "Broadlink"),
+    0x2716: (sp2s, "NEO PRO", "Ankuoo"),
+    0x271D: (sp2s, "Ego", "Efergy"),
+    0x2736: (sp2s, "SP mini+", "Broadlink"),
+    0x2733: (sp3, "SP3", "Broadlink"),
+    0x7D00: (sp3, "SP3-EU", "Broadlink (OEM)"),
+    0x9479: (sp3s, "SP3S-US", "Broadlink"),
+    0x947A: (sp3s, "SP3S-EU", "Broadlink"),
     0x756C: (sp4, "SP4M", "Broadlink"),
     0x756F: (sp4, "MCB1", "Broadlink"),
     0x7579: (sp4, "SP4L-EU", "Broadlink"),
