@@ -15,7 +15,6 @@ from .switch import bg1, mp1, sp1, sp2, sp2s, sp3, sp3s, sp4, sp4b
 
 SUPPORTED_TYPES = {
     0x0000: (sp1, "SP1", "Broadlink"),
-    0x2711: (sp2, "SP2", "Broadlink"),
     0x2717: (sp2, "NEO", "Ankuoo"),
     0x2719: (sp2, "SP2-compatible", "Honeywell"),
     0x271A: (sp2, "SP2-compatible", "Honeywell"),
@@ -33,6 +32,7 @@ SUPPORTED_TYPES = {
     0x7919: (sp2, "SP2-compatible", "Honeywell"),
     0x791A: (sp2, "SP2-compatible", "Honeywell"),
     0x7D0D: (sp2, "SP mini 3", "Broadlink (OEM)"),
+    0x2711: (sp2s, "SP2", "Broadlink"),
     0x2716: (sp2s, "NEO PRO", "Ankuoo"),
     0x271D: (sp2s, "Ego", "Efergy"),
     0x2736: (sp2s, "SP mini+", "Broadlink"),
