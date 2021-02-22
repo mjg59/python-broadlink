@@ -1,6 +1,6 @@
 """Support for alarm kits."""
+from . import exceptions as e
 from .device import device
-from .exceptions import check_error
 
 
 class S1C(device):
@@ -9,26 +9,26 @@ class S1C(device):
     TYPE = "S1C"
 
     _SENSORS_TYPES = {
-        0x31: "Door Sensor",  # 49 as hex
-        0x91: "Key Fob",  # 145 as hex, as serial on fob corpse
-        0x21: "Motion Sensor",  # 33 as hex
+        0x31: "Door Sensor",
+        0x91: "Key Fob",
+        0x21: "Motion Sensor",
     }
 
     def get_sensors_status(self) -> dict:
         """Return the state of the sensors."""
         packet = bytearray(16)
         packet[0] = 0x06  # 0x06 - get sensors info, 0x07 - probably add sensors
-        response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
-        payload = self.decrypt(response[0x38:])
-        if not payload:
-            return None
-        count = payload[0x4]
-        sensor_data = payload[0x6:]
+        resp, err = self.send_packet(0x6A, packet)
+        if err:
+            raise e.exception(err)
+
+        count = resp[0x4]
+        sensor_data = resp[0x6:]
         sensors = [
             bytearray(sensor_data[i * 83 : (i + 1) * 83])
             for i in range(len(sensor_data) // 83)
         ]
+
         return {
             "count": count,
             "sensors": [

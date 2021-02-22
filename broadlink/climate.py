@@ -1,8 +1,8 @@
 """Support for climate control."""
 from typing import List
 
+from . import exceptions as e
 from .device import device
-from .exceptions import check_error
 from .helpers import calculate_crc16
 
 
@@ -22,29 +22,28 @@ class hysen(device):
         crc = calculate_crc16(input_payload)
 
         # first byte is length, +2 for CRC16
-        request_payload = bytearray([len(input_payload) + 2, 0x00])
-        request_payload.extend(input_payload)
+        payload = bytearray((len(input_payload) + 2).to_bytes(2, "little"))
+        payload.extend(input_payload)
 
         # append CRC
-        request_payload.append(crc & 0xFF)
-        request_payload.append((crc >> 8) & 0xFF)
+        payload.extend(crc.to_bytes(2, "little"))
 
         # send to device
-        response = self.send_packet(0x6A, request_payload)
-        check_error(response[0x22:0x24])
-        response_payload = self.decrypt(response[0x38:])
+        resp, err = self.send_packet(0x6A, payload)
+        if err:
+            raise e.exception(err)
 
         # experimental check on CRC in response (first 2 bytes are len, and trailing bytes are crc)
-        response_payload_len = response_payload[0]
-        if response_payload_len + 2 > len(response_payload):
+        resp_len = int.from_bytes(resp[:0x2], "little")
+        if resp_len + 2 > len(resp):
             raise ValueError(
                 "hysen_response_error", "first byte of response is not length"
             )
-        crc = calculate_crc16(response_payload[2:response_payload_len])
-        if (response_payload[response_payload_len] == crc & 0xFF) and (
-            response_payload[response_payload_len + 1] == (crc >> 8) & 0xFF
+        crc = calculate_crc16(resp[2:resp_len])
+        if (resp[resp_len] == crc & 0xFF) and (
+            resp[resp_len + 1] == (crc >> 8) & 0xFF
         ):
-            return response_payload[2:response_payload_len]
+            return resp[2:resp_len]
         raise ValueError("hysen_response_error", "CRC check on response failed")
 
     def get_temp(self) -> int:

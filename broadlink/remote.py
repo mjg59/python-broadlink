@@ -1,8 +1,8 @@
 """Support for universal remotes."""
 import struct
 
+from . import exceptions as e
 from .device import device
-from .exceptions import check_error
 
 
 class rmmini(device):
@@ -13,10 +13,10 @@ class rmmini(device):
     def _send(self, command: int, data: bytes = b'') -> bytes:
         """Send a packet to the device."""
         packet = struct.pack("<I", command) + data
-        resp = self.send_packet(0x6A, packet)
-        check_error(resp[0x22:0x24])
-        payload = self.decrypt(resp[0x38:])
-        return payload[0x4:]
+        resp, err = self.send_packet(0x6A, packet)
+        if err:
+            raise e.exception(err)
+        return resp[0x4:]
 
     def send_data(self, data: bytes) -> None:
         """Send a code to the device."""
@@ -72,11 +72,11 @@ class rmminib(rmmini):
     def _send(self, command: int, data: bytes = b'') -> bytes:
         """Send a packet to the device."""
         packet = struct.pack("<HI", len(data) + 4, command) + data
-        resp = self.send_packet(0x6A, packet)
-        check_error(resp[0x22:0x24])
-        payload = self.decrypt(resp[0x38:])
-        p_len = struct.unpack("<H", payload[:0x2])[0]
-        return payload[0x6:p_len+2]
+        resp, err = self.send_packet(0x6A, packet)
+        if err:
+            raise e.exception(err)
+        p_len = struct.unpack("<H", resp[:0x2])[0]
+        return resp[0x6:p_len+2]
 
 
 class rm4mini(rmminib):

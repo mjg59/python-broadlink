@@ -3,11 +3,11 @@
 import socket
 from typing import Generator, List, Tuple, Union
 
+from . import exceptions as e
 from .alarm import S1C
 from .climate import hysen
 from .cover import dooya
 from .device import device, ping, scan
-from .exceptions import exception
 from .light import lb1
 from .remote import rm, rm4, rm4mini, rm4pro, rmmini, rmminib, rmpro
 from .sensor import a1
@@ -148,7 +148,11 @@ def hello(
     try:
         return next(xdiscover(timeout, local_ip_address, host, port))
     except StopIteration:
-        raise exception(-4000)  # Network timeout.
+        raise e.NetworkTimeoutError(
+            -4000,
+            "Network timeout",
+            f"No valid response received within {timeout}s",
+        )
 
 
 def discover(

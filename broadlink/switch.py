@@ -2,8 +2,8 @@
 import json
 import struct
 
+from . import exceptions as e
 from .device import device
-from .exceptions import check_error
 
 
 class mp1(device):
@@ -26,8 +26,9 @@ class mp1(device):
         packet[0x0D] = sid_mask
         packet[0x0E] = sid_mask if state else 0
 
-        response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
+        resp, err = self.send_packet(0x6A, packet)
+        if err:
+            raise e.exception(err)
 
     def set_power(self, sid: int, state: bool) -> None:
         """Set the power state of the device."""
@@ -46,10 +47,10 @@ class mp1(device):
         packet[0x07] = 0xC0
         packet[0x08] = 0x01
 
-        response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
-        payload = self.decrypt(response[0x38:])
-        return payload[0x0E]
+        resp, err = self.send_packet(0x6A, packet)
+        if err:
+            raise e.exception(err)
+        return resp[0x0E]
 
     def check_power(self) -> dict:
         """Return the power state of the device."""
@@ -75,9 +76,10 @@ class bg1(device):
         Example: `{"pwr":1,"pwr1":1,"pwr2":0,"maxworktime":60,"maxworktime1":60,"maxworktime2":0,"idcbrightness":50}`
         """
         packet = self._encode(1, b"{}")
-        response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
-        return self._decode(response)
+        resp, err = self.send_packet(0x6A, packet)
+        if err:
+            raise e.exception(err)
+        return self._decode(resp)
 
     def set_state(
         self,
@@ -107,9 +109,10 @@ class bg1(device):
             data["idcbrightness"] = idcbrightness
         js = json.dumps(data).encode("utf8")
         packet = self._encode(2, js)
-        response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
-        return self._decode(response)
+        resp, err = self.send_packet(0x6A, packet)
+        if err:
+            raise e.exception(err)
+        return self._decode(resp)
 
     def _encode(self, flag: int, js: str) -> bytes:
         """Encode a message."""
@@ -136,9 +139,8 @@ class bg1(device):
 
     def _decode(self, response: bytes) -> dict:
         """Decode a message."""
-        payload = self.decrypt(response[0x38:])
-        js_len = struct.unpack_from("<I", payload, 0x0A)[0]
-        state = json.loads(payload[0x0E : 0x0E + js_len])
+        js_len = struct.unpack_from("<I", response, 0x0A)[0]
+        state = json.loads(response[0x0E : 0x0E + js_len])
         return state
 
 
@@ -151,8 +153,9 @@ class sp1(device):
         """Set the power state of the device."""
         packet = bytearray(4)
         packet[0] = state
-        response = self.send_packet(0x66, packet)
-        check_error(response[0x22:0x24])
+        err = self.send_packet(0x66, packet)[1]
+        if err:
+            raise e.exception(err)
 
 
 class sp2(device):
@@ -165,17 +168,18 @@ class sp2(device):
         packet = bytearray(16)
         packet[0] = 2
         packet[4] = int(bool(state))
-        response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
+        err = self.send_packet(0x6A, packet)[1]
+        if err:
+            raise e.exception(err)
 
     def check_power(self) -> bool:
         """Return the power state of the device."""
         packet = bytearray(16)
         packet[0] = 1
-        response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
-        payload = self.decrypt(response[0x38:])
-        return bool(payload[0x4])
+        resp, err = self.send_packet(0x6A, packet)
+        if err:
+            raise e.exception(err)
+        return bool(resp[0x4])
 
 
 class sp2s(sp2):
@@ -187,10 +191,10 @@ class sp2s(sp2):
         """Return the power consumption in W."""
         packet = bytearray(16)
         packet[0] = 4
-        response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
-        payload = self.decrypt(response[0x38:])
-        return int.from_bytes(payload[0x4:0x7], "little") / 1000
+        resp, err = self.send_packet(0x6A, packet)
+        if err:
+            raise e.exception(err)
+        return int.from_bytes(resp[0x4:0x7], "little") / 1000
 
 
 class sp3(device):
@@ -206,8 +210,9 @@ class sp3(device):
             packet[4] = 3 if state else 2
         else:
             packet[4] = 1 if state else 0
-        response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
+        err = self.send_packet(0x6A, packet)[1]
+        if err:
+            raise e.exception(err)
 
     def set_nightlight(self, state: bool) -> None:
         """Set the night light state of the device."""
@@ -217,26 +222,27 @@ class sp3(device):
             packet[4] = 3 if state else 1
         else:
             packet[4] = 2 if state else 0
-        response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
+        err = self.send_packet(0x6A, packet)[1]
+        if err:
+            raise e.exception(err)
 
     def check_power(self) -> bool:
         """Return the power state of the device."""
         packet = bytearray(16)
         packet[0] = 1
-        response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
-        payload = self.decrypt(response[0x38:])
-        return bool(payload[0x4] == 1 or payload[0x4] == 3 or payload[0x4] == 0xFD)
+        resp, err = self.send_packet(0x6A, packet)
+        if err:
+            raise e.exception(err)
+        return bool(resp[0x4] == 1 or resp[0x4] == 3 or resp[0x4] == 0xFD)
 
     def check_nightlight(self) -> bool:
         """Return the state of the night light."""
         packet = bytearray(16)
         packet[0] = 1
-        response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
-        payload = self.decrypt(response[0x38:])
-        return bool(payload[0x4] == 2 or payload[0x4] == 3 or payload[0x4] == 0xFF)
+        resp, err = self.send_packet(0x6A, packet)
+        if err:
+            raise e.exception(err)
+        return bool(resp[0x4] == 2 or resp[0x4] == 3 or resp[0x4] == 0xFF)
 
 
 class sp3s(sp2):
@@ -247,10 +253,10 @@ class sp3s(sp2):
     def get_energy(self) -> float:
         """Return the power consumption in W."""
         packet = bytearray([8, 0, 254, 1, 5, 1, 0, 0, 0, 45])
-        response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
-        payload = self.decrypt(response[0x38:])
-        energy = payload[0x7:0x4:-1].hex()
+        resp, err = self.send_packet(0x6A, packet)
+        if err:
+            raise e.exception(err)
+        energy = resp[0x7:0x4:-1].hex()
         return int(energy) / 100
 
 
@@ -292,8 +298,10 @@ class sp4(device):
             data["childlock"] = int(bool(childlock))
 
         packet = self._encode(2, data)
-        response = self.send_packet(0x6A, packet)
-        return self._decode(response)
+        resp, err = self.send_packet(0x6A, packet)
+        if err:
+            raise e.exception(err)
+        return self._decode(resp)
 
     def check_power(self) -> bool:
         """Return the power state of the device."""
@@ -308,8 +316,10 @@ class sp4(device):
     def get_state(self) -> dict:
         """Get full state of device."""
         packet = self._encode(1, {})
-        response = self.send_packet(0x6A, packet)
-        return self._decode(response)
+        resp, err = self.send_packet(0x6A, packet)
+        if err:
+            raise e.exception(err)
+        return self._decode(resp)
 
     def _encode(self, flag: int, state: dict) -> bytes:
         """Encode a message."""
@@ -326,10 +336,8 @@ class sp4(device):
 
     def _decode(self, response: bytes) -> dict:
         """Decode a message."""
-        check_error(response[0x22:0x24])
-        payload = self.decrypt(response[0x38:])
-        js_len = struct.unpack_from("<I", payload, 0x08)[0]
-        state = json.loads(payload[0x0C : 0x0C + js_len])
+        js_len = struct.unpack_from("<I", response, 0x08)[0]
+        state = json.loads(response[0x0C : 0x0C + js_len])
         return state
 
 
@@ -375,8 +383,6 @@ class sp4b(sp4):
 
     def _decode(self, response: bytes) -> dict:
         """Decode a message."""
-        check_error(response[0x22:0x24])
-        payload = self.decrypt(response[0x38:])
-        js_len = struct.unpack_from("<I", payload, 0xA)[0]
-        state = json.loads(payload[0x0E : 0x0E + js_len])
+        js_len = struct.unpack_from("<I", response, 0xA)[0]
+        state = json.loads(response[0x0E : 0x0E + js_len])
         return state

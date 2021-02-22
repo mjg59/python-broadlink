@@ -1,4 +1,5 @@
 """Support for Broadlink devices."""
+import logging
 import socket
 import threading
 import random
@@ -8,8 +9,10 @@ from typing import Generator, Tuple, Union
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
-from .exceptions import check_error, exception
+from . import exceptions as e
 from .protocol import Datetime
+
+_LOGGER = logging.getLogger(__name__)
 
 HelloResponse = Tuple[int, Tuple[str, int], str, str, bool]
 
@@ -158,20 +161,16 @@ class device:
     def auth(self) -> bool:
         """Authenticate to the device."""
         payload = bytearray(0x50)
-        payload[0x04:0x14] = [0x31]*16
+        payload[0x04:0x13] = [0x31]*15
         payload[0x1E] = 0x01
         payload[0x2D] = 0x01
         payload[0x30:0x36] = "Test 1".encode()
+        resp, err = self.send_packet(0x65, payload)
+        if err:
+            raise e.exception(err)
 
-        response = self.send_packet(0x65, payload)
-        check_error(response[0x22:0x24])
-        payload = self.decrypt(response[0x38:])
-
-        key = payload[0x04:0x14]
-        if len(key) % 16 != 0:
-            return False
-
-        self.id = int.from_bytes(payload[:0x4], "little")
+        key = resp[0x04:0x14]
+        self.id = int.from_bytes(resp[:0x4], "little")
         self.update_aes(key)
         return True
 
@@ -189,10 +188,20 @@ class device:
         try:
             devtype, host, mac, name, is_locked = next(responses)
         except StopIteration:
-            raise exception(-4000)  # Network timeout.
+            raise e.NetworkTimeoutError(
+                -4000,
+                "Network timeout",
+                f"No valid response received within {timeout}s",
+            )
 
-        if (devtype, host, mac) != (self.devtype, self.host, self.mac):
-            raise exception(-2040)  # Device information is not intact.
+        expected = self.host, self.mac, self.devtype
+        received = host, mac, devtype
+        if expected != received:
+            raise e.DataValidationError(
+                -2040,
+                "Device information is not intact",
+                f"Expected {expected} and received {received}"
+            )
 
         self.name = name
         self.is_locked = is_locked
@@ -210,10 +219,10 @@ class device:
     def get_fwversion(self) -> int:
         """Get firmware version."""
         packet = bytearray([0x68])
-        response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
-        payload = self.decrypt(response[0x38:])
-        return payload[0x4] | payload[0x5] << 8
+        resp, err = self.send_packet(0x6A, packet)
+        if err:
+            raise e.exception(err)
+        return resp[0x4] | resp[0x5] << 8
 
     def set_name(self, name: str) -> None:
         """Set device name."""
@@ -221,8 +230,9 @@ class device:
         packet += name.encode("utf-8")
         packet += bytearray(0x50 - len(packet))
         packet[0x43] = bool(self.is_locked)
-        response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
+        err = self.send_packet(0x6A, packet)[1]
+        if err:
+            raise e.exception(err)
         self.name = name
 
     def set_lock(self, state: bool) -> None:
@@ -231,34 +241,58 @@ class device:
         packet += self.name.encode("utf-8")
         packet += bytearray(0x50 - len(packet))
         packet[0x43] = bool(state)
-        response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
+        err = self.send_packet(0x6A, packet)[1]
+        if err:
+            raise e.exception(err)
         self.is_locked = bool(state)
 
     def get_type(self) -> str:
         """Return device type."""
         return self.type
 
-    def send_packet(self, packet_type: int, payload: bytes) -> bytes:
+    def send_packet(self, info_type: int, payload: bytes = b"") -> bytes:
         """Send a packet to the device."""
-        self.count = ((self.count + 1) | 0x8000) & 0xFFFF
-        packet = bytearray(0x38)
-        packet[0x00:0x08] = bytes.fromhex("5aa5aa555aa5aa55")
-        packet[0x24:0x26] = self.devtype.to_bytes(2, "little")
-        packet[0x26:0x28] = packet_type.to_bytes(2, "little")
-        packet[0x28:0x2a] = self.count.to_bytes(2, "little")
-        packet[0x2a:0x30] = self.mac[::-1]
-        packet[0x30:0x34] = self.id.to_bytes(4, "little")
+        payload = bytes(payload)
 
-        p_checksum = sum(payload, 0xBEAF) & 0xFFFF
-        packet[0x34:0x36] = p_checksum.to_bytes(2, "little")
+        # Encrypted request.
+        if info_type >> 5 == 3:
+            self.count = ((self.count + 1) | 0x8000) & 0xFFFF
 
-        padding = (16 - len(payload)) % 16
-        payload = self.encrypt(payload + bytes(padding))
-        packet.extend(payload)
+            conn_id = bytes([0x5A, 0xA5, 0xAA, 0x55, 0x5A, 0xA5, 0xAA, 0x55])
+            exp_resp_type = info_type + 900
+
+            packet = bytearray(0x38)
+            packet[0x00:0x08] = conn_id
+            packet[0x24:0x26] = self.devtype.to_bytes(2, "little")
+            packet[0x26:0x28] = info_type.to_bytes(2, "little")
+            packet[0x28:0x2A] = self.count.to_bytes(2, "little")
+            packet[0x2A:0x30] = self.mac[::-1]
+            packet[0x30:0x34] = self.id.to_bytes(4, "little")
+
+            p_checksum = sum(payload, 0xBEAF) & 0xFFFF
+            packet[0x34:0x36] = p_checksum.to_bytes(2, "little")
+
+            padding = (16 - len(payload)) % 16
+            payload = self.encrypt(payload + bytes(padding))
+            packet.extend(payload)
+
+        # Public request.
+        elif info_type >> 5 == 0 and not info_type % 2:
+            exp_resp_type = info_type + 1
+
+            packet = bytearray(0x30)
+            packet[0x08:0x14] = Datetime.pack(Datetime.now())
+            # packet[0x18:0x1E] = Address.pack((local_ip_addr, port))
+            packet[0x26:0x28] = info_type.to_bytes(2, "little")
+            packet.extend(payload)
+
+        # Encrypted response / public response.
+        else:
+            raise ValueError("Not supported")
 
         checksum = sum(packet, 0xBEAF) & 0xFFFF
         packet[0x20:0x22] = checksum.to_bytes(2, "little")
+        packet = bytes(packet)
 
         with self.lock and socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as conn:
             timeout = self.timeout
@@ -269,18 +303,105 @@ class device:
                 conn.settimeout(min(1, time_left))
                 conn.sendto(packet, self.host)
 
+                _LOGGER.debug("%s sent to %s", packet, self.host)
+
                 try:
-                    resp = conn.recvfrom(2048)[0]
-                    break
-                except socket.timeout:
+                    resp, src = conn.recvfrom(2048)
+                except socket.timeout as err:
                     if (time.time() - start_time) > timeout:
-                        raise exception(-4000)  # Network timeout.
+                        raise e.NetworkTimeoutError(
+                            -4000,
+                            "Network timeout",
+                            f"No valid response received within {timeout}s",
+                        ) from err
+                    continue
 
-        if len(resp) < 0x30:
-            raise exception(-4007)  # Length error.
+                _LOGGER.debug("%s received from %s", resp, src)
 
-        checksum = int.from_bytes(resp[0x20:0x22], "little")
-        if sum(resp, 0xBEAF) - sum(resp[0x20:0x22]) & 0xFFFF != checksum:
-            raise exception(-4008)  # Checksum error.
+                if len(resp) < 0x30:
+                    err = e.DataValidationError(
+                        -4007,
+                        "Received data packet length error",
+                        "Packet is too small",
+                        f"Expected at least 48 bytes and received {len(resp)}",
+                    )
+                    _LOGGER.debug(err)
+                    continue
 
-        return resp
+                nom_checksum = int.from_bytes(resp[0x20:0x22], "little")
+                real_checksum = sum(resp, 0xBEAF) - sum(resp[0x20:0x22]) & 0xFFFF
+
+                if nom_checksum != real_checksum:
+                    err = e.DataValidationError(
+                        -4008,
+                        "Received data packet check error",
+                        "Invalid checksum",
+                        f"Expected {nom_checksum} and received {real_checksum}",
+                    )
+                    _LOGGER.debug(err)
+                    continue
+
+                err_code = int.from_bytes(resp[0x22:0x24], "little", signed=True)
+
+                resp_type = int.from_bytes(resp[0x26:0x28], "little")
+                if resp_type != exp_resp_type:
+                    err = e.DataValidationError(
+                        -4009,
+                        "Received data packet information type error",
+                        f"Expected {exp_resp_type} and received {resp_type}",
+                    )
+                    _LOGGER.debug(err)
+                    continue
+
+                if not any(resp[:0x08]):
+                    return resp[0x30:], err_code
+
+                if resp[:0x08] != conn_id:
+                    continue
+
+                if len(resp) < 0x38:
+                    err = e.DataValidationError(
+                        -4010,
+                        "Received encrypted data packet length error",
+                        "Packet is too small",
+                        f"Expected at least 56 bytes and received {len(resp)}",
+                    )
+                    _LOGGER.debug(err)
+                    continue
+
+                payload = resp[0x38:]
+
+                if len(payload) % 16:
+                    err = e.DataValidationError(
+                        -4010,
+                        "Received encrypted data packet length error",
+                        f"Expected a multiple of 16 and received {len(payload)}",
+                    )
+                    _LOGGER.debug(err)
+                    continue
+
+                payload = self.decrypt(payload)
+
+                dev_ctrl_id = int.from_bytes(resp[0x30:0x34], "little")
+                if self.id and self.id != dev_ctrl_id:
+                    err = e.DataValidationError(
+                        -4012,
+                        "Device control ID error",
+                        f"Expected {self.id} and received {dev_ctrl_id}",
+                    )
+                    _LOGGER.debug(err)
+                    continue
+
+                nom_p_checksum = int.from_bytes(resp[0x34:0x36], "little")
+                real_p_checksum = p_checksum if err_code else sum(payload, 0xBEAF) & 0xFFFF
+                if nom_p_checksum != real_p_checksum:
+                    err = e.DataValidationError(
+                        -4011,
+                        "Received encrypted data packet check error",
+                        "Invalid checksum",
+                        f"Expected {nom_p_checksum} and received {real_p_checksum}",
+                    )
+                    _LOGGER.debug(err)
+                    continue
+
+                return payload, err_code
