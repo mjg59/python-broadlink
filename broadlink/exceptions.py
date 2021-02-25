@@ -1,4 +1,5 @@
 """Exceptions for Broadlink devices."""
+import collections
 import struct
 
 
@@ -8,12 +9,9 @@ class BroadlinkException(Exception):
     def __init__(self, *args, **kwargs):
         """Initialize the exception."""
         super().__init__(*args, **kwargs)
-        if len(args) >= 3:
+        if len(args) >= 2:
             self.errno = args[0]
             self.strerror = ": ".join(str(arg) for arg in args[1:])
-        elif len(args) == 2:
-            self.errno = args[0]
-            self.strerror = str(args[1])
         elif len(args) == 1:
             self.errno = None
             self.strerror = str(args[0])
@@ -22,9 +20,39 @@ class BroadlinkException(Exception):
             self.strerror = ""
 
     def __str__(self):
-        """Return the error message."""
+        """Return str(self)."""
         if self.errno is not None:
             return "[Errno %s] %s" % (self.errno, self.strerror)
+        return self.strerror
+
+    def __eq__(self, other):
+        """Return self==value."""
+        return type(self) == type(other) and self.args == other.args
+
+    def __hash__(self):
+        """Return hash(self)."""
+        return hash((type(self), self.args))
+
+
+class MultipleErrors(BroadlinkException):
+    """Multiple errors."""
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the exception."""
+        errors = args[0][:] if args else []
+        counter = collections.Counter(errors)
+        strerror = "Multiple errors occurred: %s" % counter
+        Exception.__init__(self, strerror, **kwargs)
+        self.errors = errors
+        self.strerror = strerror
+        self.errno = None
+
+    def __repr__(self):
+        """Return repr(self)."""
+        return 'MultipleErrors(%r)' % self.errors
+
+    def __str__(self):
+        """Return str(self)."""
         return self.strerror
 
 
@@ -113,7 +141,7 @@ BROADLINK_EXCEPTIONS = {
     -4009: (DataValidationError, "Received data packet information type error"),
     -4010: (DataValidationError, "Received encrypted data packet length error"),
     -4011: (DataValidationError, "Received encrypted data packet check error"),
-    -4012: (DataValidationError, "Device control ID error"),
+    -4012: (AuthorizationError, "Device control ID error"),
 }
 
 

@@ -250,7 +250,12 @@ class device:
         """Return device type."""
         return self.type
 
-    def send_packet(self, info_type: int, payload: bytes = b"") -> bytes:
+    def send_packet(
+        self,
+        info_type: int,
+        payload: bytes = b"",
+        retry_intvl: float = 1.0,
+    ) -> bytes:
         """Send a packet to the device."""
         payload = bytes(payload)
 
@@ -297,10 +302,27 @@ class device:
         with self.lock and socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as conn:
             timeout = self.timeout
             start_time = time.time()
+            should_wait = False
+            errors = []
 
             while True:
+                if should_wait:
+                    time.sleep(retry_intvl)
+                    should_wait = False
+
                 time_left = timeout - (time.time() - start_time)
-                conn.settimeout(min(1, time_left))
+                if time_left < 0:
+                    if not errors:
+                        raise e.NetworkTimeoutError(
+                            -4000,
+                            "Network timeout",
+                            f"No response received within {timeout}s",
+                        )
+                    if len(errors) == 1:
+                        raise errors[0]
+                    raise e.MultipleErrors(errors)
+
+                conn.settimeout(min(retry_intvl, time_left))
                 conn.sendto(packet, self.host)
 
                 _LOGGER.debug("%s sent to %s", packet, self.host)
@@ -308,24 +330,19 @@ class device:
                 try:
                     resp, src = conn.recvfrom(2048)
                 except socket.timeout as err:
-                    if (time.time() - start_time) > timeout:
-                        raise e.NetworkTimeoutError(
-                            -4000,
-                            "Network timeout",
-                            f"No valid response received within {timeout}s",
-                        ) from err
                     continue
 
                 _LOGGER.debug("%s received from %s", resp, src)
+                should_wait = True
 
                 if len(resp) < 0x30:
                     err = e.DataValidationError(
                         -4007,
                         "Received data packet length error",
-                        "Packet is too small",
                         f"Expected at least 48 bytes and received {len(resp)}",
                     )
                     _LOGGER.debug(err)
+                    errors.append(err)
                     continue
 
                 nom_checksum = int.from_bytes(resp[0x20:0x22], "little")
@@ -335,15 +352,15 @@ class device:
                     err = e.DataValidationError(
                         -4008,
                         "Received data packet check error",
-                        "Invalid checksum",
-                        f"Expected {nom_checksum} and received {real_checksum}",
+                        f"Expected a checksum of {nom_checksum} and received {real_checksum}",
                     )
                     _LOGGER.debug(err)
+                    errors.append(err)
                     continue
 
                 err_code = int.from_bytes(resp[0x22:0x24], "little", signed=True)
-
                 resp_type = int.from_bytes(resp[0x26:0x28], "little")
+
                 if resp_type != exp_resp_type:
                     err = e.DataValidationError(
                         -4009,
@@ -351,6 +368,7 @@ class device:
                         f"Expected {exp_resp_type} and received {resp_type}",
                     )
                     _LOGGER.debug(err)
+                    errors.append(err)
                     continue
 
                 if not any(resp[:0x08]):
@@ -363,10 +381,10 @@ class device:
                     err = e.DataValidationError(
                         -4010,
                         "Received encrypted data packet length error",
-                        "Packet is too small",
                         f"Expected at least 56 bytes and received {len(resp)}",
                     )
                     _LOGGER.debug(err)
+                    errors.append(err)
                     continue
 
                 payload = resp[0x38:]
@@ -378,30 +396,30 @@ class device:
                         f"Expected a multiple of 16 and received {len(payload)}",
                     )
                     _LOGGER.debug(err)
+                    errors.append(err)
                     continue
 
-                payload = self.decrypt(payload)
-
                 dev_ctrl_id = int.from_bytes(resp[0x30:0x34], "little")
+
                 if self.id and self.id != dev_ctrl_id:
-                    err = e.DataValidationError(
+                    raise e.AuthorizationError(
                         -4012,
                         "Device control ID error",
                         f"Expected {self.id} and received {dev_ctrl_id}",
                     )
-                    _LOGGER.debug(err)
-                    continue
 
+                payload = self.decrypt(payload)
                 nom_p_checksum = int.from_bytes(resp[0x34:0x36], "little")
                 real_p_checksum = p_checksum if err_code else sum(payload, 0xBEAF) & 0xFFFF
+
                 if nom_p_checksum != real_p_checksum:
                     err = e.DataValidationError(
                         -4011,
                         "Received encrypted data packet check error",
-                        "Invalid checksum",
-                        f"Expected {nom_p_checksum} and received {real_p_checksum}",
+                        f"Expected a checksum of {nom_p_checksum} and received {real_p_checksum}",
                     )
                     _LOGGER.debug(err)
+                    errors.append(err)
                     continue
 
                 return payload, err_code
