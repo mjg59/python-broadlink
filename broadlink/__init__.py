@@ -151,7 +151,7 @@ def hello(
         raise e.NetworkTimeoutError(
             -4000,
             "Network timeout",
-            f"No valid response received within {timeout}s",
+            f"No response received within {timeout}s",
         )
 
 

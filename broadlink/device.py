@@ -92,11 +92,14 @@ class device:
 
     TYPE = "Unknown"
 
+    __INITIAL_KEY = "097628343fe99e23765c1513accf8b02"
+    __INITIAL_VECT = "562e17996d093d28ddb3ba695a2e6f58"
+
     def __init__(
         self,
         host: Tuple[str, int],
-        mac: Union[bytes, str],
-        devtype: int,
+        mac: Union[bytes, str] = None,
+        devtype: int = None,
         timeout: int = 10,
         name: str = None,
         model: str = None,
@@ -106,46 +109,61 @@ class device:
         """Initialize the controller."""
         self.host = host
         self.mac = bytes.fromhex(mac) if isinstance(mac, str) else mac
-        self.devtype = devtype if devtype is not None else 0x272A
+        self.devtype = devtype
         self.timeout = timeout
         self.name = name
         self.model = model
         self.manufacturer = manufacturer
         self.is_locked = is_locked
+
         self.count = random.randint(0x8000, 0xFFFF)
-        self.iv = bytes.fromhex("562e17996d093d28ddb3ba695a2e6f58")
         self.id = 0
-        self.type = self.TYPE  # For backwards compatibility.
-        self.lock = threading.Lock()
-
         self.aes = None
-        key = bytes.fromhex("097628343fe99e23765c1513accf8b02")
-        self.update_aes(key)
+        self.update_aes(bytes.fromhex(self.__INITIAL_KEY))
+        self.lock = threading.Lock()
+        self.type = self.TYPE  # For backwards compatibility.
 
-    def __repr__(self):
-        return "<%s: %s %s (%s) at %s:%s | %s | %s | %s>" % (
-            type(self).__name__,
-            self.manufacturer,
+    def __repr__(self) -> str:
+        """Return a formal representation of the device."""
+        return "%s.%s(%s, mac=%r, devtype=%r, timeout=%r, name=%r, model=%r, manufacturer=%r, is_locked=%r)" % (
+            self.__class__.__module__,
+            self.__class__.__qualname__,
+            self.host,
+            self.mac,
+            self.devtype,
+            self.timeout,
+            self.name,
             self.model,
-            hex(self.devtype),
-            self.host[0],
-            self.host[1],
-            ":".join(format(x, "02x") for x in self.mac),
-            self.name,
-            "Locked" if self.is_locked else "Unlocked",
+            self.manufacturer,
+            self.is_locked,
         )
 
-    def __str__(self):
-        return "%s (%s at %s)" % (
-            self.name,
-            self.model or hex(self.devtype),
-            self.host[0],
-        )
+    def __str__(self) -> str:
+        """Return a readable representation of the device."""
+        model = []
+        if self.manufacturer is not None:
+            model.append(self.manufacturer)
+        if self.model is not None:
+            model.append(self.model)
+        if self.devtype is not None:
+            model.append(hex(self.devtype))
+        model = " ".join(model)
+
+        info = []
+        if model:
+            info.append(model)
+        if self.mac is not None:
+            info.append(":".join(format(x, "02x") for x in self.mac).upper())
+        info.append(f"{self.host[0]}:{self.host[1]}")
+        info = " / ".join(info)
+        return "%s (%s)" % (self.name or "Unknown", info)
 
     def update_aes(self, key: bytes) -> None:
         """Update AES."""
         self.aes = Cipher(
-            algorithms.AES(bytes(key)), modes.CBC(self.iv), backend=default_backend()
+            algorithms.AES(bytes(key)),
+            modes.CBC(bytes.fromhex(self.__INITIAL_VECT)),
+            backend=default_backend(),
         )
 
     def encrypt(self, payload: bytes) -> bytes:
@@ -159,53 +177,70 @@ class device:
         return decryptor.update(bytes(payload)) + decryptor.finalize()
 
     def auth(self) -> bool:
-        """Authenticate to the device."""
-        payload = bytearray(0x50)
-        payload[0x04:0x13] = [0x31]*15
-        payload[0x1E] = 0x01
-        payload[0x2D] = 0x01
-        payload[0x30:0x36] = "Test 1".encode()
-        resp, err = self.send_packet(0x65, payload)
-        if err:
-            raise e.exception(err)
+        """Authenticate to the device.
 
-        key = resp[0x04:0x14]
-        self.id = int.from_bytes(resp[:0x4], "little")
-        self.update_aes(key)
-        return True
-
-    def hello(self, local_ip_address=None) -> bool:
-        """Send a hello message to the device.
-
-        Device information is checked before updating name and lock status.
+        Send a Client Key Exchange packet to the device and update
+        device control ID and AES key with the response.
         """
-        responses = scan(
-            timeout=self.timeout,
-            local_ip_address=local_ip_address,
-            discover_ip_address=self.host[0],
-            discover_ip_port=self.host[1],
-        )
-        try:
-            devtype, host, mac, name, is_locked = next(responses)
-        except StopIteration:
-            raise e.NetworkTimeoutError(
-                -4000,
-                "Network timeout",
-                f"No valid response received within {timeout}s",
-            )
+        with self.lock:
+            self.id = 0
+            self.update_aes(bytes.fromhex(self.__INITIAL_KEY))
 
-        expected = self.host, self.mac, self.devtype
-        received = host, mac, devtype
-        if expected != received:
+            payload = bytearray(0x50)
+            payload[0x04:0x13] = [0x31] * 15
+            payload[0x1E] = 0x01
+            payload[0x2D] = 0x01
+            payload[0x30:0x36] = "Test 1".encode()
+            resp, err = self.send_packet(0x65, payload)
+            if err:
+                raise e.exception(err)
+
+            key = resp[0x04:0x14]
+            self.id = int.from_bytes(resp[:0x4], "little")
+            self.update_aes(key)
+            return True
+
+    def hello(self) -> None:
+        """Start communicating with the device.
+
+        Send a Client Hello packet to the device and update product ID,
+        MAC address, model, manufacturer, name and lock status with the
+        response.
+        """
+        resp = self.send_packet(0x06)[0]
+        devtype = int.from_bytes(resp[0x04:0x06], "little")
+        mac = resp[0x0A:0x10][::-1]
+
+        if self.mac is None:
+            self.mac = mac
+        elif self.mac != mac:
             raise e.DataValidationError(
                 -2040,
                 "Device information is not intact",
-                f"Expected {expected} and received {received}"
+                "Invalid MAC address",
+                f"Expected {self.mac} and received {mac}",
             )
 
-        self.name = name
-        self.is_locked = is_locked
-        return True
+        if self.devtype is None:
+            self.devtype = devtype
+        elif self.devtype != devtype:
+            raise e.DataValidationError(
+                -2040,
+                "Device information is not intact",
+                "Invalid product ID",
+                f"Expected {self.devtype} and received {devtype}",
+            )
+
+        if self.model is None or self.manufacturer is None:
+            from . import SUPPORTED_TYPES
+
+            try:
+                self.model, self.manufacturer = SUPPORTED_TYPES[devtype][1:3]
+            except KeyError:
+                pass
+
+        self.name = resp[0x10:].split(b"\x00")[0].decode()
+        self.is_locked = bool(resp[-1])
 
     def ping(self) -> None:
         """Ping the device.
@@ -222,7 +257,7 @@ class device:
         resp, err = self.send_packet(0x6A, packet)
         if err:
             raise e.exception(err)
-        return resp[0x4] | resp[0x5] << 8
+        return resp[0x04] | resp[0x05] << 8
 
     def set_name(self, name: str) -> None:
         """Set device name."""
@@ -261,8 +296,13 @@ class device:
 
         # Encrypted request.
         if info_type >> 5 == 3:
-            self.count = ((self.count + 1) | 0x8000) & 0xFFFF
+            if self.mac is None or self.devtype is None:
+                self.hello()
 
+            if info_type != 0x65 and not self.id:
+                self.auth()
+
+            self.count = count = ((self.count + 1) | 0x8000) & 0xFFFF
             conn_id = bytes([0x5A, 0xA5, 0xAA, 0x55, 0x5A, 0xA5, 0xAA, 0x55])
             exp_resp_type = info_type + 900
 
@@ -277,8 +317,8 @@ class device:
             p_checksum = sum(payload, 0xBEAF) & 0xFFFF
             packet[0x34:0x36] = p_checksum.to_bytes(2, "little")
 
-            padding = (16 - len(payload)) % 16
-            payload = self.encrypt(payload + bytes(padding))
+            padding = bytes((16 - len(payload)) % 16)
+            payload = self.encrypt(payload + padding)
             packet.extend(payload)
 
         # Public request.
@@ -299,7 +339,7 @@ class device:
         packet[0x20:0x22] = checksum.to_bytes(2, "little")
         packet = bytes(packet)
 
-        with self.lock and socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as conn:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as conn:
             timeout = self.timeout
             start_time = time.time()
             should_wait = False
@@ -333,6 +373,7 @@ class device:
                     continue
 
                 _LOGGER.debug("%s received from %s", resp, src)
+
                 should_wait = True
 
                 if len(resp) < 0x30:
@@ -377,6 +418,9 @@ class device:
                 if resp[:0x08] != conn_id:
                     continue
 
+                if int.from_bytes(resp[0x28:0x2A], "little") != count:
+                    continue
+
                 if len(resp) < 0x38:
                     err = e.DataValidationError(
                         -4010,
@@ -410,7 +454,9 @@ class device:
 
                 payload = self.decrypt(payload)
                 nom_p_checksum = int.from_bytes(resp[0x34:0x36], "little")
-                real_p_checksum = p_checksum if err_code else sum(payload, 0xBEAF) & 0xFFFF
+                real_p_checksum = (
+                    p_checksum if err_code else sum(payload, 0xBEAF) & 0xFFFF
+                )
 
                 if nom_p_checksum != real_p_checksum:
                     err = e.DataValidationError(
