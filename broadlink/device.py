@@ -6,11 +6,8 @@ import random
 import time
 from typing import Generator, Tuple, Union
 
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-
 from . import exceptions as e
-from .protocol import Datetime
+from .protocol import Datetime, BlockSizeHandler, EncryptionHandler, ExtBlockSizeHandler
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -92,8 +89,8 @@ class device:
 
     TYPE = "Unknown"
 
-    __INITIAL_KEY = "097628343fe99e23765c1513accf8b02"
-    __INITIAL_VECT = "562e17996d093d28ddb3ba695a2e6f58"
+    _BS_HDLR = BlockSizeHandler
+    _ENC_HDLR = EncryptionHandler
 
     def __init__(
         self,
@@ -116,11 +113,11 @@ class device:
         self.manufacturer = manufacturer
         self.is_locked = is_locked
 
-        self.count = random.randint(0x8000, 0xFFFF)
-        self.id = 0
-        self.aes = None
-        self.update_aes(bytes.fromhex(self.__INITIAL_KEY))
-        self.lock = threading.Lock()
+        self._count = random.randint(0x8000, 0xFFFF)
+        self._bs_hdlr = self._BS_HDLR()
+        self._enc_hdlr = self._ENC_HDLR()
+        self._lock = threading.Lock()
+
         self.type = self.TYPE  # For backwards compatibility.
 
     def __repr__(self) -> str:
@@ -158,34 +155,14 @@ class device:
         info = " / ".join(info)
         return "%s (%s)" % (self.name or "Unknown", info)
 
-    def update_aes(self, key: bytes) -> None:
-        """Update AES."""
-        self.aes = Cipher(
-            algorithms.AES(bytes(key)),
-            modes.CBC(bytes.fromhex(self.__INITIAL_VECT)),
-            backend=default_backend(),
-        )
-
-    def encrypt(self, payload: bytes) -> bytes:
-        """Encrypt the payload."""
-        encryptor = self.aes.encryptor()
-        return encryptor.update(bytes(payload)) + encryptor.finalize()
-
-    def decrypt(self, payload: bytes) -> bytes:
-        """Decrypt the payload."""
-        decryptor = self.aes.decryptor()
-        return decryptor.update(bytes(payload)) + decryptor.finalize()
-
     def auth(self) -> bool:
         """Authenticate to the device.
 
         Send a Client Key Exchange packet to the device and update
         device control ID and AES key with the response.
         """
-        with self.lock:
-            self.id = 0
-            self.update_aes(bytes.fromhex(self.__INITIAL_KEY))
-
+        with self._lock:
+            self._enc_hdlr.reset()
             payload = bytearray(0x50)
             payload[0x04:0x13] = [0x31] * 15
             payload[0x1E] = 0x01
@@ -195,9 +172,9 @@ class device:
             if err:
                 raise e.exception(err)
 
+            conn_id = int.from_bytes(resp[:0x4], "little")
             key = resp[0x04:0x14]
-            self.id = int.from_bytes(resp[:0x4], "little")
-            self.update_aes(key)
+            self._enc_hdlr.update(conn_id, key)
             return True
 
     def hello(self) -> None:
@@ -285,6 +262,20 @@ class device:
         """Return device type."""
         return self.type
 
+    def send_cmd(
+        self,
+        command: int,
+        data: bytes = b"",
+        retry_intvl: float = 1.0,
+    ) -> bytes:
+        """Send a command to the device."""
+        payload = command.to_bytes(4, "little") + data
+        payload = self._bs_hdlr.pack(payload)
+        resp, err = self.send_packet(0x6A, payload, retry_intvl=retry_intvl)
+        if err:
+            raise e.exception(err)
+        return self._bs_hdlr.unpack(resp)[0x4:]
+
     def send_packet(
         self,
         info_type: int,
@@ -292,6 +283,7 @@ class device:
         retry_intvl: float = 1.0,
     ) -> bytes:
         """Send a packet to the device."""
+        packet = bytearray(0x30)
         payload = bytes(payload)
 
         # Encrypted request.
@@ -299,27 +291,19 @@ class device:
             if self.mac is None or self.devtype is None:
                 self.hello()
 
-            if info_type != 0x65 and not self.id:
+            if info_type != 0x65 and not self._enc_hdlr.id:
                 self.auth()
 
-            self.count = count = ((self.count + 1) | 0x8000) & 0xFFFF
+            self._count = count = ((self._count + 1) | 0x8000) & 0xFFFF
             conn_id = bytes([0x5A, 0xA5, 0xAA, 0x55, 0x5A, 0xA5, 0xAA, 0x55])
             exp_resp_type = info_type + 900
 
-            packet = bytearray(0x38)
             packet[0x00:0x08] = conn_id
             packet[0x24:0x26] = self.devtype.to_bytes(2, "little")
             packet[0x26:0x28] = info_type.to_bytes(2, "little")
-            packet[0x28:0x2A] = self.count.to_bytes(2, "little")
+            packet[0x28:0x2A] = self._count.to_bytes(2, "little")
             packet[0x2A:0x30] = self.mac[::-1]
-            packet[0x30:0x34] = self.id.to_bytes(4, "little")
-
-            p_checksum = sum(payload, 0xBEAF) & 0xFFFF
-            packet[0x34:0x36] = p_checksum.to_bytes(2, "little")
-
-            padding = bytes((16 - len(payload)) % 16)
-            payload = self.encrypt(payload + padding)
-            packet.extend(payload)
+            packet.extend(self._enc_hdlr.pack(payload))
 
         # Public request.
         elif info_type >> 5 == 0 and not info_type % 2:
@@ -373,7 +357,6 @@ class device:
                     continue
 
                 _LOGGER.debug("%s received from %s", resp, src)
-
                 should_wait = True
 
                 if len(resp) < 0x30:
@@ -421,51 +404,22 @@ class device:
                 if int.from_bytes(resp[0x28:0x2A], "little") != count:
                     continue
 
-                if len(resp) < 0x38:
-                    err = e.DataValidationError(
-                        -4010,
-                        "Received encrypted data packet length error",
-                        f"Expected at least 56 bytes and received {len(resp)}",
-                    )
+                try:
+                    r_payload = self._enc_hdlr.unpack(resp[0x30:])
+                except e.AuthorizationError:
+                    raise
+                except e.BroadlinkException as err:
                     _LOGGER.debug(err)
                     errors.append(err)
                     continue
+                return r_payload, err_code
 
-                payload = resp[0x38:]
 
-                if len(payload) % 16:
-                    err = e.DataValidationError(
-                        -4010,
-                        "Received encrypted data packet length error",
-                        f"Expected a multiple of 16 and received {len(payload)}",
-                    )
-                    _LOGGER.debug(err)
-                    errors.append(err)
-                    continue
+class v4(type):
+    """Metaclass to build V4 classes."""
 
-                dev_ctrl_id = int.from_bytes(resp[0x30:0x34], "little")
-
-                if self.id and self.id != dev_ctrl_id:
-                    raise e.AuthorizationError(
-                        -4012,
-                        "Device control ID error",
-                        f"Expected {self.id} and received {dev_ctrl_id}",
-                    )
-
-                payload = self.decrypt(payload)
-                nom_p_checksum = int.from_bytes(resp[0x34:0x36], "little")
-                real_p_checksum = (
-                    p_checksum if err_code else sum(payload, 0xBEAF) & 0xFFFF
-                )
-
-                if nom_p_checksum != real_p_checksum:
-                    err = e.DataValidationError(
-                        -4011,
-                        "Received encrypted data packet check error",
-                        f"Expected a checksum of {nom_p_checksum} and received {real_p_checksum}",
-                    )
-                    _LOGGER.debug(err)
-                    errors.append(err)
-                    continue
-
-                return payload, err_code
+    def __new__(cls, name, bases, dct):
+        """Create a new device."""
+        dev_cls = super().__new__(cls, name, bases, dct)
+        dev_cls._BS_HDLR = ExtBlockSizeHandler
+        return dev_cls
