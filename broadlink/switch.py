@@ -151,8 +151,7 @@ class sp1(device):
 
     def set_power(self, state: bool) -> None:
         """Set the power state of the device."""
-        packet = bytearray(4)
-        packet[0] = state
+        packet = int(bool(state)).to_bytes(4, "little")
         err = self.send_packet(0x66, packet)[1]
         if err:
             raise e.exception(err)
@@ -165,21 +164,13 @@ class sp2(device):
 
     def set_power(self, state: bool) -> None:
         """Set the power state of the device."""
-        packet = bytearray(16)
-        packet[0] = 2
-        packet[4] = int(bool(state))
-        err = self.send_packet(0x6A, packet)[1]
-        if err:
-            raise e.exception(err)
+        state = int(bool(state))
+        self.send_cmd(0x02, [state])
 
     def check_power(self) -> bool:
         """Return the power state of the device."""
-        packet = bytearray(16)
-        packet[0] = 1
-        resp, err = self.send_packet(0x6A, packet)
-        if err:
-            raise e.exception(err)
-        return bool(resp[0x4])
+        resp = self.send_cmd(0x01)
+        return bool(resp[0] & 1)
 
 
 class sp2s(sp2):
@@ -189,60 +180,34 @@ class sp2s(sp2):
 
     def get_energy(self) -> float:
         """Return the power consumption in W."""
-        packet = bytearray(16)
-        packet[0] = 4
-        resp, err = self.send_packet(0x6A, packet)
-        if err:
-            raise e.exception(err)
-        return int.from_bytes(resp[0x4:0x7], "little") / 1000
+        resp = self.send_cmd(0x04)
+        return int.from_bytes(resp[:0x03], "little") / 1000
 
 
-class sp3(device):
+class sp3(sp2):
     """Controls a Broadlink SP3."""
 
     TYPE = "SP3"
 
     def set_power(self, state: bool) -> None:
         """Set the power state of the device."""
-        packet = bytearray(16)
-        packet[0] = 2
-        if self.check_nightlight():
-            packet[4] = 3 if state else 2
-        else:
-            packet[4] = 1 if state else 0
-        err = self.send_packet(0x6A, packet)[1]
-        if err:
-            raise e.exception(err)
+        state = self.check_nightlight() << 1 | bool(state)
+        self.send_cmd(0x02, [state])
 
     def set_nightlight(self, state: bool) -> None:
         """Set the night light state of the device."""
-        packet = bytearray(16)
-        packet[0] = 2
-        if self.check_power():
-            packet[4] = 3 if state else 1
-        else:
-            packet[4] = 2 if state else 0
-        err = self.send_packet(0x6A, packet)[1]
-        if err:
-            raise e.exception(err)
+        state = bool(state) << 1 | self.check_power()
+        self.send_cmd(0x02, [state])
 
     def check_power(self) -> bool:
         """Return the power state of the device."""
-        packet = bytearray(16)
-        packet[0] = 1
-        resp, err = self.send_packet(0x6A, packet)
-        if err:
-            raise e.exception(err)
-        return bool(resp[0x4] == 1 or resp[0x4] == 3 or resp[0x4] == 0xFD)
+        resp = self.send_cmd(0x01)
+        return bool(resp[0] & 1)
 
     def check_nightlight(self) -> bool:
         """Return the state of the night light."""
-        packet = bytearray(16)
-        packet[0] = 1
-        resp, err = self.send_packet(0x6A, packet)
-        if err:
-            raise e.exception(err)
-        return bool(resp[0x4] == 2 or resp[0x4] == 3 or resp[0x4] == 0xFF)
+        resp = self.send_cmd(0x01)
+        return bool(resp[0] & 2)
 
 
 class sp3s(sp2):

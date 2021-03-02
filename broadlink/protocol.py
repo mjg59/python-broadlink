@@ -8,11 +8,11 @@ from . import exceptions as e
 
 
 class Datetime:
-    """Helps to pack and unpack datetime objects for the Broadlink protocol."""
+    """Helps to pack and unpack datetime objects."""
 
     @staticmethod
     def pack(datetime: dt.datetime) -> bytes:
-        """Pack the timestamp to be sent over the Broadlink protocol."""
+        """Pack a datetime object to be sent over the Broadlink protocol."""
         data = bytearray(12)
         utcoffset = int(datetime.utcoffset().total_seconds() / 3600)
         data[:0x04] = utcoffset.to_bytes(4, "little", signed=True)
@@ -27,7 +27,7 @@ class Datetime:
 
     @staticmethod
     def unpack(data: bytes) -> dt.datetime:
-        """Unpack a timestamp received over the Broadlink protocol."""
+        """Unpack a datetime object received over the Broadlink protocol."""
         utcoffset = int.from_bytes(data[0x00:0x04], "little", signed=True)
         year = int.from_bytes(data[0x04:0x06], "little")
         minute = data[0x06]

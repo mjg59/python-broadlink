@@ -1,7 +1,6 @@
 """Support for sensors."""
 import struct
 
-from . import exceptions as e
 from .device import device
 
 
@@ -28,20 +27,13 @@ class a1(device):
 
     def check_sensors_raw(self) -> dict:
         """Return the state of the sensors in raw format."""
-        packet = bytearray([0x1])
-        resp, err = self.send_packet(0x6A, packet)
-        if err:
-            raise e.exception(err)
-        data = resp[0x4:]
-
-        temperature = struct.unpack("<bb", data[:0x2])
-        temperature = temperature[0x0] + temperature[0x1] / 10.0
-        humidity = data[0x2] + data[0x3] / 10.0
+        resp = self.send_cmd(0x01)
+        temp = struct.unpack("<bb", resp[:0x02])
 
         return {
-            "temperature": temperature,
-            "humidity": humidity,
-            "light": data[0x4],
-            "air_quality": data[0x6],
-            "noise": data[0x8],
+            "temperature": temp[0x00] + temp[0x01] / 10.0,
+            "humidity": resp[0x02] + resp[0x03] / 10.0,
+            "light": resp[0x04],
+            "air_quality": resp[0x06],
+            "noise": resp[0x08],
         }

@@ -1,5 +1,4 @@
 """Support for alarm kits."""
-from . import exceptions as e
 from .device import device
 
 
@@ -16,14 +15,9 @@ class S1C(device):
 
     def get_sensors_status(self) -> dict:
         """Return the state of the sensors."""
-        packet = bytearray(16)
-        packet[0] = 0x06  # 0x06 - get sensors info, 0x07 - probably add sensors
-        resp, err = self.send_packet(0x6A, packet)
-        if err:
-            raise e.exception(err)
-
-        count = resp[0x4]
-        sensor_data = resp[0x6:]
+        resp = self.send_cmd(0x06)
+        count = resp[0x00]
+        sensor_data = resp[0x02:]
         sensors = [
             bytearray(sensor_data[i * 83 : (i + 1) * 83])
             for i in range(len(sensor_data) // 83)
