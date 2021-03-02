@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """The python-broadlink library."""
 import socket
+import time
 from typing import Generator, List, Tuple, Union
 
 from . import exceptions as e
+from . import protocol as p
 from .alarm import S1C
 from .climate import hysen
 from .cover import dooya
-from .device import device, ping, scan
-from .light import lb1
+from .device import device
 from .remote import rm, rm4, rm4mini, rm4pro, rmmini, rmminib, rmpro
 from .sensor import a1
 from .switch import bg1, mp1, sp1, sp2, sp2s, sp3, sp3s, sp4, sp4b
@@ -135,8 +136,22 @@ def gendevice(
     )
 
 
+def ping(address: str, port: int = 80) -> None:
+    """Send a ping packet to an address.
+
+    This packet feeds the watchdog timer of firmwares >= v53.
+    Useful to prevent reboots when the cloud cannot be reached.
+    It must be sent every 2 minutes in such cases.
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as conn:
+        conn.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        packet = bytearray(0x30)
+        packet[0x26] = 1
+        conn.sendto(packet, (address, port))
+
+
 def hello(
-    host: str,
+    address: str,
     port: int = 80,
     timeout: int = 10,
     local_ip_address: str = None,
@@ -146,7 +161,7 @@ def hello(
     Useful if the device is locked.
     """
     try:
-        return next(xdiscover(timeout, local_ip_address, host, port))
+        return next(xdiscover(timeout, local_ip_address, address, port))
     except StopIteration:
         raise e.NetworkTimeoutError(
             -4000,
@@ -162,8 +177,8 @@ def discover(
     discover_ip_port: int = 80,
 ) -> List[device]:
     """Discover devices connected to the local network."""
-    responses = scan(timeout, local_ip_address, discover_ip_address, discover_ip_port)
-    return [gendevice(*resp) for resp in responses]
+    dev_generator = xdiscover(timeout, local_ip_address, discover_ip_address, discover_ip_port)
+    return [*dev_generator]
 
 
 def xdiscover(
@@ -174,11 +189,55 @@ def xdiscover(
 ) -> Generator[device, None, None]:
     """Discover devices connected to the local network.
 
-    This function returns a generator that yields devices instantly.
+    This function generates devices instantly.
     """
-    responses = scan(timeout, local_ip_address, discover_ip_address, discover_ip_port)
-    for resp in responses:
-        yield gendevice(*resp)
+    conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    conn.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
+    if local_ip_address:
+        conn.bind((local_ip_address, 0))
+        port = conn.getsockname()[1]
+    else:
+        local_ip_address = "0.0.0.0"
+        port = 0
+
+    packet = bytearray(0x30)
+    packet[0x08:0x14] = p.Datetime.pack(p.Datetime.now())
+    packet[0x18:0x1C] = socket.inet_aton(local_ip_address)[::-1]
+    packet[0x1C:0x1E] = port.to_bytes(2, "little")
+    packet[0x26] = 6
+
+    checksum = sum(packet, 0xBEAF) & 0xFFFF
+    packet[0x20:0x22] = checksum.to_bytes(2, "little")
+
+    start_time = time.time()
+    discovered = []
+
+    try:
+        while (time.time() - start_time) < timeout:
+            time_left = timeout - (time.time() - start_time)
+            conn.settimeout(min(1, time_left))
+            conn.sendto(packet, (discover_ip_address, discover_ip_port))
+
+            while True:
+                try:
+                    resp, host = conn.recvfrom(1024)
+                except socket.timeout:
+                    break
+
+                devtype = resp[0x34] | resp[0x35] << 8
+                mac = resp[0x3A:0x40][::-1]
+
+                if (host, mac, devtype) in discovered:
+                    continue
+                discovered.append((host, mac, devtype))
+
+                name = resp[0x40:].split(b"\x00")[0].decode()
+                is_locked = bool(resp[-1])
+                yield gendevice(devtype, host, mac, name, is_locked)
+    finally:
+        conn.close()
 
 
 # Setup a new Broadlink device via AP Mode. Review the README to see how to enter AP Mode.
