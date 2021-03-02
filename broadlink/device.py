@@ -147,8 +147,7 @@ class device:
             payload[0x2D] = 0x01
             payload[0x30:0x36] = "Test 1".encode()
             resp, err = self.send_packet(0x65, payload)
-            if err:
-                raise e.exception(err)
+            e.check_error(err)
 
             conn_id = int.from_bytes(resp[:0x4], "little")
             key = resp[0x04:0x14]
@@ -165,8 +164,7 @@ class device:
         payload = command.to_bytes(4, "little") + data
         payload = self._bs_hdlr.pack(payload)
         resp, err = self.send_packet(0x6A, payload, retry_intvl=retry_intvl)
-        if err:
-            raise e.exception(err)
+        e.check_error(err)
         return self._bs_hdlr.unpack(resp)[0x4:]
 
     def set_name(self, name: str) -> None:
@@ -176,8 +174,7 @@ class device:
         packet[0x04:0x04+len(cname)] = cname
         packet[0x43] = bool(self.is_locked)
         err = self.send_packet(0x6A, packet)[1]
-        if err:
-            raise e.exception(err)
+        e.check_error(err)
         self.name = name
 
     def set_lock(self, state: bool) -> None:
@@ -187,8 +184,7 @@ class device:
         packet[0x04:0x04+len(name)] = name
         packet[0x43] = bool(state)
         err = self.send_packet(0x6A, packet)[1]
-        if err:
-            raise e.exception(err)
+        e.check_error(err)
         self.is_locked = bool(state)
 
     def get_fwversion(self) -> int:
@@ -196,8 +192,7 @@ class device:
         packet = bytearray(0x10)
         packet[0] = 0x68
         resp, err = self.send_packet(0x6A, packet)
-        if err:
-            raise e.exception(err)
+        e.check_error(err)
         return resp[0x04] | resp[0x05] << 8
 
     def get_type(self) -> str:

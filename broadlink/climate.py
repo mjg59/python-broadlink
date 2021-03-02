@@ -30,8 +30,7 @@ class hysen(device):
 
         # send to device
         resp, err = self.send_packet(0x6A, payload)
-        if err:
-            raise e.exception(err)
+        e.check_error(err)
 
         # experimental check on CRC in response (first 2 bytes are len, and trailing bytes are crc)
         resp_len = int.from_bytes(resp[:0x2], "little")

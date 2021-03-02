@@ -156,6 +156,5 @@ def exception(error_code):
 
 def check_error(error):
     """Raise exception if an error occurred."""
-    error_code = struct.unpack("h", error)[0]
-    if error_code:
-        raise exception(error_code)
+    if error:
+        raise exception(error)

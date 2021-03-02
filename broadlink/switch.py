@@ -153,8 +153,7 @@ class sp1(device):
         """Set the power state of the device."""
         packet = int(bool(state)).to_bytes(4, "little")
         err = self.send_packet(0x66, packet)[1]
-        if err:
-            raise e.exception(err)
+        e.check_error(err)
 
 
 class sp2(device):
@@ -219,8 +218,7 @@ class sp3s(sp2):
         """Return the power consumption in W."""
         packet = bytearray([8, 0, 254, 1, 5, 1, 0, 0, 0, 45])
         resp, err = self.send_packet(0x6A, packet)
-        if err:
-            raise e.exception(err)
+        e.check_error(err)
         energy = resp[0x7:0x4:-1].hex()
         return int(energy) / 100
 

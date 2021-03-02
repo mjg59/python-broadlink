@@ -20,8 +20,7 @@ class dooya(device):
         packet[9] = 0xFA
         packet[10] = 0x44
         resp, err = self.send_packet(0x6A, packet)
-        if err:
-            raise e.exception(err)
+        e.check_error(err)
         return resp[4]
 
     def open(self) -> int:
