@@ -12,7 +12,7 @@ class rmmini(device):
 
     def send_data(self, data: bytes) -> None:
         """Send a code to the device."""
-        self.send_cmd(0x02, data)
+        self.send_cmd(0x02, data, retry_intvl=5.0)
 
     def enter_learning(self) -> None:
         """Enter infrared learning mode."""

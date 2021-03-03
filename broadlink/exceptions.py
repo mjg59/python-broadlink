@@ -4,7 +4,7 @@ import struct
 
 
 class BroadlinkException(Exception):
-    """Common base class for all Broadlink exceptions."""
+    """Base class common to all Broadlink exceptions."""
 
     def __init__(self, *args, **kwargs):
         """Initialize the exception."""
@@ -57,7 +57,7 @@ class MultipleErrors(BroadlinkException):
 
 
 class FirmwareException(BroadlinkException):
-    """Common base class for all firmware exceptions."""
+    """Base class common to all firmware exceptions."""
 
 
 class AuthenticationError(FirmwareException):
@@ -105,7 +105,7 @@ class WriteError(FirmwareException):
 
 
 class SDKException(BroadlinkException):
-    """Common base class for all SDK exceptions."""
+    """Base class common to all SDK exceptions."""
 
 
 class DataValidationError(SDKException):
@@ -145,16 +145,16 @@ BROADLINK_EXCEPTIONS = {
 }
 
 
-def exception(error_code):
+def exception(err_code: int):
     """Return exception corresponding to an error code."""
     try:
-        exc, msg = BROADLINK_EXCEPTIONS[error_code]
-        return exc(error_code, msg)
+        exc, msg = BROADLINK_EXCEPTIONS[err_code]
+        return exc(err_code, msg)
     except KeyError:
-        return UnknownError(error_code, "Unknown error")
+        return UnknownError(err_code, "Unknown error")
 
 
-def check_error(error):
+def check_error(err_code: int):
     """Raise exception if an error occurred."""
-    if error:
-        raise exception(error)
+    if err_code:
+        raise exception(err_code)

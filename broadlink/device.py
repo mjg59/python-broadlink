@@ -157,10 +157,11 @@ class device:
     def send_cmd(
         self,
         command: int,
-        data: bytes = b"",
+        data: t.Sequence[int] = b"",
         retry_intvl: float = 1.0,
     ) -> bytes:
         """Send a command to the device."""
+        data = bytes(data)
         payload = command.to_bytes(4, "little") + data
         payload = self._bs_hdlr.pack(payload)
         resp, err = self.send_packet(0x6A, payload, retry_intvl=retry_intvl)
@@ -202,7 +203,7 @@ class device:
     def send_packet(
         self,
         info_type: int,
-        payload: bytes = b"",
+        payload: t.Sequence[int] = b"",
         retry_intvl: float = 1.0,
     ) -> t.Union[bytes, None]:
         """Send a packet to the device."""
