@@ -170,9 +170,9 @@ class device:
 
     def set_name(self, name: str) -> None:
         """Set device name."""
-        cname = name.encode()
+        name_b = name.encode()
         packet = bytearray(0x50)
-        packet[0x04:0x04+len(cname)] = cname
+        packet[0x04:0x04+len(name_b)] = name_b
         packet[0x43] = bool(self.is_locked)
         err = self.send_packet(0x6A, packet)[1]
         e.check_error(err)
@@ -180,13 +180,19 @@ class device:
 
     def set_lock(self, state: bool) -> None:
         """Lock/unlock the device."""
-        name = self.name.encode()
+        name_b = self.name.encode()
         packet = bytearray(0x50)
-        packet[0x04:0x04+len(name)] = name
+        packet[0x04:0x04+len(name_b)] = name_b
         packet[0x43] = bool(state)
         err = self.send_packet(0x6A, packet)[1]
         e.check_error(err)
         self.is_locked = bool(state)
+
+    def update(self) -> None:
+        """Update device name and lock status."""
+        resp = self.send_cmd(0x01)
+        self.name = resp[0x48:].split(b"\x00")[0].decode()
+        self.is_locked = bool(resp[0x87])
 
     def get_fwversion(self) -> int:
         """Get firmware version."""
