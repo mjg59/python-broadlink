@@ -56,6 +56,9 @@ class State:
                 f"Expected a payload of {p_len} bytes and received {len(packet[start:])}",
             )
 
-        if hasattr(payload, "decode"):
-            return flag, payload[0x01:] if len(payload) else b""
-        return flag, json.loads(payload)
+        if not payload:
+            return flag, b""
+        if payload.startswith(b'\x00'):
+            return flag, payload[0x01:]
+        else:
+            return flag, json.loads(payload)
