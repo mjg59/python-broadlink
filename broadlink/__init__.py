@@ -2,7 +2,7 @@
 """The python-broadlink library."""
 import socket
 import time
-from typing import Generator, List, Tuple, Union
+import typing as t
 
 from . import exceptions as e
 from . import protocol as p
@@ -10,6 +10,7 @@ from .alarm import S1C
 from .climate import hysen
 from .cover import dooya
 from .device import device
+from .light import lb1, lb27
 from .remote import rm, rm4, rm4mini, rm4pro, rmmini, rmminib, rmpro
 from .sensor import a1
 from .switch import bg1, mp1, sp1, sp2, sp2s, sp3, sp3s, sp4, sp4b
@@ -104,6 +105,7 @@ SUPPORTED_TYPES = {
     0x60C7: (lb1, "LB1", "Broadlink"),
     0x60C8: (lb1, "LB1", "Broadlink"),
     0x6112: (lb1, "LB1", "Broadlink"),
+    0xA4F4: (lb27, "LB27 R1", "Broadlink"),
     0x2722: (S1C, "S2KIT", "Broadlink"),
     0x4EAD: (hysen, "HY02B05H", "Hysen"),
     0x4E4D: (dooya, "DT360E-45/20", "Dooya"),
@@ -113,8 +115,8 @@ SUPPORTED_TYPES = {
 
 def gendevice(
     dev_type: int,
-    host: Tuple[str, int],
-    mac: Union[bytes, str],
+    host: t.Tuple[str, int],
+    mac: t.Union[bytes, str],
     name: str = None,
     is_locked: bool = None,
 ) -> device:
@@ -175,7 +177,7 @@ def discover(
     local_ip_address: str = None,
     discover_ip_address: str = "255.255.255.255",
     discover_ip_port: int = 80,
-) -> List[device]:
+) -> t.List[device]:
     """Discover devices connected to the local network."""
     dev_generator = xdiscover(timeout, local_ip_address, discover_ip_address, discover_ip_port)
     return [*dev_generator]
@@ -186,7 +188,7 @@ def xdiscover(
     local_ip_address: str = None,
     discover_ip_address: str = "255.255.255.255",
     discover_ip_port: int = 80,
-) -> Generator[device, None, None]:
+) -> t.Generator[device, None, None]:
     """Discover devices connected to the local network.
 
     This function generates devices instantly.

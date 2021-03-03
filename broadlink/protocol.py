@@ -1,3 +1,4 @@
+"""The protocol."""
 import datetime as dt
 import time
 
