@@ -1,8 +1,9 @@
 """Support for Broadlink devices."""
+import datetime as dt
 import logging
+import random
 import socket
 import threading
-import random
 import time
 import typing as t
 
@@ -98,7 +99,7 @@ class device:
         MAC address, model, manufacturer, name and lock status with the
         response.
         """
-        resp = self.send_packet(0x06)[0]
+        resp = self.send_packet(0x06, datetime=p.Datetime.now())[0]
         devtype = int.from_bytes(resp[0x04:0x06], "little")
         mac = resp[0x0A:0x10][::-1]
 
@@ -210,6 +211,8 @@ class device:
         self,
         info_type: int,
         payload: t.Sequence[int] = b"",
+        datetime: dt.datetime = None,
+        source: t.Tuple[str, int] = None,
         retry_intvl: float = 1.0,
     ) -> t.Union[bytes, None]:
         """Send a packet to the device."""
@@ -235,20 +238,19 @@ class device:
             packet[0x2A:0x30] = self.mac[::-1]
             packet.extend(self._enc_hdlr.pack(payload))
 
-        # Public request.
-        elif info_type >> 5 == 0 and not info_type % 2:
-            exp_resp_type = info_type + 1
-            packet[0x08:0x14] = p.Datetime.pack(p.Datetime.now())
-            # packet[0x18:0x1E] = Address.pack((local_ip_addr, port))
+        # Public packet.
+        elif info_type >> 5 == 0:
+            if not info_type % 2:  # Request.
+                exp_resp_type = info_type + 1
+            else:  # Response.
+                exp_resp_type = None
+
+            packet[0x08:0x14] = p.Datetime.pack(datetime)
+            packet[0x18:0x1E] = p.Address.pack(source)
             packet[0x26:0x28] = info_type.to_bytes(2, "little")
             packet.extend(payload)
 
-        # Ping response.
-        elif info_type == 1:
-            exp_resp_type = None
-            packet[0x26:0x28] = info_type.to_bytes(2, "little")
-
-        # Encrypted response / public response.
+        # Encrypted response.
         else:
             raise ValueError("Not supported")
 

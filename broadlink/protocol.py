@@ -1,6 +1,8 @@
 """The protocol."""
 import datetime as dt
+import socket
 import time
+import typing as t
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -12,9 +14,12 @@ class Datetime:
     """Helps to pack and unpack datetime objects."""
 
     @staticmethod
-    def pack(datetime: dt.datetime) -> bytes:
+    def pack(datetime: t.Union[dt.datetime, None]) -> bytes:
         """Pack a datetime object to be sent over the Broadlink protocol."""
         data = bytearray(12)
+        if datetime is None:
+            return data
+
         utcoffset = int(datetime.utcoffset().total_seconds() / 3600)
         data[:0x04] = utcoffset.to_bytes(4, "little", signed=True)
         data[0x04:0x06] = datetime.year.to_bytes(2, "little")
@@ -27,8 +32,11 @@ class Datetime:
         return data
 
     @staticmethod
-    def unpack(data: bytes) -> dt.datetime:
+    def unpack(data: bytes) -> t.Union[dt.datetime, None]:
         """Unpack a datetime object received over the Broadlink protocol."""
+        if not any(data):
+            return None
+
         utcoffset = int.from_bytes(data[0x00:0x04], "little", signed=True)
         year = int.from_bytes(data[0x04:0x06], "little")
         minute = data[0x06]
@@ -55,6 +63,31 @@ class Datetime:
         return dt.datetime.now(tz_info)
 
 
+class Address:
+    """Helper functions to pack and unpack addresses."""
+
+    @staticmethod
+    def pack(address: t.Union[t.Tuple[str, int], None]) -> bytes:
+        """Pack an address to be sent over the Broadlink protocol."""
+        data = bytearray(6)
+        if address is None:
+            return data
+
+        data[:0x04] = socket.inet_aton(address[0])[::-1]
+        data[0x04:0x06] = address[1].to_bytes(2, "little")
+        return data
+
+    @staticmethod
+    def unpack(data: bytes) -> t.Union[t.Tuple[str, int], None]:
+        """Unpack an address received over the Broadlink protocol."""
+        if not any(data):
+            return None
+
+        ip_addr=socket.inet_ntoa(data[:0x04][::-1])
+        port=int.from_bytes(data[0x04:0x06], "little")
+        return (ip_addr, port)
+
+
 class BlockSizeHandler:
     """Helps to pack and unpack messages for encryption.
 
@@ -68,9 +101,9 @@ class BlockSizeHandler:
         return payload + padding
 
     @staticmethod
-    def unpack(payload: bytes) -> bytes:
+    def unpack(data: bytes) -> bytes:
         """Unpad a message after decryption."""
-        return payload
+        return data
 
 
 class ExtBlockSizeHandler:
@@ -89,17 +122,17 @@ class ExtBlockSizeHandler:
         return payload + padding
 
     @staticmethod
-    def unpack(payload: bytes) -> bytes:
+    def unpack(data: bytes) -> bytes:
         """Unpad a message after decryption."""
-        p_len = int.from_bytes(payload[:0x02], "little")
+        p_len = int.from_bytes(data[:0x02], "little")
 
         try:
-            return payload[0x02:p_len+0x02]
+            return data[0x02:p_len+0x02]
         except IndexError:
             raise e.DataValidationError(
                 -4010,
                 "Received encrypted data packet length error",
-                f"Expected {p_len} bytes and received {len(payload[0x2:])}",
+                f"Expected {p_len} bytes and received {len(data[0x2:])}",
             )
 
 
@@ -128,18 +161,18 @@ class EncryptionHandler:
         packet.extend(payload)
         return bytes(packet)
 
-    def unpack(self, packet: bytes, checksum: int = None) -> bytes:
+    def unpack(self, data: bytes, checksum: int = None) -> bytes:
         """Unpack an encrypted message received over the Broadlink protocol."""
-        if len(packet) < 0x08:
+        if len(data) < 0x08:
             raise e.DataValidationError(
                 -4010,
                 "Received encrypted data packet length error",
-                f"Expected at least 8 bytes and received {len(packet)}",
+                f"Expected at least 8 bytes and received {len(data)}",
             )
 
-        conn_id = int.from_bytes(packet[:0x04], "little")
-        nom_checksum = int.from_bytes(packet[0x04:0x06], "little")
-        payload = packet[0x08:]
+        conn_id = int.from_bytes(data[:0x04], "little")
+        nom_checksum = int.from_bytes(data[0x04:0x06], "little")
+        payload = data[0x08:]
 
         if self.id and self.id != conn_id:
             raise e.AuthorizationError(

@@ -200,14 +200,13 @@ def xdiscover(
     if local_ip_address:
         conn.bind((local_ip_address, 0))
         port = conn.getsockname()[1]
+        source = (local_ip_address, port)
     else:
-        local_ip_address = "0.0.0.0"
-        port = 0
+        source = None
 
     packet = bytearray(0x30)
     packet[0x08:0x14] = p.Datetime.pack(p.Datetime.now())
-    packet[0x18:0x1C] = socket.inet_aton(local_ip_address)[::-1]
-    packet[0x1C:0x1E] = port.to_bytes(2, "little")
+    packet[0x18:0x1E] = p.Address.pack(source)
     packet[0x26] = 6
 
     checksum = sum(packet, 0xBEAF) & 0xFFFF
