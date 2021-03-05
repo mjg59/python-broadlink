@@ -25,7 +25,7 @@ class Datetime:
         data[0x04:0x06] = datetime.year.to_bytes(2, "little")
         data[0x06] = datetime.minute
         data[0x07] = datetime.hour
-        data[0x08] = int(datetime.strftime('%y'))
+        data[0x08] = int(datetime.strftime("%y"))
         data[0x09] = datetime.isoweekday()
         data[0x0A] = datetime.day
         data[0x0B] = datetime.month
@@ -51,7 +51,7 @@ class Datetime:
 
         if datetime.isoweekday() != isoweekday:
             raise ValueError("isoweekday does not match")
-        if int(datetime.strftime('%y')) != subyear:
+        if int(datetime.strftime("%y")) != subyear:
             raise ValueError("subyear does not match")
 
         return datetime
@@ -83,8 +83,8 @@ class Address:
         if not any(data):
             return None
 
-        ip_addr=socket.inet_ntoa(data[:0x04][::-1])
-        port=int.from_bytes(data[0x04:0x06], "little")
+        ip_addr = socket.inet_ntoa(data[:0x04][::-1])
+        port = int.from_bytes(data[0x04:0x06], "little")
         return (ip_addr, port)
 
 
@@ -110,8 +110,8 @@ class ExtBlockSizeHandler:
     """Helps to pack and unpack messages for encryption.
 
     The block size must be a multiple of 16 and the message must be
-    preceded by its length when packing and sliced accordingly when
-    unpacking.
+    prefixed to its length before encryption and sliced accordingly after
+    decryption.
     """
 
     @staticmethod
@@ -127,13 +127,13 @@ class ExtBlockSizeHandler:
         p_len = int.from_bytes(data[:0x02], "little")
 
         try:
-            return data[0x02:p_len+0x02]
-        except IndexError:
+            return data[0x02 : p_len + 0x02]
+        except IndexError as err:
             raise e.DataValidationError(
                 -4010,
                 "Received encrypted data packet length error",
                 f"Expected {p_len} bytes and received {len(data[0x2:])}",
-            )
+            ) from err
 
 
 class EncryptionHandler:
@@ -161,7 +161,7 @@ class EncryptionHandler:
         packet.extend(payload)
         return bytes(packet)
 
-    def unpack(self, data: bytes, checksum: int = None) -> bytes:
+    def unpack(self, data: bytes) -> bytes:
         """Unpack an encrypted message received over the Broadlink protocol."""
         if len(data) < 0x08:
             raise e.DataValidationError(

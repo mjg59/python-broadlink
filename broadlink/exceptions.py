@@ -1,6 +1,5 @@
 """Exceptions for Broadlink devices."""
 import collections
-import struct
 
 
 class BroadlinkException(Exception):
@@ -42,14 +41,12 @@ class MultipleErrors(BroadlinkException):
         errors = args[0][:] if args else []
         counter = collections.Counter(errors)
         strerror = "Multiple errors occurred: %s" % counter
-        Exception.__init__(self, strerror, **kwargs)
+        super().__init__(strerror, **kwargs)
         self.errors = errors
-        self.strerror = strerror
-        self.errno = None
 
     def __repr__(self):
         """Return repr(self)."""
-        return 'MultipleErrors(%r)' % self.errors
+        return "MultipleErrors(%r)" % self.errors
 
     def __str__(self):
         """Return str(self)."""
@@ -145,7 +142,7 @@ BROADLINK_EXCEPTIONS = {
 }
 
 
-def exception(err_code: int):
+def exception(err_code: int) -> BroadlinkException:
     """Return exception corresponding to an error code."""
     try:
         exc, msg = BROADLINK_EXCEPTIONS[err_code]
@@ -154,7 +151,7 @@ def exception(err_code: int):
         return UnknownError(err_code, "Unknown error")
 
 
-def check_error(err_code: int):
+def check_error(err_code: int) -> None:
     """Raise exception if an error occurred."""
     if err_code:
         raise exception(err_code)

@@ -9,7 +9,7 @@ def calculate_crc16(input_data: bytes) -> int:
 
     for i in range(0, 256):
         crc = c_ushort(i).value
-        for j in range(0, 8):
+        for _ in range(0, 8):
             if crc & 0x0001:
                 crc = c_ushort(crc >> 1).value ^ crc16_constant
             else:

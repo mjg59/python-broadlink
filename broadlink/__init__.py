@@ -4,14 +4,14 @@ import socket
 import time
 import typing as t
 
-from . import exceptions as e
-from . import protocol as p
 from .alarm import S1C
 from .climate import hysen
 from .cover import dooya
 from .device import device
+from .exceptions import NetworkTimeoutError
 from .light import lb1, lb27
 from .remote import rm, rm4, rm4mini, rm4pro, rmmini, rmminib, rmpro
+from .protocol import Address, Datetime
 from .sensor import a1
 from .switch import bg1, mp1, sp1, sp2, sp2s, sp3, sp3s, sp4, sp4b
 
@@ -164,12 +164,12 @@ def hello(
     """
     try:
         return next(xdiscover(timeout, local_ip_address, address, port))
-    except StopIteration:
-        raise e.NetworkTimeoutError(
+    except StopIteration as err:
+        raise NetworkTimeoutError(
             -4000,
             "Network timeout",
             f"No response received within {timeout}s",
-        )
+        ) from err
 
 
 def discover(
@@ -179,7 +179,9 @@ def discover(
     discover_ip_port: int = 80,
 ) -> t.List[device]:
     """Discover devices connected to the local network."""
-    dev_generator = xdiscover(timeout, local_ip_address, discover_ip_address, discover_ip_port)
+    dev_generator = xdiscover(
+        timeout, local_ip_address, discover_ip_address, discover_ip_port
+    )
     return [*dev_generator]
 
 
@@ -205,8 +207,8 @@ def xdiscover(
         source = None
 
     packet = bytearray(0x30)
-    packet[0x08:0x14] = p.Datetime.pack(p.Datetime.now())
-    packet[0x18:0x1E] = p.Address.pack(source)
+    packet[0x08:0x14] = Datetime.pack(Datetime.now())
+    packet[0x18:0x1E] = Address.pack(source)
     packet[0x26] = 6
 
     checksum = sum(packet, 0xBEAF) & 0xFFFF

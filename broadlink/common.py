@@ -23,7 +23,7 @@ class State:
         else:
             obj = json.dumps(obj, separators=(",", ":")).encode()
 
-        packet = bytearray(eoh-3) if eoh else bytearray(6)
+        packet = bytearray(eoh - 3) if eoh else bytearray(6)
         packet[0x02] = flag
         packet[0x03] = eoh
         packet[0x04:0x06] = len(obj).to_bytes(2, "little")
@@ -48,17 +48,16 @@ class State:
         eoh = packet[0x03] or 0x09
         p_len = int.from_bytes(packet[0x04:0x06], "little")
 
-        start = eoh-3
+        start = eoh - 3
         try:
-            payload = packet[start:start+p_len]
-        except IndexError:
+            payload = packet[start : start + p_len]
+        except IndexError as err:
             raise e.DataValidationError(
                 f"Expected a payload of {p_len} bytes and received {len(packet[start:])}",
-            )
+            ) from err
 
         if not payload:
             return flag, b""
-        if payload.startswith(b'\x00'):
+        if payload.startswith(b"\x00"):
             return flag, payload[0x01:]
-        else:
-            return flag, json.loads(payload)
+        return flag, json.loads(payload)

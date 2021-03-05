@@ -1,5 +1,5 @@
 """Support for climate control."""
-from typing import List
+import typing as t
 
 from . import exceptions as e
 from .device import device
@@ -39,9 +39,7 @@ class hysen(device):
                 "hysen_response_error", "first byte of response is not length"
             )
         crc = calculate_crc16(resp[2:resp_len])
-        if (resp[resp_len] == crc & 0xFF) and (
-            resp[resp_len + 1] == (crc >> 8) & 0xFF
-        ):
+        if (resp[resp_len] == crc & 0xFF) and (resp[resp_len + 1] == (crc >> 8) & 0xFF):
             return resp[2:resp_len]
         raise ValueError("hysen_response_error", "CRC check on response failed")
 
@@ -208,7 +206,7 @@ class hysen(device):
     # {'start_hour':17, 'start_minute':30, 'temp': 22 }
     # Each one specifies the thermostat temp that will become effective at start_hour:start_minute
     # weekend is similar but only has 2 (e.g. switch on in morning and off in afternoon)
-    def set_schedule(self, weekday: List[dict], weekend: List[dict]) -> None:
+    def set_schedule(self, weekday: t.List[dict], weekend: t.List[dict]) -> None:
         """Set timer schedule."""
         # Begin with some magic values ...
         input_payload = bytearray([0x01, 0x10, 0x00, 0x0A, 0x00, 0x0C, 0x18])

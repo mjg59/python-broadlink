@@ -173,7 +173,7 @@ class device:
         """Set device name."""
         name_b = name.encode()
         packet = bytearray(0x50)
-        packet[0x04:0x04+len(name_b)] = name_b
+        packet[0x04 : 0x04 + len(name_b)] = name_b
         packet[0x43] = bool(self.is_locked)
         err = self.send_packet(0x6A, packet)[1]
         e.check_error(err)
@@ -183,7 +183,7 @@ class device:
         """Lock/unlock the device."""
         name_b = self.name.encode()
         packet = bytearray(0x50)
-        packet[0x04:0x04+len(name_b)] = name_b
+        packet[0x04 : 0x04 + len(name_b)] = name_b
         packet[0x43] = bool(state)
         err = self.send_packet(0x6A, packet)[1]
         e.check_error(err)
@@ -287,7 +287,7 @@ class device:
                 _LOGGER.debug("%s sent to %s", packet, self.host)
 
                 if exp_resp_type is None:
-                    return
+                    return None
 
                 try:
                     resp, src = conn.recvfrom(2048)
@@ -353,8 +353,17 @@ class device:
                 return r_payload, err_code
 
 
-class v4(type):
-    """Metaclass to build V4 classes."""
+class V4Meta(type):
+    """Helps to build V4 classes.
+
+    Some devices handle the block size differently. The payload must be
+    prefixed to its length before encryption and sliced accordingly after
+    decryption.
+
+    This metaclass injects an extended block size handler into the class
+    to abstract this complexity, making it easier to adapt old classes to
+    support this functionality.
+    """
 
     def __new__(cls, name, bases, dct):
         """Create a new device."""

@@ -1,13 +1,10 @@
 """Support for switches."""
-import json
-import struct
-
 from . import exceptions as e
 from .common import State
-from .device import device, v4
+from .device import device, V4Meta
 
 
-class mp1(device, metaclass=v4):
+class mp1(device, metaclass=V4Meta):
     """Controls a Broadlink MP1."""
 
     TYPE = "MP1"
@@ -40,7 +37,7 @@ class mp1(device, metaclass=v4):
         }
 
 
-class bg1(device, metaclass=v4):
+class bg1(device, metaclass=V4Meta):
     """Controls a BG Electrical smart outlet."""
 
     TYPE = "BG1"
@@ -221,7 +218,7 @@ class sp4(device):
         return State.unpack(resp)[1]
 
 
-class sp4b(sp4, metaclass=v4):
+class sp4b(sp4, metaclass=V4Meta):
     """Controls a Broadlink SP4 (type B)."""
 
     TYPE = "SP4B"

@@ -1,8 +1,7 @@
 """Support for universal remotes."""
 import struct
 
-from . import exceptions as e
-from .device import device, v4
+from .device import device, V4Meta
 
 
 class rmmini(device):
@@ -56,7 +55,7 @@ class rmpro(rmmini):
         return self.check_sensors()["temperature"]
 
 
-class rmminib(rmmini, metaclass=v4):
+class rmminib(rmmini, metaclass=V4Meta):
     """Controls a Broadlink RM mini 3 (new firmware)."""
 
     TYPE = "RMMINIB"
@@ -64,7 +63,7 @@ class rmminib(rmmini, metaclass=v4):
 
 class rm4mini(rmminib):
     """Controls a Broadlink RM4 mini."""
-    
+
     TYPE = "RM4MINI"
 
     def check_sensors(self) -> dict:
@@ -73,7 +72,7 @@ class rm4mini(rmminib):
         temp = struct.unpack("<bb", resp[:0x02])
         return {
             "temperature": temp[0x00] + temp[0x01] / 100.0,
-            "humidity": resp[0x02] + resp[0x03] / 100.0
+            "humidity": resp[0x02] + resp[0x03] / 100.0,
         }
 
     def check_temperature(self) -> float:

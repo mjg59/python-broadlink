@@ -1,12 +1,8 @@
 """Support for lights."""
 import enum
-import json
-import struct
-import typing
 
-from . import exceptions as e
 from .common import State
-from .device import device, v4
+from .device import device, V4Meta
 
 
 class lb27(device):
@@ -84,7 +80,7 @@ class lb27(device):
         return State.unpack(resp)[1]
 
 
-class lb1(lb27, metaclass=v4):
+class lb1(lb27, metaclass=V4Meta):
     """Controls a Broadlink LB1."""
 
     TYPE = "LB1"
