@@ -1,5 +1,4 @@
 """Support for Broadlink devices."""
-import datetime as dt
 import logging
 import random
 import socket
@@ -7,8 +6,7 @@ import threading
 import time
 import typing as t
 
-from . import exceptions as e
-from . import protocol as p
+from . import exceptions as e, protocol as p
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,7 +41,7 @@ class device:
         self.is_locked = is_locked
         self.type = self.TYPE  # For backwards compatibility.
 
-        self._count = random.randint(0x8000, 0xFFFF)
+        self._pkt_no = random.randint(0x8000, 0xFFFF)
         self._bs_hdlr = self.BlockSizeHandler()
         self._enc_hdlr = self.EncryptionHandler()
         self._lock = threading.Lock()
@@ -99,7 +97,7 @@ class device:
         MAC address, model, manufacturer, name and lock status with the
         response.
         """
-        resp = self.send_packet(0x06, datetime=p.Datetime.now())[0]
+        resp = self.send_packet(0x06)[0]
         devtype = int.from_bytes(resp[0x04:0x06], "little")
         mac = resp[0x0A:0x10][::-1]
 
@@ -201,7 +199,7 @@ class device:
         packet[0] = 0x68
         resp, err = self.send_packet(0x6A, packet)
         e.check_error(err)
-        return resp[0x04] | resp[0x05] << 8
+        return int.from_bytes(resp[0x04:0x06], "little")
 
     def get_type(self) -> str:
         """Return device type."""
@@ -211,8 +209,6 @@ class device:
         self,
         info_type: int,
         payload: t.Sequence[int] = b"",
-        datetime: dt.datetime = None,
-        source: t.Tuple[str, int] = None,
         retry_intvl: float = 1.0,
     ) -> t.Union[bytes, None]:
         """Send a packet to the device."""
@@ -227,14 +223,13 @@ class device:
             if info_type != 0x65 and not self._enc_hdlr.id:
                 self.auth()
 
-            self._count = count = ((self._count + 1) | 0x8000) & 0xFFFF
-            conn_id = bytes([0x5A, 0xA5, 0xAA, 0x55, 0x5A, 0xA5, 0xAA, 0x55])
+            self._pkt_no = exp_pkt_no = ((self._pkt_no + 1) | 0x8000) & 0xFFFF
             exp_resp_type = info_type + 900
 
-            packet[0x00:0x08] = conn_id
+            packet[0x00:0x08] = [0x5A, 0xA5, 0xAA, 0x55, 0x5A, 0xA5, 0xAA, 0x55]
             packet[0x24:0x26] = self.devtype.to_bytes(2, "little")
             packet[0x26:0x28] = info_type.to_bytes(2, "little")
-            packet[0x28:0x2A] = self._count.to_bytes(2, "little")
+            packet[0x28:0x2A] = self._pkt_no.to_bytes(2, "little")
             packet[0x2A:0x30] = self.mac[::-1]
             packet.extend(self._enc_hdlr.pack(payload))
 
@@ -242,11 +237,10 @@ class device:
         elif info_type >> 5 == 0:
             if not info_type % 2:  # Request.
                 exp_resp_type = info_type + 1
+                exp_pkt_no = 0
             else:  # Response.
                 exp_resp_type = None
 
-            packet[0x08:0x14] = p.Datetime.pack(datetime)
-            packet[0x18:0x1E] = p.Address.pack(source)
             packet[0x26:0x28] = info_type.to_bytes(2, "little")
             packet.extend(payload)
 
@@ -267,7 +261,6 @@ class device:
             while True:
                 if should_wait:
                     time.sleep(retry_intvl)
-                    should_wait = False
 
                 time_left = timeout - (time.time() - start_time)
                 if time_left < 0:
@@ -281,76 +274,73 @@ class device:
                         raise errors[0]
                     raise e.MultipleErrors(errors)
 
-                conn.settimeout(min(retry_intvl, time_left))
                 conn.sendto(packet, self.host)
-
                 _LOGGER.debug("%s sent to %s", packet, self.host)
 
                 if exp_resp_type is None:
                     return None
 
+                conn.settimeout(min(retry_intvl, time_left))
                 try:
-                    resp, src = conn.recvfrom(2048)
-                except socket.timeout as err:
+                    return self._recv(conn, exp_resp_type, exp_pkt_no)
+
+                except socket.timeout:
+                    should_wait = False
                     continue
 
-                _LOGGER.debug("%s received from %s", resp, src)
-                should_wait = True
-
-                if len(resp) < 0x30:
-                    err = e.DataValidationError(
-                        -4007,
-                        "Received data packet length error",
-                        f"Expected at least 48 bytes and received {len(resp)}",
-                    )
-                    _LOGGER.debug(err)
-                    errors.append(err)
-                    continue
-
-                nom_checksum = int.from_bytes(resp[0x20:0x22], "little")
-                real_checksum = sum(resp, 0xBEAF) - sum(resp[0x20:0x22]) & 0xFFFF
-
-                if nom_checksum != real_checksum:
-                    err = e.DataValidationError(
-                        -4008,
-                        "Received data packet check error",
-                        f"Expected a checksum of {nom_checksum} and received {real_checksum}",
-                    )
-                    _LOGGER.debug(err)
-                    errors.append(err)
-                    continue
-
-                err_code = int.from_bytes(resp[0x22:0x24], "little", signed=True)
-                resp_type = int.from_bytes(resp[0x26:0x28], "little")
-
-                if resp_type != exp_resp_type:
-                    err = e.DataValidationError(
-                        -4009,
-                        "Received data packet information type error",
-                        f"Expected {exp_resp_type} and received {resp_type}",
-                    )
-                    _LOGGER.debug(err)
-                    errors.append(err)
-                    continue
-
-                if not any(resp[:0x08]):
-                    return resp[0x30:], err_code
-
-                if resp[:0x08] != conn_id:
-                    continue
-
-                if int.from_bytes(resp[0x28:0x2A], "little") != count:
-                    continue
-
-                try:
-                    r_payload = self._enc_hdlr.unpack(resp[0x30:])
                 except e.AuthorizationError:
                     raise
+
                 except e.BroadlinkException as err:
                     _LOGGER.debug(err)
                     errors.append(err)
+                    should_wait = True
                     continue
-                return r_payload, err_code
+
+    def _recv(self, conn, exp_resp_type, exp_pkt_no):
+        """Receive a packet from the device."""
+        resp, src = conn.recvfrom(2048)
+        _LOGGER.debug("%s received from %s", resp, src)
+
+        if len(resp) < 0x30:
+            raise e.DataValidationError(
+                -4007,
+                "Received data packet length error",
+                f"Expected at least 48 bytes and received {len(resp)}",
+            )
+
+        nom_checksum = int.from_bytes(resp[0x20:0x22], "little")
+        real_checksum = sum(resp, 0xBEAF) - sum(resp[0x20:0x22]) & 0xFFFF
+
+        if nom_checksum != real_checksum:
+            raise e.DataValidationError(
+                -4008,
+                "Received data packet check error",
+                f"Expected a checksum of {nom_checksum} and received {real_checksum}",
+            )
+
+        err_code = int.from_bytes(resp[0x22:0x24], "little", signed=True)
+        resp_type = int.from_bytes(resp[0x26:0x28], "little")
+
+        if resp_type != exp_resp_type:
+            raise e.DataValidationError(
+                -4009,
+                "Received data packet information type error",
+                f"Expected {exp_resp_type} and received {resp_type}",
+            )
+
+        if not any(resp[:0x08]):
+            return resp[0x30:], err_code
+
+        conn_id = resp[:0x08]
+        if conn_id != bytes([0x5A, 0xA5, 0xAA, 0x55, 0x5A, 0xA5, 0xAA, 0x55]):
+            raise e.DataValidationError(f"Invalid connection ID: {conn_id}")
+
+        pkt_no = int.from_bytes(resp[0x28:0x2A], "little")
+        if pkt_no != exp_pkt_no:
+            raise e.DataValidationError(f"Invalid packet number: {exp_pkt_no}")
+
+        return self._enc_hdlr.unpack(resp[0x30:]), err_code
 
 
 class V4Meta(type):

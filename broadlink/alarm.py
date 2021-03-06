@@ -22,7 +22,6 @@ class S1C(device):
             bytearray(sensor_data[i * 83 : (i + 1) * 83])
             for i in range(len(sensor_data) // 83)
         ]
-
         return {
             "count": count,
             "sensors": [
