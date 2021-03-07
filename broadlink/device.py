@@ -7,7 +7,8 @@ import threading
 import time
 import typing as t
 
-from . import exceptions as e, protocol as p
+from . import exceptions as e
+from . import protocol as p
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -23,8 +24,8 @@ class BroadlinkDevice(abc.ABC):
     def __init__(
         self,
         host: t.Tuple[str, int],
-        mac: t.Union[bytes, str] = None,
-        devtype: int = None,
+        mac: t.Union[bytes, str],
+        devtype: int,
         timeout: int = 10,
         name: str = None,
         model: str = None,
@@ -87,10 +88,6 @@ class BroadlinkDevice(abc.ABC):
         """Send a Ping Response packet to the device."""
 
     @abc.abstractmethod
-    def hello(self) -> None:
-        """Send a Client Hello packet to the device."""
-
-    @abc.abstractmethod
     def auth(self) -> bool:
         """Send a Client Key Exchange packet to the device."""
 
@@ -131,12 +128,6 @@ class BroadlinkDevice(abc.ABC):
 
         # Encrypted request.
         if info_type >> 5 == 3:
-            if self.mac is None or self.devtype is None:
-                self.hello()
-
-            if info_type != 0x65 and not self._enc_hdlr.id:
-                self.auth()
-
             self._pkt_no = exp_pkt_no = ((self._pkt_no + 1) | 0x8000) & 0xFFFF
             exp_resp_type = info_type + 900
 
@@ -270,43 +261,6 @@ class device(BroadlinkDevice):
     def ping(self) -> None:
         """Send a Ping Response packet to the device."""
         self.send_packet(0x01)
-
-    def hello(self) -> None:
-        """Send a Client Hello packet to the device."""
-        resp = self.send_packet(0x06)[0]
-        devtype = int.from_bytes(resp[0x04:0x06], "little")
-        mac = resp[0x0A:0x10][::-1]
-
-        if self.mac is None:
-            self.mac = mac
-        elif self.mac != mac:
-            raise e.DataValidationError(
-                -2040,
-                "Device information is not intact",
-                "Invalid MAC address",
-                f"Expected {self.mac} and received {mac}",
-            )
-
-        if self.devtype is None:
-            self.devtype = devtype
-        elif self.devtype != devtype:
-            raise e.DataValidationError(
-                -2040,
-                "Device information is not intact",
-                "Invalid product ID",
-                f"Expected {self.devtype} and received {devtype}",
-            )
-
-        if self.model is None or self.manufacturer is None:
-            from . import SUPPORTED_TYPES
-
-            try:
-                self.model, self.manufacturer = SUPPORTED_TYPES[devtype][1:3]
-            except KeyError:
-                pass
-
-        self.name = resp[0x10:].split(b"\x00")[0].decode()
-        self.is_locked = bool(resp[-1])
 
     def auth(self) -> bool:
         """Send a Client Key Exchange packet to the device."""

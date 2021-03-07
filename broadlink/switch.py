@@ -1,10 +1,10 @@
 """Support for switches."""
+from . import device
 from . import exceptions as e
 from .common import State
-from .device import device, V4Meta
 
 
-class mp1(device, metaclass=V4Meta):
+class mp1(device.device, metaclass=device.V4Meta):
     """Controls a Broadlink MP1."""
 
     TYPE = "MP1"
@@ -37,7 +37,7 @@ class mp1(device, metaclass=V4Meta):
         }
 
 
-class bg1(device, metaclass=V4Meta):
+class bg1(device.device, metaclass=device.V4Meta):
     """Controls a BG Electrical smart outlet."""
 
     TYPE = "BG1"
@@ -83,7 +83,7 @@ class bg1(device, metaclass=V4Meta):
         return State.unpack(resp)[1]
 
 
-class sp1(device):
+class sp1(device.device):
     """Controls a Broadlink SP1."""
 
     TYPE = "SP1"
@@ -95,7 +95,7 @@ class sp1(device):
         e.check_error(err)
 
 
-class sp2(device):
+class sp2(device.device):
     """Controls a Broadlink SP2."""
 
     TYPE = "SP2"
@@ -160,7 +160,7 @@ class sp3s(sp2):
         return int(energy) / 100
 
 
-class sp4(device):
+class sp4(device.device):
     """Controls a Broadlink SP4."""
 
     TYPE = "SP4"
@@ -218,7 +218,7 @@ class sp4(device):
         return State.unpack(resp)[1]
 
 
-class sp4b(sp4, metaclass=V4Meta):
+class sp4b(sp4, metaclass=device.V4Meta):
     """Controls a Broadlink SP4 (type B)."""
 
     TYPE = "SP4B"

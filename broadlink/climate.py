@@ -1,12 +1,12 @@
 """Support for climate control."""
 import typing as t
 
+from . import device
 from . import exceptions as e
-from .device import device
 from .helpers import calculate_crc16
 
 
-class hysen(device):
+class hysen(device.device):
     """Controls a Hysen HVAC."""
 
     TYPE = "Hysen heating controller"

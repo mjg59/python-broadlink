@@ -1,6 +1,6 @@
 """Common functions and classes."""
-import typing as t
 import json
+import typing as t
 
 from . import exceptions as e
 

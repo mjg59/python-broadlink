@@ -1,8 +1,8 @@
 """Support for alarm kits."""
-from .device import device
+from . import device
 
 
-class S1C(device):
+class S1C(device.device):
     """Controls a Broadlink S1C."""
 
     TYPE = "S1C"

@@ -1,11 +1,11 @@
 """Support for lights."""
 import enum
 
+from . import device
 from .common import State
-from .device import device, V4Meta
 
 
-class lb27(device):
+class lb27(device.device):
     """Controls a Broadlink LB27."""
 
     TYPE = "LB27"
@@ -80,7 +80,7 @@ class lb27(device):
         return State.unpack(resp)[1]
 
 
-class lb1(lb27, metaclass=V4Meta):
+class lb1(lb27, metaclass=device.V4Meta):
     """Controls a Broadlink LB1."""
 
     TYPE = "LB1"
