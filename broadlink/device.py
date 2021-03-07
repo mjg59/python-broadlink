@@ -1,4 +1,5 @@
 """Support for Broadlink devices."""
+import abc
 import logging
 import random
 import socket
@@ -11,10 +12,10 @@ from . import exceptions as e, protocol as p
 _LOGGER = logging.getLogger(__name__)
 
 
-class device:
-    """Controls a Broadlink device."""
+class BroadlinkDevice(abc.ABC):
+    """Base class common to all a Broadlink devices."""
 
-    TYPE = "Unknown"
+    TYPE = "BROADLINKDEVICE"
 
     BlockSizeHandler = p.BlockSizeHandler
     EncryptionHandler = p.EncryptionHandler
@@ -30,7 +31,7 @@ class device:
         manufacturer: str = None,
         is_locked: bool = None,
     ) -> None:
-        """Initialize the controller."""
+        """Initialize the device."""
         self.host = host
         self.mac = bytes.fromhex(mac) if isinstance(mac, str) else mac
         self.devtype = devtype
@@ -81,129 +82,42 @@ class device:
         info = " / ".join(info)
         return "%s (%s)" % (self.name or "Unknown", info)
 
+    @abc.abstractmethod
     def ping(self) -> None:
-        """Send a Ping Response packet to the device.
+        """Send a Ping Response packet to the device."""
 
-        This packet feeds the watchdog timer of firmwares >= v53.
-        Useful to prevent reboots when the cloud cannot be reached.
-        It must be sent every 2 minutes in such cases.
-        """
-        self.send_packet(0x01)
-
+    @abc.abstractmethod
     def hello(self) -> None:
-        """Start communicating with the device.
+        """Send a Client Hello packet to the device."""
 
-        Send a Client Hello packet to the device and update product ID,
-        MAC address, model, manufacturer, name and lock status with the
-        response.
-        """
-        resp = self.send_packet(0x06)[0]
-        devtype = int.from_bytes(resp[0x04:0x06], "little")
-        mac = resp[0x0A:0x10][::-1]
-
-        if self.mac is None:
-            self.mac = mac
-        elif self.mac != mac:
-            raise e.DataValidationError(
-                -2040,
-                "Device information is not intact",
-                "Invalid MAC address",
-                f"Expected {self.mac} and received {mac}",
-            )
-
-        if self.devtype is None:
-            self.devtype = devtype
-        elif self.devtype != devtype:
-            raise e.DataValidationError(
-                -2040,
-                "Device information is not intact",
-                "Invalid product ID",
-                f"Expected {self.devtype} and received {devtype}",
-            )
-
-        if self.model is None or self.manufacturer is None:
-            from . import SUPPORTED_TYPES
-
-            try:
-                self.model, self.manufacturer = SUPPORTED_TYPES[devtype][1:3]
-            except KeyError:
-                pass
-
-        self.name = resp[0x10:].split(b"\x00")[0].decode()
-        self.is_locked = bool(resp[-1])
-
+    @abc.abstractmethod
     def auth(self) -> bool:
-        """Authenticate to the device.
+        """Send a Client Key Exchange packet to the device."""
 
-        Send a Client Key Exchange packet to the device and update
-        device control ID and AES key with the response.
-        """
-        with self._lock:
-            self._enc_hdlr.reset()
-            payload = bytearray(0x50)
-            payload[0x04:0x13] = [0x31] * 15
-            payload[0x1E] = 0x01
-            payload[0x2D] = 0x01
-            payload[0x30:0x36] = "Test 1".encode()
-            resp, err = self.send_packet(0x65, payload)
-            e.check_error(err)
-
-            conn_id = int.from_bytes(resp[:0x4], "little")
-            key = resp[0x04:0x14]
-            self._enc_hdlr.update(conn_id, key)
-            return True
-
+    @abc.abstractmethod
     def send_cmd(
         self,
         command: int,
         data: t.Sequence[int] = b"",
         retry_intvl: float = 1.0,
     ) -> bytes:
-        """Send a command to the device."""
-        data = bytes(data)
-        payload = command.to_bytes(4, "little") + data
-        payload = self._bs_hdlr.pack(payload)
-        resp, err = self.send_packet(0x6A, payload, retry_intvl=retry_intvl)
-        e.check_error(err)
-        return self._bs_hdlr.unpack(resp)[0x4:]
+        """Send a Command packet to the device."""
 
+    @abc.abstractmethod
     def set_name(self, name: str) -> None:
         """Set device name."""
-        name_b = name.encode()
-        packet = bytearray(0x50)
-        packet[0x04 : 0x04 + len(name_b)] = name_b
-        packet[0x43] = bool(self.is_locked)
-        err = self.send_packet(0x6A, packet)[1]
-        e.check_error(err)
-        self.name = name
 
+    @abc.abstractmethod
     def set_lock(self, state: bool) -> None:
         """Lock/unlock the device."""
-        name_b = self.name.encode()
-        packet = bytearray(0x50)
-        packet[0x04 : 0x04 + len(name_b)] = name_b
-        packet[0x43] = bool(state)
-        err = self.send_packet(0x6A, packet)[1]
-        e.check_error(err)
-        self.is_locked = bool(state)
 
-    def update(self) -> None:
-        """Update device name and lock status."""
-        resp = self.send_cmd(0x01)
-        self.name = resp[0x48:].split(b"\x00")[0].decode()
-        self.is_locked = bool(resp[0x87])
-
+    @abc.abstractmethod
     def get_fwversion(self) -> int:
         """Get firmware version."""
-        packet = bytearray(0x10)
-        packet[0] = 0x68
-        resp, err = self.send_packet(0x6A, packet)
-        e.check_error(err)
-        return int.from_bytes(resp[0x04:0x06], "little")
 
-    def get_type(self) -> str:
-        """Return device type."""
-        return self.type
+    @abc.abstractmethod
+    def update(self) -> None:
+        """Update device name and lock status."""
 
     def send_packet(
         self,
@@ -297,7 +211,12 @@ class device:
                     should_wait = True
                     continue
 
-    def _recv(self, conn, exp_resp_type, exp_pkt_no):
+    def _recv(
+        self,
+        conn: socket.socket,
+        exp_resp_type: int,
+        exp_pkt_no: int,
+    ):
         """Receive a packet from the device."""
         resp, src = conn.recvfrom(2048)
         _LOGGER.debug("%s received from %s", resp, src)
@@ -343,7 +262,129 @@ class device:
         return self._enc_hdlr.unpack(resp[0x30:]), err_code
 
 
-class V4Meta(type):
+class device(BroadlinkDevice):
+    """Controls a Broadlink device."""
+
+    TYPE = "DEVICE"
+
+    def ping(self) -> None:
+        """Send a Ping Response packet to the device."""
+        self.send_packet(0x01)
+
+    def hello(self) -> None:
+        """Send a Client Hello packet to the device."""
+        resp = self.send_packet(0x06)[0]
+        devtype = int.from_bytes(resp[0x04:0x06], "little")
+        mac = resp[0x0A:0x10][::-1]
+
+        if self.mac is None:
+            self.mac = mac
+        elif self.mac != mac:
+            raise e.DataValidationError(
+                -2040,
+                "Device information is not intact",
+                "Invalid MAC address",
+                f"Expected {self.mac} and received {mac}",
+            )
+
+        if self.devtype is None:
+            self.devtype = devtype
+        elif self.devtype != devtype:
+            raise e.DataValidationError(
+                -2040,
+                "Device information is not intact",
+                "Invalid product ID",
+                f"Expected {self.devtype} and received {devtype}",
+            )
+
+        if self.model is None or self.manufacturer is None:
+            from . import SUPPORTED_TYPES
+
+            try:
+                self.model, self.manufacturer = SUPPORTED_TYPES[devtype][1:3]
+            except KeyError:
+                pass
+
+        self.name = resp[0x10:].split(b"\x00")[0].decode()
+        self.is_locked = bool(resp[-1])
+
+    def auth(self) -> bool:
+        """Send a Client Key Exchange packet to the device."""
+        with self._lock:
+            self._enc_hdlr.reset()
+            payload = bytearray(0x50)
+            payload[0x04:0x13] = [0x31] * 15
+            payload[0x1E] = 0x01
+            payload[0x2D] = 0x01
+            payload[0x30:0x36] = "Test 1".encode()
+            resp, err = self.send_packet(0x65, payload)
+            e.check_error(err)
+
+            conn_id = int.from_bytes(resp[:0x4], "little")
+            key = resp[0x04:0x14]
+            self._enc_hdlr.update(conn_id, key)
+            return True
+
+    def send_cmd(
+        self,
+        command: int,
+        data: t.Sequence[int] = b"",
+        retry_intvl: float = 1.0,
+    ) -> bytes:
+        """Send a Command packet to the device."""
+        data = bytes(data)
+        payload = command.to_bytes(4, "little") + data
+        payload = self._bs_hdlr.pack(payload)
+        resp, err = self.send_packet(0x6A, payload, retry_intvl=retry_intvl)
+        e.check_error(err)
+        return self._bs_hdlr.unpack(resp)[0x4:]
+
+    def set_name(self, name: str) -> None:
+        """Set device name."""
+        name_b = name.encode()
+        packet = bytearray(0x50)
+        packet[0x04 : 0x04 + len(name_b)] = name_b
+        packet[0x43] = bool(self.is_locked)
+        err = self.send_packet(0x6A, packet)[1]
+        e.check_error(err)
+        self.name = name
+
+    def set_lock(self, state: bool) -> None:
+        """Lock/unlock the device."""
+        name_b = self.name.encode()
+        packet = bytearray(0x50)
+        packet[0x04 : 0x04 + len(name_b)] = name_b
+        packet[0x43] = bool(state)
+        err = self.send_packet(0x6A, packet)[1]
+        e.check_error(err)
+        self.is_locked = bool(state)
+
+    def update(self) -> None:
+        """Update device name and lock status."""
+        resp = self.send_cmd(0x01)
+        self.name = resp[0x48:].split(b"\x00")[0].decode()
+        self.is_locked = bool(resp[0x87])
+
+    def get_fwversion(self) -> int:
+        """Get firmware version."""
+        packet = bytearray(0x10)
+        packet[0] = 0x68
+        resp, err = self.send_packet(0x6A, packet)
+        e.check_error(err)
+        return int.from_bytes(resp[0x04:0x06], "little")
+
+    def get_type(self) -> str:
+        """Return device type."""
+        return self.type
+
+
+class UnknownDevice(device):
+    """Controls an unknown device."""
+
+    TYPE = "Unknown"
+
+
+class V4Meta(abc.ABCMeta):
     """Helps to build V4 classes.
 
     Some devices handle the block size differently. The payload must be
@@ -355,8 +396,8 @@ class V4Meta(type):
     support this functionality.
     """
 
-    def __new__(cls, name, bases, dct):
+    def __new__(cls, name, bases, namespace, **kwargs):
         """Create a new device."""
-        dev_cls = super().__new__(cls, name, bases, dct)
+        dev_cls = super().__new__(cls, name, bases, namespace, **kwargs)
         dev_cls.BlockSizeHandler = p.ExtBlockSizeHandler
         return dev_cls
