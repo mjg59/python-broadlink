@@ -7,7 +7,7 @@ from . import device
 class a1(device.device):
     """Controls a Broadlink A1."""
 
-    TYPE = "A1"
+    _TYPE = "A1"
 
     _SENSORS_AND_LEVELS = (
         ("light", ("dark", "dim", "normal", "bright")),

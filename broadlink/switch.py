@@ -7,7 +7,7 @@ from .common import State
 class mp1(device.device, metaclass=device.V4Meta):
     """Controls a Broadlink MP1."""
 
-    TYPE = "MP1"
+    _TYPE = "MP1"
 
     def set_power_mask(self, sid_mask: int, state: bool) -> None:
         """Set the power state of the device."""
@@ -40,7 +40,7 @@ class mp1(device.device, metaclass=device.V4Meta):
 class bg1(device.device, metaclass=device.V4Meta):
     """Controls a BG Electrical smart outlet."""
 
-    TYPE = "BG1"
+    _TYPE = "BG1"
 
     def get_state(self) -> dict:
         """Return the power state of the device.
@@ -86,7 +86,7 @@ class bg1(device.device, metaclass=device.V4Meta):
 class sp1(device.device):
     """Controls a Broadlink SP1."""
 
-    TYPE = "SP1"
+    _TYPE = "SP1"
 
     def set_power(self, state: bool) -> None:
         """Set the power state of the device."""
@@ -98,7 +98,7 @@ class sp1(device.device):
 class sp2(device.device):
     """Controls a Broadlink SP2."""
 
-    TYPE = "SP2"
+    _TYPE = "SP2"
 
     def set_power(self, state: bool) -> None:
         """Set the power state of the device."""
@@ -114,7 +114,7 @@ class sp2(device.device):
 class sp2s(sp2):
     """Controls a Broadlink SP2S."""
 
-    TYPE = "SP2S"
+    _TYPE = "SP2S"
 
     def get_energy(self) -> float:
         """Return the power consumption in W."""
@@ -125,7 +125,7 @@ class sp2s(sp2):
 class sp3(sp2):
     """Controls a Broadlink SP3."""
 
-    TYPE = "SP3"
+    _TYPE = "SP3"
 
     def set_power(self, state: bool) -> None:
         """Set the power state of the device."""
@@ -151,7 +151,7 @@ class sp3(sp2):
 class sp3s(sp2):
     """Controls a Broadlink SP3S."""
 
-    TYPE = "SP3S"
+    _TYPE = "SP3S"
 
     def get_energy(self) -> float:
         """Return the power consumption in W."""
@@ -163,7 +163,7 @@ class sp3s(sp2):
 class sp4(device.device):
     """Controls a Broadlink SP4."""
 
-    TYPE = "SP4"
+    _TYPE = "SP4"
 
     def set_power(self, state: bool) -> None:
         """Set the power state of the device."""
@@ -221,7 +221,7 @@ class sp4(device.device):
 class sp4b(sp4, metaclass=device.V4Meta):
     """Controls a Broadlink SP4 (type B)."""
 
-    TYPE = "SP4B"
+    _TYPE = "SP4B"
 
     def get_state(self) -> dict:
         """Get full state of device."""

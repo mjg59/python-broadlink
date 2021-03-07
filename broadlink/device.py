@@ -16,8 +16,6 @@ _LOGGER = logging.getLogger(__name__)
 class BroadlinkDevice(abc.ABC):
     """Base class common to all a Broadlink devices."""
 
-    TYPE = "BROADLINKDEVICE"
-
     BlockSizeHandler = p.BlockSizeHandler
     EncryptionHandler = p.EncryptionHandler
 
@@ -41,7 +39,6 @@ class BroadlinkDevice(abc.ABC):
         self.model = model
         self.manufacturer = manufacturer
         self.is_locked = is_locked
-        self.type = self.TYPE  # For backwards compatibility.
 
         self._pkt_no = random.randint(0x8000, 0xFFFF)
         self._bs_hdlr = self.BlockSizeHandler()
@@ -256,7 +253,14 @@ class BroadlinkDevice(abc.ABC):
 class device(BroadlinkDevice):
     """Controls a Broadlink device."""
 
-    TYPE = "DEVICE"
+    _TYPE = "device"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(self, *args, **kwargs)
+
+        # For backwards compatibility.
+        # Use the idiomatic type(self).__name__ instead.
+        self.type = self._TYPE
 
     def ping(self) -> None:
         """Send a Ping Response packet to the device."""
@@ -328,14 +332,18 @@ class device(BroadlinkDevice):
         return int.from_bytes(resp[0x04:0x06], "little")
 
     def get_type(self) -> str:
-        """Return device type."""
+        """Return device type.
+
+        For backwards compatibility. Use the idiomatic
+        type(self).__name__ instead.
+        """
         return self.type
 
 
 class UnknownDevice(device):
     """Controls an unknown device."""
 
-    TYPE = "Unknown"
+    _TYPE = "Unknown"
 
 
 class V4Meta(abc.ABCMeta):

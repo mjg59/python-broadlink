@@ -8,7 +8,7 @@ from . import exceptions as e
 class dooya(device.device):
     """Controls a Dooya curtain motor."""
 
-    TYPE = "Dooya DT360E"
+    _TYPE = "Dooya DT360E"
 
     def _send(self, magic1: int, magic2: int) -> int:
         """Send a packet to the device."""

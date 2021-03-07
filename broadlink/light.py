@@ -8,7 +8,7 @@ from .common import State
 class lb27(device.device):
     """Controls a Broadlink LB27."""
 
-    TYPE = "LB27"
+    _TYPE = "LB27"
 
     @enum.unique
     class ColorMode(enum.IntEnum):
@@ -83,4 +83,4 @@ class lb27(device.device):
 class lb1(lb27, metaclass=device.V4Meta):
     """Controls a Broadlink LB1."""
 
-    TYPE = "LB1"
+    _TYPE = "LB1"

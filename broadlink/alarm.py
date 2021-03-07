@@ -5,7 +5,7 @@ from . import device
 class S1C(device.device):
     """Controls a Broadlink S1C."""
 
-    TYPE = "S1C"
+    _TYPE = "S1C"
 
     _SENSORS_TYPES = {
         0x31: "Door Sensor",

@@ -7,7 +7,7 @@ from . import device
 class rmmini(device.device):
     """Controls a Broadlink RM mini 3."""
 
-    TYPE = "RMMINI"
+    _TYPE = "RMMINI"
 
     def send_data(self, data: bytes) -> None:
         """Send a code to the device."""
@@ -25,7 +25,7 @@ class rmmini(device.device):
 class rmpro(rmmini):
     """Controls a Broadlink RM pro."""
 
-    TYPE = "RMPRO"
+    _TYPE = "RMPRO"
 
     def sweep_frequency(self) -> None:
         """Sweep frequency."""
@@ -58,13 +58,13 @@ class rmpro(rmmini):
 class rmminib(rmmini, metaclass=device.V4Meta):
     """Controls a Broadlink RM mini 3 (new firmware)."""
 
-    TYPE = "RMMINIB"
+    _TYPE = "RMMINIB"
 
 
 class rm4mini(rmminib):
     """Controls a Broadlink RM4 mini."""
 
-    TYPE = "RM4MINI"
+    _TYPE = "RM4MINI"
 
     def check_sensors(self) -> dict:
         """Return the state of the sensors."""
@@ -87,16 +87,16 @@ class rm4mini(rmminib):
 class rm4pro(rm4mini, rmpro):
     """Controls a Broadlink RM4 pro."""
 
-    TYPE = "RM4PRO"
+    _TYPE = "RM4PRO"
 
 
 class rm(rmpro):
     """For backwards compatibility."""
 
-    TYPE = "RM2"
+    _TYPE = "RM2"
 
 
 class rm4(rm4pro):
     """For backwards compatibility."""
 
-    TYPE = "RM4"
+    _TYPE = "RM4"

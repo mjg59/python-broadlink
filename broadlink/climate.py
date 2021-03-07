@@ -9,7 +9,7 @@ from .helpers import calculate_crc16
 class hysen(device.device):
     """Controls a Hysen HVAC."""
 
-    TYPE = "Hysen heating controller"
+    _TYPE = "Hysen heating controller"
 
     # Send a request
     # input_payload should be a bytearray, usually 6 bytes, e.g. bytearray([0x01,0x06,0x00,0x02,0x10,0x00])
