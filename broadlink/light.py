@@ -4,11 +4,11 @@ import enum
 from .device import BroadlinkDevice, v4_core, v5_core
 
 
-@v5_core
-class lb27(BroadlinkDevice):
-    """Controls a Broadlink LB27."""
+@v4_core
+class lb1(BroadlinkDevice):
+    """Controls a Broadlink LB1."""
 
-    _TYPE = "LB27"
+    _TYPE = "LB1"
 
     @enum.unique
     class ColorMode(enum.IntEnum):
@@ -76,8 +76,8 @@ class lb27(BroadlinkDevice):
         return self.send_json_cmd(0x02, state)
 
 
-@v4_core
-class lb1(lb27):
-    """Controls a Broadlink LB1."""
+@v5_core
+class lb27(lb1):
+    """Controls a Broadlink LB27."""
 
-    _TYPE = "LB1"
+    _TYPE = "LB27"

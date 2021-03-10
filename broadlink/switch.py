@@ -2,80 +2,6 @@
 from .device import BroadlinkDevice, v1_core, v2_core, v3_core, v4_core, v5_core
 
 
-@v4_core
-class mp1(BroadlinkDevice):
-    """Controls a Broadlink MP1."""
-
-    _TYPE = "MP1"
-
-    def set_power_mask(self, sid_mask: int, state: bool) -> None:
-        """Set the power state of the device."""
-        state = bytes([sid_mask, sid_mask if state else 0])
-        self.send_json_cmd(0x02, state, eoh=0)
-
-    def set_power(self, sid: int, state: bool) -> None:
-        """Set the power state of the device."""
-        sid_mask = 1 << (sid - 1)
-        self.set_power_mask(sid_mask, state)
-
-    def check_power_raw(self) -> int:
-        """Return the power state of the device in raw format."""
-        return self.send_json_cmd(0x01, b"", eoh=0)
-
-    def check_power(self) -> dict:
-        """Return the power state of the device."""
-        resp = self.check_power_raw()
-        return {
-            "s1": bool(resp & 1),
-            "s2": bool(resp & 2),
-            "s3": bool(resp & 4),
-            "s4": bool(resp & 8),
-        }
-
-
-@v4_core
-class bg1(BroadlinkDevice):
-    """Controls a BG Electrical smart outlet."""
-
-    _TYPE = "BG1"
-
-    def get_state(self) -> dict:
-        """Return the power state of the device.
-
-        Example: `{"pwr":1,"pwr1":1,"pwr2":0,"maxworktime":60,"maxworktime1":60,"maxworktime2":0,"idcbrightness":50}`
-        """
-        return self.send_json_cmd(0x01, {})
-
-    def set_state(
-        self,
-        pwr: bool = None,
-        pwr1: bool = None,
-        pwr2: bool = None,
-        maxworktime: int = None,
-        maxworktime1: int = None,
-        maxworktime2: int = None,
-        idcbrightness: int = None,
-    ) -> dict:
-        """Set the power state of the device."""
-        state = {}
-        if pwr is not None:
-            state["pwr"] = int(bool(pwr))
-        if pwr1 is not None:
-            state["pwr1"] = int(bool(pwr1))
-        if pwr2 is not None:
-            state["pwr2"] = int(bool(pwr2))
-        if maxworktime is not None:
-            state["maxworktime"] = maxworktime
-        if maxworktime1 is not None:
-            state["maxworktime1"] = maxworktime1
-        if maxworktime2 is not None:
-            state["maxworktime2"] = maxworktime2
-        if idcbrightness is not None:
-            state["idcbrightness"] = idcbrightness
-
-        return self.send_json_cmd(0x02, state)
-
-
 @v1_core
 class sp1(BroadlinkDevice):
     """Controls a Broadlink SP1."""
@@ -228,3 +154,77 @@ class sp4b(sp4):
             if value != -1:
                 state[sensor] = value / 1000
         return state
+
+
+@v4_core
+class mp1(BroadlinkDevice):
+    """Controls a Broadlink MP1."""
+
+    _TYPE = "MP1"
+
+    def set_power_mask(self, sid_mask: int, state: bool) -> None:
+        """Set the power state of the device."""
+        state = bytes([sid_mask, sid_mask if state else 0])
+        self.send_json_cmd(0x02, state, eoh=0)
+
+    def set_power(self, sid: int, state: bool) -> None:
+        """Set the power state of the device."""
+        sid_mask = 1 << (sid - 1)
+        self.set_power_mask(sid_mask, state)
+
+    def check_power_raw(self) -> int:
+        """Return the power state of the device in raw format."""
+        return self.send_json_cmd(0x01, b"", eoh=0)
+
+    def check_power(self) -> dict:
+        """Return the power state of the device."""
+        resp = self.check_power_raw()
+        return {
+            "s1": bool(resp & 1),
+            "s2": bool(resp & 2),
+            "s3": bool(resp & 4),
+            "s4": bool(resp & 8),
+        }
+
+
+@v4_core
+class bg1(BroadlinkDevice):
+    """Controls a BG Electrical smart outlet."""
+
+    _TYPE = "BG1"
+
+    def get_state(self) -> dict:
+        """Return the power state of the device.
+
+        Example: `{"pwr":1,"pwr1":1,"pwr2":0,"maxworktime":60,"maxworktime1":60,"maxworktime2":0,"idcbrightness":50}`
+        """
+        return self.send_json_cmd(0x01, {})
+
+    def set_state(
+        self,
+        pwr: bool = None,
+        pwr1: bool = None,
+        pwr2: bool = None,
+        maxworktime: int = None,
+        maxworktime1: int = None,
+        maxworktime2: int = None,
+        idcbrightness: int = None,
+    ) -> dict:
+        """Set the power state of the device."""
+        state = {}
+        if pwr is not None:
+            state["pwr"] = int(bool(pwr))
+        if pwr1 is not None:
+            state["pwr1"] = int(bool(pwr1))
+        if pwr2 is not None:
+            state["pwr2"] = int(bool(pwr2))
+        if maxworktime is not None:
+            state["maxworktime"] = maxworktime
+        if maxworktime1 is not None:
+            state["maxworktime1"] = maxworktime1
+        if maxworktime2 is not None:
+            state["maxworktime2"] = maxworktime2
+        if idcbrightness is not None:
+            state["idcbrightness"] = idcbrightness
+
+        return self.send_json_cmd(0x02, state)

@@ -25,10 +25,8 @@ class DeviceCore(abc.ABC):
     def __init__(self, device) -> None:
         """Initialize the core."""
         self._device = device
-        self._pkt_no = random.randint(0x8000, 0xFFFF)
         self._bsize_hdlr = self.BlockSizeHandler()
         self._enc_hdlr = self.EncryptionHandler(device)
-        self._lock = threading.Lock()
 
     def send_packet(
         self,
@@ -43,13 +41,13 @@ class DeviceCore(abc.ABC):
 
         # Encrypted request.
         if info_type >> 5 == 3:
-            self._pkt_no = exp_pkt_no = ((self._pkt_no + 1) | 0x8000) & 0xFFFF
+            device.pkt_no = exp_pkt_no = ((device.pkt_no + 1) | 0x8000) & 0xFFFF
             exp_resp_type = info_type + 900
 
             packet[0x00:0x08] = [0x5A, 0xA5, 0xAA, 0x55, 0x5A, 0xA5, 0xAA, 0x55]
             packet[0x24:0x26] = device.devtype.to_bytes(2, "little")
             packet[0x26:0x28] = info_type.to_bytes(2, "little")
-            packet[0x28:0x2A] = self._pkt_no.to_bytes(2, "little")
+            packet[0x28:0x2A] = exp_pkt_no.to_bytes(2, "little")
             packet[0x2A:0x30] = device.mac[::-1]
             packet.extend(self._enc_hdlr.pack(payload))
 
@@ -290,22 +288,9 @@ class V1Core(V2Core):
     support. It seems like it never worked.
     """
 
-    def send_cmd(
-        self,
-        command: int,
-        data: t.Sequence[int] = b"",
-        retry_intvl: float = 1.0,
-    ) -> bytes:
-        """Send a Command packet to the device."""
-        data = bytes(data)
-        payload = self._bsize_hdlr.pack(data)
-        resp, err = self.send_packet(command, payload, retry_intvl=retry_intvl)
-        e.check_error(err)
-        return self._bsize_hdlr.unpack(resp)
-
     def set_devinfo(self, name: str, is_locked: bool) -> dict:
         """Set device name."""
-        name = name[:0x3F].encode()
+        name = name[:0x35].encode()
         packet = bytearray(0x40)
         packet[0x00 : 0x04 + len(name)] = name
         packet[0x39] = bool(is_locked)
@@ -373,6 +358,7 @@ class BroadlinkDevice:
         self.conn_id = 0
         self.key = self.__INIT_KEY
         self.init_vect = self.__INIT_VECT
+        self.pkt_no = random.randint(0x8000, 0xFFFF)
 
         self._core = self.Core(self)
         self._lock = threading.Lock()
@@ -413,10 +399,10 @@ class BroadlinkDevice:
         info = []
         if model:
             info.append(model)
+        info.append(f"{self.host[0]}:{self.host[1]}")
         if self.mac is not None:
             info.append(":".join(format(x, "02x") for x in self.mac).upper())
-        info.append(f"{self.host[0]}:{self.host[1]}")
-        info = " / ".join(info)
+        info = " - ".join(info)
         return "%s (%s)" % (self.name or "Unknown", info)
 
     def send_packet(
@@ -446,20 +432,19 @@ class BroadlinkDevice:
         # The MAC address is not reliable for this. The IMEI and BIOS UUID
         # are great options, but there is no platform-independent way to
         # obtain this information with the Python Standard Library.
-        # Leaving it as it is perfectly fine for local control, but it
+        # Leaving it as is is perfectly fine for local control, but it
         # exposes the device to spoofing techniques in case an attacker
         # gains access to the local network.
 
         unique_id = "1581e97d-f410-4211-8"  # It would be nice to have this.
         hostname = platform.node().split(".")[0]
 
-        self.conn_id = 0
-        self.key = self.__INIT_KEY
-
-        conn_id, key = self._core.auth(unique_id, hostname)
-
-        self.conn_id = conn_id
-        self.key = key
+        with self._lock:
+            self.conn_id = 0
+            self.key = self.__INIT_KEY
+            conn_id, key = self._core.auth(unique_id, hostname)
+            self.conn_id = conn_id
+            self.key = key
         return True
 
     def send_cmd(
