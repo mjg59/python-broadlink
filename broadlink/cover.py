@@ -1,11 +1,12 @@
 """Support for covers."""
 import time
 
-from . import device
 from . import exceptions as e
+from .device import BroadlinkDevice, v3_core
 
 
-class dooya(device.device):
+@v3_core
+class dooya(BroadlinkDevice):
     """Controls a Dooya curtain motor."""
 
     _TYPE = "Dooya DT360E"
@@ -19,7 +20,7 @@ class dooya(device.device):
         packet[4] = magic2
         packet[9] = 0xFA
         packet[10] = 0x44
-        resp, err = self.send_packet(0x6A, packet)
+        resp, err = self._core.send_packet(0x6A, packet)
         e.check_error(err)
         return resp[4]
 

@@ -1,12 +1,13 @@
 """Support for climate control."""
 import typing as t
 
-from . import device
 from . import exceptions as e
+from .device import BroadlinkDevice, v3_core
 from .helpers import calculate_crc16
 
 
-class hysen(device.device):
+@v3_core
+class hysen(BroadlinkDevice):
     """Controls a Hysen HVAC."""
 
     _TYPE = "Hysen heating controller"
@@ -29,7 +30,7 @@ class hysen(device.device):
         payload.extend(crc.to_bytes(2, "little"))
 
         # send to device
-        resp, err = self.send_packet(0x6A, payload)
+        resp, err = self._core.send_packet(0x6A, payload)
         e.check_error(err)
 
         # experimental check on CRC in response (first 2 bytes are len, and trailing bytes are crc)

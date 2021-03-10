@@ -1,6 +1,8 @@
 """Support for Broadlink devices."""
 import abc
+import json
 import logging
+import platform
 import random
 import socket
 import threading
@@ -13,105 +15,19 @@ from . import protocol as p
 _LOGGER = logging.getLogger(__name__)
 
 
-class BroadlinkDevice(abc.ABC):
-    """Base class common to all a Broadlink devices."""
+class DeviceCore(abc.ABC):
+    """Base class common to all device cores."""
 
     BlockSizeHandler = p.BlockSizeHandler
     EncryptionHandler = p.EncryptionHandler
 
-    def __init__(
-        self,
-        host: t.Tuple[str, int],
-        mac: t.Union[bytes, str],
-        devtype: int,
-        timeout: int = 10,
-        name: str = None,
-        model: str = None,
-        manufacturer: str = None,
-        is_locked: bool = None,
-    ) -> None:
-        """Initialize the device."""
-        self.host = host
-        self.mac = bytes.fromhex(mac) if isinstance(mac, str) else mac
-        self.devtype = devtype
-        self.timeout = timeout
-        self.name = name
-        self.model = model
-        self.manufacturer = manufacturer
-        self.is_locked = is_locked
-
+    def __init__(self, device) -> None:
+        """Initialize the core."""
+        self._device = device
         self._pkt_no = random.randint(0x8000, 0xFFFF)
-        self._bs_hdlr = self.BlockSizeHandler()
-        self._enc_hdlr = self.EncryptionHandler()
+        self._bsize_hdlr = self.BlockSizeHandler()
+        self._enc_hdlr = self.EncryptionHandler(device)
         self._lock = threading.Lock()
-
-    def __repr__(self) -> str:
-        """Return a formal representation of the device."""
-        return "%s.%s(%s, mac=%r, devtype=%r, timeout=%r, name=%r, model=%r, manufacturer=%r, is_locked=%r)" % (
-            self.__class__.__module__,
-            self.__class__.__qualname__,
-            self.host,
-            self.mac,
-            self.devtype,
-            self.timeout,
-            self.name,
-            self.model,
-            self.manufacturer,
-            self.is_locked,
-        )
-
-    def __str__(self) -> str:
-        """Return a readable representation of the device."""
-        model = []
-        if self.manufacturer is not None:
-            model.append(self.manufacturer)
-        if self.model is not None:
-            model.append(self.model)
-        if self.devtype is not None:
-            model.append(hex(self.devtype))
-        model = " ".join(model)
-
-        info = []
-        if model:
-            info.append(model)
-        if self.mac is not None:
-            info.append(":".join(format(x, "02x") for x in self.mac).upper())
-        info.append(f"{self.host[0]}:{self.host[1]}")
-        info = " / ".join(info)
-        return "%s (%s)" % (self.name or "Unknown", info)
-
-    @abc.abstractmethod
-    def ping(self) -> None:
-        """Send a Ping Response packet to the device."""
-
-    @abc.abstractmethod
-    def auth(self) -> bool:
-        """Send a Client Key Exchange packet to the device."""
-
-    @abc.abstractmethod
-    def send_cmd(
-        self,
-        command: int,
-        data: t.Sequence[int] = b"",
-        retry_intvl: float = 1.0,
-    ) -> bytes:
-        """Send a Command packet to the device."""
-
-    @abc.abstractmethod
-    def set_name(self, name: str) -> None:
-        """Set device name."""
-
-    @abc.abstractmethod
-    def set_lock(self, state: bool) -> None:
-        """Lock/unlock the device."""
-
-    @abc.abstractmethod
-    def get_fwversion(self) -> int:
-        """Get firmware version."""
-
-    @abc.abstractmethod
-    def update(self) -> None:
-        """Update device name and lock status."""
 
     def send_packet(
         self,
@@ -120,8 +36,9 @@ class BroadlinkDevice(abc.ABC):
         retry_intvl: float = 1.0,
     ) -> t.Union[bytes, None]:
         """Send a packet to the device."""
-        packet = bytearray(0x30)
+        device = self._device
         payload = bytes(payload)
+        packet = bytearray(0x30)
 
         # Encrypted request.
         if info_type >> 5 == 3:
@@ -129,10 +46,10 @@ class BroadlinkDevice(abc.ABC):
             exp_resp_type = info_type + 900
 
             packet[0x00:0x08] = [0x5A, 0xA5, 0xAA, 0x55, 0x5A, 0xA5, 0xAA, 0x55]
-            packet[0x24:0x26] = self.devtype.to_bytes(2, "little")
+            packet[0x24:0x26] = device.devtype.to_bytes(2, "little")
             packet[0x26:0x28] = info_type.to_bytes(2, "little")
             packet[0x28:0x2A] = self._pkt_no.to_bytes(2, "little")
-            packet[0x2A:0x30] = self.mac[::-1]
+            packet[0x2A:0x30] = device.mac[::-1]
             packet.extend(self._enc_hdlr.pack(payload))
 
         # Public packet.
@@ -155,7 +72,7 @@ class BroadlinkDevice(abc.ABC):
         packet = bytes(packet)
 
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as conn:
-            timeout = self.timeout
+            timeout = device.timeout
             start_time = time.time()
             should_wait = False
             errors = []
@@ -176,8 +93,8 @@ class BroadlinkDevice(abc.ABC):
                         raise errors[0]
                     raise e.MultipleErrors(errors)
 
-                conn.sendto(packet, self.host)
-                _LOGGER.debug("%s sent to %s", packet, self.host)
+                conn.sendto(packet, device.host)
+                _LOGGER.debug("%s sent to %s", packet, device.host)
 
                 if exp_resp_type is None:
                     return None
@@ -236,12 +153,9 @@ class BroadlinkDevice(abc.ABC):
                 f"Expected {exp_resp_type} and received {resp_type}",
             )
 
-        if not any(resp[:0x08]):
+        pkt_header = resp[:0x08]
+        if not any(pkt_header):
             return resp[0x30:], err_code
-
-        conn_id = resp[:0x08]
-        if conn_id != bytes([0x5A, 0xA5, 0xAA, 0x55, 0x5A, 0xA5, 0xAA, 0x55]):
-            raise e.DataValidationError(f"Invalid connection ID: {conn_id}")
 
         pkt_no = int.from_bytes(resp[0x28:0x2A], "little")
         if pkt_no != exp_pkt_no:
@@ -249,39 +163,80 @@ class BroadlinkDevice(abc.ABC):
 
         return self._enc_hdlr.unpack(resp[0x30:]), err_code
 
+    @abc.abstractmethod
+    def ping(self) -> None:
+        """Send a Ping Response packet to the device."""
 
-class device(BroadlinkDevice):
-    """Controls a Broadlink device."""
+    @abc.abstractmethod
+    def hello(self) -> dict:
+        """Send a Client Hello packet to the device."""
 
-    _TYPE = "device"
+    @abc.abstractmethod
+    def auth(
+        self,
+        unique_id: str,
+        hostname: str,
+        client_key: str = "",
+        app_data: dict = None,
+    ) -> t.Tuple[int, bytes]:
+        """Send a Client Key Exchange packet to the device."""
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(self, *args, **kwargs)
+    @abc.abstractmethod
+    def send_cmd(
+        self,
+        command: int,
+        data: t.Sequence[int] = b"",
+        retry_intvl: float = 1.0,
+    ) -> bytes:
+        """Send a Command packet to the device."""
 
-        # For backwards compatibility.
-        # Use the idiomatic type(self).__name__ instead.
-        self.type = self._TYPE
+
+class V2Core(DeviceCore):
+    """Controls a V2 device."""
 
     def ping(self) -> None:
         """Send a Ping Response packet to the device."""
         self.send_packet(0x01)
 
-    def auth(self) -> bool:
-        """Send a Client Key Exchange packet to the device."""
-        with self._lock:
-            self._enc_hdlr.reset()
-            payload = bytearray(0x50)
-            payload[0x04:0x13] = [0x31] * 15
-            payload[0x1E] = 0x01
-            payload[0x2D] = 0x01
-            payload[0x30:0x36] = "Test 1".encode()
-            resp, err = self.send_packet(0x65, payload)
-            e.check_error(err)
+    def hello(self) -> dict:
+        """Send a Client Hello packet to the device."""
+        resp = self.send_packet(0x06)[0]
+        return {
+            "pid": int.from_bytes(resp[0x04:0x06], "little"),
+            "ip_addr": socket.inet_ntoa(resp[0x6:0xA][::-1]),
+            "mac_addr": resp[0x0A:0x10][::-1],
+            "name": resp[0x10:].split(b"\x00")[0].decode(),
+            "is_locked": bool(resp[-1]),
+        }
 
-            conn_id = int.from_bytes(resp[:0x4], "little")
-            key = resp[0x04:0x14]
-            self._enc_hdlr.update(conn_id, key)
-            return True
+    def auth(
+        self,
+        unique_id: str,
+        hostname: str,
+        client_key: str = "",
+        app_data: dict = None,
+    ) -> t.Tuple[int, bytes]:
+        """Send a Client Key Exchange packet to the device."""
+        unique_id = unique_id[:0x14].encode()
+        hostname = hostname[:0x20].encode()
+        client_key = bytes.fromhex(client_key[:0x10])
+
+        if app_data:
+            app_data = json.dumps(app_data, separators=(",", ":")).encode()
+        else:
+            app_data = b""
+
+        payload = bytearray(0x64)
+        payload[0x04 : 0x04 + len(unique_id)] = unique_id
+        payload[0x30 : 0x30 + len(hostname)] = hostname
+        payload[0x54:0x64] = client_key
+        payload.extend(app_data)
+        resp, err = self.send_packet(0x65, payload)
+        e.check_error(err)
+
+        conn_id = int.from_bytes(resp[:0x4], "little")
+        server_key = resp[0x04:0x14].hex()
+        return conn_id, server_key
 
     def send_cmd(
         self,
@@ -292,36 +247,10 @@ class device(BroadlinkDevice):
         """Send a Command packet to the device."""
         data = bytes(data)
         payload = command.to_bytes(4, "little") + data
-        payload = self._bs_hdlr.pack(payload)
+        payload = self._bsize_hdlr.pack(payload)
         resp, err = self.send_packet(0x6A, payload, retry_intvl=retry_intvl)
         e.check_error(err)
-        return self._bs_hdlr.unpack(resp)[0x4:]
-
-    def set_name(self, name: str) -> None:
-        """Set device name."""
-        name_b = name.encode()
-        packet = bytearray(0x50)
-        packet[0x04 : 0x04 + len(name_b)] = name_b
-        packet[0x43] = bool(self.is_locked)
-        err = self.send_packet(0x6A, packet)[1]
-        e.check_error(err)
-        self.name = name
-
-    def set_lock(self, state: bool) -> None:
-        """Lock/unlock the device."""
-        name_b = self.name.encode()
-        packet = bytearray(0x50)
-        packet[0x04 : 0x04 + len(name_b)] = name_b
-        packet[0x43] = bool(state)
-        err = self.send_packet(0x6A, packet)[1]
-        e.check_error(err)
-        self.is_locked = bool(state)
-
-    def update(self) -> None:
-        """Update device name and lock status."""
-        resp = self.send_cmd(0x01)
-        self.name = resp[0x48:].split(b"\x00")[0].decode()
-        self.is_locked = bool(resp[0x87])
+        return self._bsize_hdlr.unpack(resp)[0x4:]
 
     def get_fwversion(self) -> int:
         """Get firmware version."""
@@ -330,6 +259,232 @@ class device(BroadlinkDevice):
         resp, err = self.send_packet(0x6A, packet)
         e.check_error(err)
         return int.from_bytes(resp[0x04:0x06], "little")
+
+    def set_devinfo(self, name: str, is_locked: bool) -> dict:
+        """Set device name and lock status."""
+        name = name[:0x3F].encode()
+        packet = bytearray(0x50)
+        packet[0x04 : 0x04 + len(name)] = name
+        packet[0x43] = bool(is_locked)
+        resp, err = self.send_packet(0x6A, packet)
+        e.check_error(err)
+        return {
+            "name": resp[0x04:0x43],
+            "is_locked": resp[0x43],
+        }
+
+    def get_devinfo(self) -> None:
+        """Update device name and lock status."""
+        resp = self.send_cmd(0x01)
+        return {
+            "name": resp[0x48:].split(b"\x00")[0].decode(),
+            "is_locked": bool(resp[0x87]),
+        }
+
+
+class V1Core(V2Core):
+    """Controls a V1 device.
+
+    If you have this device, please open an issue so we can improve
+    support. It seems like it never worked.
+    """
+
+    def send_cmd(
+        self,
+        command: int,
+        data: t.Sequence[int] = b"",
+        retry_intvl: float = 1.0,
+    ) -> bytes:
+        """Send a Command packet to the device."""
+        data = bytes(data)
+        payload = self._bsize_hdlr.pack(data)
+        resp, err = self.send_packet(command, payload, retry_intvl=retry_intvl)
+        e.check_error(err)
+        return self._bsize_hdlr.unpack(resp)
+
+    def set_devinfo(self, name: str, is_locked: bool) -> dict:
+        """Set device name."""
+        name = name[:0x3F].encode()
+        packet = bytearray(0x40)
+        packet[0x00 : 0x04 + len(name)] = name
+        packet[0x39] = bool(is_locked)
+        err = self.send_packet(0x00, packet)[1]
+        e.check_error(err)
+        return {
+            "name": packet[0x04:0x39],
+            "is_locked": packet[0x39],
+        }
+
+
+class V3Core(V2Core):
+    """Controls a V3 device."""
+
+
+class V4Core(V3Core):
+    """Controls a V4 device."""
+
+    BlockSizeHandler = p.ExtBlockSizeHandler
+
+
+class V5Core(V4Core):
+    """Controls a V5 device."""
+
+    BlockSizeHandler = p.BlockSizeHandler
+
+
+class BroadlinkDevice:
+    """Controls a Broadlink device."""
+
+    _TYPE = "Unknown"
+
+    __INIT_KEY = "097628343fe99e23765c1513accf8b02"
+    __INIT_VECT = "562e17996d093d28ddb3ba695a2e6f58"
+
+    Core = V2Core
+
+    def __init__(
+        self,
+        host: t.Tuple[str, int],
+        mac: t.Union[bytes, str],
+        devtype: int,
+        timeout: int = 10,
+        name: str = None,
+        model: str = None,
+        manufacturer: str = None,
+        is_locked: bool = None,
+    ) -> None:
+        """Initialize the device."""
+        self.host = host
+        self.mac = bytes.fromhex(mac) if isinstance(mac, str) else mac
+        self.devtype = devtype
+        self.timeout = timeout
+        self.name = name
+        self.model = model
+        self.manufacturer = manufacturer
+        self.is_locked = is_locked
+
+        self.conn_id = 0
+        self.key = self.__INIT_KEY
+        self.init_vect = self.__INIT_VECT
+
+        self._core = self.Core(self)
+        self._lock = threading.Lock()
+
+        # For backwards compatibility.
+        # Use the idiomatic type(self).__name__ instead.
+        self.type = self._TYPE
+
+    def __repr__(self) -> str:
+        """Return a formal representation of the device."""
+        return (
+            "%s.%s(%s, mac=%r, devtype=%r, timeout=%r, name=%r, "
+            "model=%r, manufacturer=%r, is_locked=%r)"
+        ) % (
+            self.__class__.__module__,
+            self.__class__.__qualname__,
+            self.host,
+            self.mac,
+            self.devtype,
+            self.timeout,
+            self.name,
+            self.model,
+            self.manufacturer,
+            self.is_locked,
+        )
+
+    def __str__(self) -> str:
+        """Return a readable representation of the device."""
+        model = []
+        if self.manufacturer is not None:
+            model.append(self.manufacturer)
+        if self.model is not None:
+            model.append(self.model)
+        if self.devtype is not None:
+            model.append(hex(self.devtype))
+        model = " ".join(model)
+
+        info = []
+        if model:
+            info.append(model)
+        if self.mac is not None:
+            info.append(":".join(format(x, "02x") for x in self.mac).upper())
+        info.append(f"{self.host[0]}:{self.host[1]}")
+        info = " / ".join(info)
+        return "%s (%s)" % (self.name or "Unknown", info)
+
+    def send_packet(
+        self,
+        info_type: int,
+        payload: t.Sequence[int] = b"",
+        retry_intvl: float = 1.0,
+    ) -> t.Union[bytes, None]:
+        """Send a packet to the device."""
+        resp, err = self._core.send_packet(
+            info_type, payload=payload, retry_intvl=retry_intvl
+        )
+        e.check_error(err)
+        return resp
+
+    def ping(self) -> None:
+        """Send a Ping Response packet to the device."""
+        self._core.ping()
+
+    def hello(self) -> dict:
+        """Send a Client Hello packet to the device."""
+        return self._core.hello()
+
+    def auth(self) -> bool:
+        """Send a Client Key Exchange packet to the device."""
+        # The unique ID does not have to be unique, but it cannot change.
+        # The MAC address is not reliable for this. The IMEI and BIOS UUID
+        # are great options, but there is no platform-independent way to
+        # obtain this information with the Python Standard Library.
+        # Leaving it as it is perfectly fine for local control, but it
+        # exposes the device to spoofing techniques in case an attacker
+        # gains access to the local network.
+
+        unique_id = "1581e97d-f410-4211-8"  # It would be nice to have this.
+        hostname = platform.node().split(".")[0]
+
+        self.conn_id = 0
+        self.key = self.__INIT_KEY
+
+        conn_id, key = self._core.auth(unique_id, hostname)
+
+        self.conn_id = conn_id
+        self.key = key
+        return True
+
+    def send_cmd(
+        self,
+        command: int,
+        data: t.Sequence[int] = b"",
+        retry_intvl: float = 1.0,
+    ) -> bytes:
+        """Send a Command packet to the device."""
+        return self._core.send_cmd(command, data=data, retry_intvl=retry_intvl)
+
+    def get_fwversion(self) -> int:
+        """Get firmware version."""
+        return self._core.get_fwversion()
+
+    def set_name(self, name: str) -> None:
+        """Set device name."""
+        resp = self._core.set_devinfo(name, self.is_locked)
+        self.name = resp["name"]
+        self.is_locked = resp["is_locked"]
+
+    def set_lock(self, state: bool) -> None:
+        """Lock/unlock the device."""
+        resp = self._core.set_devinfo(self.name, state)
+        self.name = resp["name"]
+        self.is_locked = resp["is_locked"]
+
+    def update(self) -> None:
+        """Update device name and lock status."""
+        resp = self._core.get_devinfo()
+        self.name = resp["name"]
+        self.is_locked = resp["is_locked"]
 
     def get_type(self) -> str:
         """Return device type.
@@ -340,26 +495,31 @@ class device(BroadlinkDevice):
         return self.type
 
 
-class UnknownDevice(device):
-    """Controls an unknown device."""
+def v1_core(cls):
+    """Decorator to inject a V1 core into a device class."""
+    cls.Core = V1Core
+    return cls
 
-    _TYPE = "Unknown"
+
+def v2_core(cls):
+    """Decorator to inject a V2 core into a device class."""
+    cls.Core = V2Core
+    return cls
 
 
-class V4Meta(abc.ABCMeta):
-    """Helps to build V4 classes.
+def v3_core(cls):
+    """Decorator to inject a V3 core into a device class."""
+    cls.Core = V3Core
+    return cls
 
-    Some devices handle the block size differently. The payload must be
-    prefixed to its length before encryption and sliced accordingly after
-    decryption.
 
-    This metaclass injects an extended block size handler into the class
-    to abstract this complexity, making it easier to adapt old classes to
-    support this functionality.
-    """
+def v4_core(cls):
+    """Decorator to inject a V4 core into a device class."""
+    cls.Core = V4Core
+    return cls
 
-    def __new__(cls, name, bases, namespace, **kwargs):
-        """Create a new device."""
-        dev_cls = super().__new__(cls, name, bases, namespace, **kwargs)
-        dev_cls.BlockSizeHandler = p.ExtBlockSizeHandler
-        return dev_cls
+
+def v5_core(cls):
+    """Decorator to inject a V5 core into a device class."""
+    cls.Core = V5Core
+    return cls

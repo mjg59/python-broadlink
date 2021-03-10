@@ -1,10 +1,11 @@
 """Support for sensors."""
 import struct
 
-from . import device
+from .device import BroadlinkDevice, v2_core
 
 
-class a1(device.device):
+@v2_core
+class a1(BroadlinkDevice):
     """Controls a Broadlink A1."""
 
     _TYPE = "A1"

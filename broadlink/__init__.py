@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """The python-broadlink library."""
 import socket
-import time
 
 from .alarm import S1C
 from .climate import hysen

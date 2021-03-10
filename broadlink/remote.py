@@ -1,10 +1,11 @@
 """Support for universal remotes."""
 import struct
 
-from . import device
+from .device import BroadlinkDevice, v2_core, v4_core
 
 
-class rmmini(device.device):
+@v2_core
+class rmmini(BroadlinkDevice):
     """Controls a Broadlink RM mini 3."""
 
     _TYPE = "RMMINI"
@@ -55,7 +56,8 @@ class rmpro(rmmini):
         return self.check_sensors()["temperature"]
 
 
-class rmminib(rmmini, metaclass=device.V4Meta):
+@v4_core
+class rmminib(rmmini):
     """Controls a Broadlink RM mini 3 (new firmware)."""
 
     _TYPE = "RMMINIB"

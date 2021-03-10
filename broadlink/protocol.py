@@ -1,5 +1,6 @@
 """The protocol."""
 import datetime as dt
+import logging
 import socket
 import time
 import typing as t
@@ -8,6 +9,8 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 from . import exceptions as e
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class Datetime:
@@ -89,7 +92,7 @@ class Address:
 
 
 class BlockSizeHandler:
-    """Helps to pack and unpack messages for encryption.
+    """Helps to handle the block size before encryption/after decryption.
 
     The block size must be a multiple of 16.
     """
@@ -107,7 +110,7 @@ class BlockSizeHandler:
 
 
 class ExtBlockSizeHandler:
-    """Helps to pack and unpack messages for encryption.
+    """Helps to handle the block size before encryption/after decryption.
 
     The block size must be a multiple of 16 and the message must be
     prefixed to its length before encryption and sliced accordingly after
@@ -137,32 +140,39 @@ class ExtBlockSizeHandler:
 
 
 class EncryptionHandler:
-    """Helps to handle AES-128 encryption."""
+    """Helps to pack and unpack encrypted messages."""
 
-    __INITIAL_KEY = "097628343fe99e23765c1513accf8b02"
-    __INITIAL_VECT = "562e17996d093d28ddb3ba695a2e6f58"
-
-    def __init__(self) -> None:
+    def __init__(self, device) -> None:
         """Initialize the handler."""
-        self.aes = None
-        self.id = None
-        self.reset()
+        self._device = device
 
     def pack(self, payload: bytes = b"") -> bytes:
         """Pack an encrypted message to be sent over the Broadlink protocol."""
+        device = self._device
         packet = bytearray(0x08)
-        packet[:0x04] = self.id.to_bytes(4, "little")
 
+        payload = bytes(payload + bytes((16 - len(payload)) % 16))
         checksum = sum(payload, 0xBEAF) & 0xFFFF
+
+        packet[0x00:0x04] = device.conn_id.to_bytes(4, "little")
         packet[0x04:0x06] = checksum.to_bytes(2, "little")
 
-        padding = bytes((16 - len(payload)) % 16)
-        payload = self._encrypt(payload + padding)
-        packet.extend(payload)
+        aes = Cipher(
+            algorithms.AES(bytes.fromhex(device.key)),
+            modes.CBC(bytes.fromhex(device.init_vect)),
+            backend=default_backend(),
+        )
+        encryptor = aes.encryptor()
+        encrypted_payload = encryptor.update(payload) + encryptor.finalize()
+        _LOGGER.debug("Encryption: %s -> %s", payload, encrypted_payload)
+
+        packet.extend(encrypted_payload)
         return bytes(packet)
 
     def unpack(self, data: bytes) -> bytes:
         """Unpack an encrypted message received over the Broadlink protocol."""
+        device = self._device
+
         if len(data) < 0x08:
             raise e.DataValidationError(
                 -4010,
@@ -174,11 +184,11 @@ class EncryptionHandler:
         nom_checksum = int.from_bytes(data[0x04:0x06], "little")
         payload = data[0x08:]
 
-        if self.id and self.id != conn_id:
+        if device.conn_id and device.conn_id != conn_id:
             raise e.AuthorizationError(
                 -4012,
                 "Device control ID error",
-                f"Expected {self.id} and received {conn_id}",
+                f"Expected {device.conn_id} and received {conn_id}",
             )
 
         if len(payload) % 16:
@@ -188,36 +198,20 @@ class EncryptionHandler:
                 f"Expected a multiple of 16 and received {len(payload)}",
             )
 
-        payload = self._decrypt(payload)
-        real_checksum = sum(payload, 0xBEAF) & 0xFFFF
+        aes = Cipher(
+            algorithms.AES(bytes.fromhex(device.key)),
+            modes.CBC(bytes.fromhex(device.init_vect)),
+            backend=default_backend(),
+        )
+        decryptor = aes.decryptor()
+        decrypted_payload = decryptor.update(payload) + decryptor.finalize()
+        _LOGGER.debug("Decryption: %s -> %s", payload, decrypted_payload)
 
-        if payload and nom_checksum != real_checksum:
+        real_checksum = sum(decrypted_payload, 0xBEAF) & 0xFFFF
+        if decrypted_payload and nom_checksum != real_checksum:
             raise e.DataValidationError(
                 -4011,
                 "Received encrypted data packet check error",
                 f"Expected a checksum of {nom_checksum} and received {real_checksum}",
             )
-        return payload
-
-    def update(self, conn_id: int, key: bytes) -> None:
-        """Update connection ID and AES key."""
-        self.id = conn_id
-        self.aes = Cipher(
-            algorithms.AES(bytes(key)),
-            modes.CBC(bytes.fromhex(self.__INITIAL_VECT)),
-            backend=default_backend(),
-        )
-
-    def reset(self) -> None:
-        """Reset connection ID and AES key."""
-        self.update(0, bytes.fromhex(self.__INITIAL_KEY))
-
-    def _encrypt(self, payload: bytes) -> bytes:
-        """Encrypt the payload."""
-        encryptor = self.aes.encryptor()
-        return encryptor.update(bytes(payload)) + encryptor.finalize()
-
-    def _decrypt(self, payload: bytes) -> bytes:
-        """Decrypt the payload."""
-        decryptor = self.aes.decryptor()
-        return decryptor.update(bytes(payload)) + decryptor.finalize()
+        return decrypted_payload

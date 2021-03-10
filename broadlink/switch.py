@@ -1,10 +1,9 @@
 """Support for switches."""
-from . import device
-from . import exceptions as e
-from .common import State
+from .device import BroadlinkDevice, v1_core, v2_core, v3_core, v4_core, v5_core
 
 
-class mp1(device.device, metaclass=device.V4Meta):
+@v4_core
+class mp1(BroadlinkDevice):
     """Controls a Broadlink MP1."""
 
     _TYPE = "MP1"
@@ -37,7 +36,8 @@ class mp1(device.device, metaclass=device.V4Meta):
         }
 
 
-class bg1(device.device, metaclass=device.V4Meta):
+@v4_core
+class bg1(BroadlinkDevice):
     """Controls a BG Electrical smart outlet."""
 
     _TYPE = "BG1"
@@ -83,19 +83,20 @@ class bg1(device.device, metaclass=device.V4Meta):
         return State.unpack(resp)[1]
 
 
-class sp1(device.device):
+@v1_core
+class sp1(BroadlinkDevice):
     """Controls a Broadlink SP1."""
 
     _TYPE = "SP1"
 
     def set_power(self, state: bool) -> None:
         """Set the power state of the device."""
-        packet = int(bool(state)).to_bytes(4, "little")
-        err = self.send_packet(0x66, packet)[1]
-        e.check_error(err)
+        data = int(bool(state)).to_bytes(4, "little")
+        self.send_packet(0x66, data)
 
 
-class sp2(device.device):
+@v2_core
+class sp2(BroadlinkDevice):
     """Controls a Broadlink SP2."""
 
     _TYPE = "SP2"
@@ -122,6 +123,7 @@ class sp2s(sp2):
         return int.from_bytes(resp[:0x03], "little") / 1000
 
 
+@v3_core
 class sp3(sp2):
     """Controls a Broadlink SP3."""
 
@@ -148,6 +150,7 @@ class sp3(sp2):
         return bool(resp[0] & 2)
 
 
+@v3_core
 class sp3s(sp2):
     """Controls a Broadlink SP3S."""
 
@@ -160,7 +163,8 @@ class sp3s(sp2):
         return int(energy) / 100
 
 
-class sp4(device.device):
+@v5_core
+class sp4(BroadlinkDevice):
     """Controls a Broadlink SP4."""
 
     _TYPE = "SP4"
@@ -218,7 +222,8 @@ class sp4(device.device):
         return State.unpack(resp)[1]
 
 
-class sp4b(sp4, metaclass=device.V4Meta):
+@v4_core
+class sp4b(sp4):
     """Controls a Broadlink SP4 (type B)."""
 
     _TYPE = "SP4B"

@@ -3,9 +3,10 @@ import socket
 import time
 import typing as t
 
-from . import alarm, climate, cover, device
+from . import alarm, climate, cover
 from . import exceptions as e
 from . import light, remote, sensor, switch
+from .device import BroadlinkDevice
 from .protocol import Address, Datetime
 
 SUPPORTED_TYPES = {
@@ -112,13 +113,13 @@ def gendevice(
     mac: t.Union[bytes, str],
     name: str = None,
     is_locked: bool = None,
-) -> device.BroadlinkDevice:
+) -> BroadlinkDevice:
     """Generate a device."""
     try:
         dev_class, model, manufacturer = SUPPORTED_TYPES[dev_type]
 
     except KeyError:
-        return device.UnknownDevice(host, mac, dev_type, name=name, is_locked=is_locked)
+        return BroadlinkDevice(host, mac, dev_type, name=name, is_locked=is_locked)
 
     return dev_class(
         host,
@@ -136,7 +137,7 @@ def hello(
     port: int = 80,
     timeout: int = 10,
     local_ip_address: str = None,
-) -> device.BroadlinkDevice:
+) -> BroadlinkDevice:
     """Direct device discovery.
 
     Useful if the device is locked.
@@ -156,7 +157,7 @@ def discover(
     local_ip_address: str = None,
     discover_ip_address: str = "255.255.255.255",
     discover_ip_port: int = 80,
-) -> t.List[device.BroadlinkDevice]:
+) -> t.List[BroadlinkDevice]:
     """Discover devices connected to the local network."""
     dev_generator = xdiscover(
         timeout, local_ip_address, discover_ip_address, discover_ip_port
@@ -169,7 +170,7 @@ def xdiscover(
     local_ip_address: str = None,
     discover_ip_address: str = "255.255.255.255",
     discover_ip_port: int = 80,
-) -> t.Generator[device.BroadlinkDevice, None, None]:
+) -> t.Generator[BroadlinkDevice, None, None]:
     """Discover devices connected to the local network.
 
     This function generates devices instantly.
