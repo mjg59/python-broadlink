@@ -1,96 +1,80 @@
 """Support for universal remotes."""
 import struct
 
-from .device import device
-from .exceptions import check_error
+from .device import BroadlinkDevice, v2_core, v4_core
 
 
-class rmmini(device):
+@v2_core
+class rmmini(BroadlinkDevice):
     """Controls a Broadlink RM mini 3."""
 
-    TYPE = "RMMINI"
-
-    def _send(self, command: int, data: bytes = b'') -> bytes:
-        """Send a packet to the device."""
-        packet = struct.pack("<I", command) + data
-        resp = self.send_packet(0x6A, packet)
-        check_error(resp[0x22:0x24])
-        payload = self.decrypt(resp[0x38:])
-        return payload[0x4:]
+    _TYPE = "RMMINI"
 
     def send_data(self, data: bytes) -> None:
         """Send a code to the device."""
-        self._send(0x2, data)
+        self.send_cmd(0x02, data, retry_intvl=5.0)
 
     def enter_learning(self) -> None:
         """Enter infrared learning mode."""
-        self._send(0x3)
+        self.send_cmd(0x03)
 
     def check_data(self) -> bytes:
         """Return the last captured code."""
-        return self._send(0x4)
+        return self.send_cmd(0x04)
 
 
 class rmpro(rmmini):
     """Controls a Broadlink RM pro."""
 
-    TYPE = "RMPRO"
+    _TYPE = "RMPRO"
 
     def sweep_frequency(self) -> None:
         """Sweep frequency."""
-        self._send(0x19)
+        self.send_cmd(0x19)
 
     def check_frequency(self) -> bool:
         """Return True if the frequency was identified successfully."""
-        resp = self._send(0x1A)
+        resp = self.send_cmd(0x1A)
         return resp[0] == 1
 
     def find_rf_packet(self) -> None:
         """Enter radiofrequency learning mode."""
-        self._send(0x1B)
+        self.send_cmd(0x1B)
 
     def cancel_sweep_frequency(self) -> None:
         """Cancel sweep frequency."""
-        self._send(0x1E)
+        self.send_cmd(0x1E)
 
     def check_sensors(self) -> dict:
         """Return the state of the sensors."""
-        resp = self._send(0x1)
-        temp = struct.unpack("<bb", resp[:0x2])
-        return {"temperature": temp[0x0] + temp[0x1] / 10.0}
+        resp = self.send_cmd(0x01)
+        temp = struct.unpack("<bb", resp[:0x02])
+        return {"temperature": temp[0x00] + temp[0x01] / 10.0}
 
     def check_temperature(self) -> float:
         """Return the temperature."""
         return self.check_sensors()["temperature"]
 
 
+@v4_core
 class rmminib(rmmini):
     """Controls a Broadlink RM mini 3 (new firmware)."""
 
-    TYPE = "RMMINIB"
-
-    def _send(self, command: int, data: bytes = b'') -> bytes:
-        """Send a packet to the device."""
-        packet = struct.pack("<HI", len(data) + 4, command) + data
-        resp = self.send_packet(0x6A, packet)
-        check_error(resp[0x22:0x24])
-        payload = self.decrypt(resp[0x38:])
-        p_len = struct.unpack("<H", payload[:0x2])[0]
-        return payload[0x6:p_len+2]
+    _TYPE = "RMMINIB"
 
 
 class rm4mini(rmminib):
     """Controls a Broadlink RM4 mini."""
-    
-    TYPE = "RM4MINI"
+
+    _TYPE = "RM4MINI"
 
     def check_sensors(self) -> dict:
         """Return the state of the sensors."""
-        resp = self._send(0x24)
-        temp = struct.unpack("<bb", resp[:0x2])
+        resp = self.send_cmd(0x24)
+        temp = struct.unpack("<bb", resp[:0x02])
         return {
-            "temperature": temp[0x0] + temp[0x1] / 100.0,
-            "humidity": resp[0x2] + resp[0x3] / 100.0
+            "temperature": temp[0x00] + temp[0x01] / 100.0,
+            "humidity": resp[0x02] + resp[0x03] / 100.0,
         }
 
     def check_temperature(self) -> float:
@@ -105,16 +89,16 @@ class rm4mini(rmminib):
 class rm4pro(rm4mini, rmpro):
     """Controls a Broadlink RM4 pro."""
 
-    TYPE = "RM4PRO"
+    _TYPE = "RM4PRO"
 
 
 class rm(rmpro):
     """For backwards compatibility."""
 
-    TYPE = "RM2"
+    _TYPE = "RM2"
 
 
 class rm4(rm4pro):
     """For backwards compatibility."""
 
-    TYPE = "RM4"
+    _TYPE = "RM4"

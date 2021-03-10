@@ -1,15 +1,16 @@
 """Support for climate control."""
-from typing import List
+import typing as t
 
-from .device import device
-from .exceptions import check_error
+from . import exceptions as e
+from .device import BroadlinkDevice, v3_core
 from .helpers import calculate_crc16
 
 
-class hysen(device):
+@v3_core
+class hysen(BroadlinkDevice):
     """Controls a Hysen HVAC."""
 
-    TYPE = "Hysen heating controller"
+    _TYPE = "Hysen heating controller"
 
     # Send a request
     # input_payload should be a bytearray, usually 6 bytes, e.g. bytearray([0x01,0x06,0x00,0x02,0x10,0x00])
@@ -22,29 +23,25 @@ class hysen(device):
         crc = calculate_crc16(input_payload)
 
         # first byte is length, +2 for CRC16
-        request_payload = bytearray([len(input_payload) + 2, 0x00])
-        request_payload.extend(input_payload)
+        payload = bytearray((len(input_payload) + 2).to_bytes(2, "little"))
+        payload.extend(input_payload)
 
         # append CRC
-        request_payload.append(crc & 0xFF)
-        request_payload.append((crc >> 8) & 0xFF)
+        payload.extend(crc.to_bytes(2, "little"))
 
         # send to device
-        response = self.send_packet(0x6A, request_payload)
-        check_error(response[0x22:0x24])
-        response_payload = self.decrypt(response[0x38:])
+        resp, err = self._core.send_packet(0x6A, payload)
+        e.check_error(err)
 
         # experimental check on CRC in response (first 2 bytes are len, and trailing bytes are crc)
-        response_payload_len = response_payload[0]
-        if response_payload_len + 2 > len(response_payload):
+        resp_len = int.from_bytes(resp[:0x2], "little")
+        if resp_len + 2 > len(resp):
             raise ValueError(
                 "hysen_response_error", "first byte of response is not length"
             )
-        crc = calculate_crc16(response_payload[2:response_payload_len])
-        if (response_payload[response_payload_len] == crc & 0xFF) and (
-            response_payload[response_payload_len + 1] == (crc >> 8) & 0xFF
-        ):
-            return response_payload[2:response_payload_len]
+        crc = calculate_crc16(resp[2:resp_len])
+        if (resp[resp_len] == crc & 0xFF) and (resp[resp_len + 1] == (crc >> 8) & 0xFF):
+            return resp[2:resp_len]
         raise ValueError("hysen_response_error", "CRC check on response failed")
 
     def get_temp(self) -> int:
@@ -210,7 +207,7 @@ class hysen(device):
     # {'start_hour':17, 'start_minute':30, 'temp': 22 }
     # Each one specifies the thermostat temp that will become effective at start_hour:start_minute
     # weekend is similar but only has 2 (e.g. switch on in morning and off in afternoon)
-    def set_schedule(self, weekday: List[dict], weekend: List[dict]) -> None:
+    def set_schedule(self, weekday: t.List[dict], weekend: t.List[dict]) -> None:
         """Set timer schedule."""
         # Begin with some magic values ...
         input_payload = bytearray([0x01, 0x10, 0x00, 0x0A, 0x00, 0x0C, 0x18])
