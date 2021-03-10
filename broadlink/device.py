@@ -11,6 +11,7 @@ import typing as t
 
 from . import exceptions as e
 from . import protocol as p
+from .common import JSONCommand
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -325,6 +326,12 @@ class V4Core(V3Core):
 
     BlockSizeHandler = p.ExtBlockSizeHandler
 
+    def send_json_cmd(self, command, data, eoh=0x0B):
+        """Send a JSON command to the device."""
+        js_pkt = JSONCommand.pack(command, data, eoh=eoh)
+        resp = self.send_cmd(0x5A5AA5A5, js_pkt)
+        return JSONCommand.unpack(resp)[1]
+
 
 class V5Core(V4Core):
     """Controls a V5 device."""
@@ -516,10 +523,12 @@ def v3_core(cls):
 def v4_core(cls):
     """Decorator to inject a V4 core into a device class."""
     cls.Core = V4Core
+    cls.send_json_cmd = V4Core.send_json_cmd
     return cls
 
 
 def v5_core(cls):
     """Decorator to inject a V5 core into a device class."""
     cls.Core = V5Core
+    cls.send_json_cmd = V5Core.send_json_cmd
     return cls

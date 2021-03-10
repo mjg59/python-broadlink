@@ -1,7 +1,6 @@
 """Support for lights."""
 import enum
 
-from .common import State
 from .device import BroadlinkDevice, v4_core, v5_core
 
 
@@ -24,9 +23,7 @@ class lb27(BroadlinkDevice):
 
         Example: `{'red': 128, 'blue': 255, 'green': 128, 'pwr': 1, 'brightness': 75, 'colortemp': 2700, 'hue': 240, 'saturation': 50, 'transitionduration': 1500, 'maxworktime': 0, 'bulb_colormode': 1, 'bulb_scenes': '["@01686464,0,0,0", "#ffffff,10,0,#000000,190,0,0", "2700+100,0,0,0", "#ff0000,500,2500,#00FF00,500,2500,#0000FF,500,2500,0", "@01686464,100,2400,@01686401,100,2400,0", "@01686464,100,2400,@01686401,100,2400,@005a6464,100,2400,@005a6401,100,2400,0", "@01686464,10,0,@00000000,190,0,0", "@01686464,200,0,@005a6464,200,0,0"]', 'bulb_scene': '', 'bulb_sceneidx': 255}`
         """
-        data = State.pack(State.READ, {})
-        resp = self.send_cmd(0x5A5AA5A5, data)
-        return State.unpack(resp)[1]
+        return self.send_json_cmd(0x01, {})
 
     def set_state(
         self,
@@ -76,9 +73,7 @@ class lb27(BroadlinkDevice):
         if bulb_sceneidx is not None:
             state["bulb_sceneidx"] = bulb_sceneidx
 
-        data = State.pack(State.WRITE, state)
-        resp = self.send_cmd(0x5A5AA5A5, data)
-        return State.unpack(resp)[1]
+        return self.send_json_cmd(0x02, state)
 
 
 @v4_core

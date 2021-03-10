@@ -11,8 +11,7 @@ class mp1(BroadlinkDevice):
     def set_power_mask(self, sid_mask: int, state: bool) -> None:
         """Set the power state of the device."""
         state = bytes([sid_mask, sid_mask if state else 0])
-        data = State.pack(State.WRITE, state, eoh=0)
-        self.send_cmd(0x5A5AA5A5, data)
+        self.send_json_cmd(0x02, state, eoh=0)
 
     def set_power(self, sid: int, state: bool) -> None:
         """Set the power state of the device."""
@@ -21,9 +20,7 @@ class mp1(BroadlinkDevice):
 
     def check_power_raw(self) -> int:
         """Return the power state of the device in raw format."""
-        data = State.pack(State.READ, b"", eoh=0)
-        resp = self.send_cmd(0x5A5AA5A5, data)
-        return State.unpack(resp)[1][1]
+        return self.send_json_cmd(0x01, b"", eoh=0)
 
     def check_power(self) -> dict:
         """Return the power state of the device."""
@@ -47,9 +44,7 @@ class bg1(BroadlinkDevice):
 
         Example: `{"pwr":1,"pwr1":1,"pwr2":0,"maxworktime":60,"maxworktime1":60,"maxworktime2":0,"idcbrightness":50}`
         """
-        data = State.pack(State.READ, {})
-        resp = self.send_cmd(0x5A5AA5A5, data)
-        return State.unpack(resp)[1]
+        return self.send_json_cmd(0x01, {})
 
     def set_state(
         self,
@@ -78,9 +73,7 @@ class bg1(BroadlinkDevice):
         if idcbrightness is not None:
             state["idcbrightness"] = idcbrightness
 
-        data = State.pack(State.WRITE, state)
-        resp = self.send_cmd(0x5A5AA5A5, data)
-        return State.unpack(resp)[1]
+        return self.send_json_cmd(0x02, state)
 
 
 @v1_core
@@ -201,9 +194,7 @@ class sp4(BroadlinkDevice):
         if childlock is not None:
             state["childlock"] = int(bool(childlock))
 
-        data = State.pack(State.WRITE, state)
-        resp = self.send_cmd(0x5A5AA5A5, data)
-        return State.unpack(resp)[1]
+        return self.send_json_cmd(0x02, state)
 
     def check_power(self) -> bool:
         """Return the power state of the device."""
@@ -217,9 +208,7 @@ class sp4(BroadlinkDevice):
 
     def get_state(self) -> dict:
         """Get full state of device."""
-        data = State.pack(State.READ, {})
-        resp = self.send_cmd(0x5A5AA5A5, data)
-        return State.unpack(resp)[1]
+        return self.send_json_cmd(0x01, {})
 
 
 @v4_core
