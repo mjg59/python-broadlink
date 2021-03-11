@@ -89,6 +89,9 @@ class device:
 
     TYPE = "Unknown"
 
+    __INIT_KEY = "097628343fe99e23765c1513accf8b02"
+    __INIT_VECT = "562e17996d093d28ddb3ba695a2e6f58"
+
     def __init__(
         self,
         host: Tuple[str, int],
@@ -110,14 +113,13 @@ class device:
         self.manufacturer = manufacturer
         self.is_locked = is_locked
         self.count = random.randint(0x8000, 0xFFFF)
-        self.iv = bytes.fromhex("562e17996d093d28ddb3ba695a2e6f58")
+        self.iv = bytes.fromhex(self.__INIT_VECT)
         self.id = 0
         self.type = self.TYPE  # For backwards compatibility.
         self.lock = threading.Lock()
 
         self.aes = None
-        key = bytes.fromhex("097628343fe99e23765c1513accf8b02")
-        self.update_aes(key)
+        self.update_aes(bytes.fromhex(self.__INIT_KEY))
 
     def __repr__(self):
         return "<%s: %s %s (%s) at %s:%s | %s | %s | %s>" % (
@@ -157,6 +159,9 @@ class device:
 
     def auth(self) -> bool:
         """Authenticate to the device."""
+        self.id = 0
+        self.update_aes(bytes.fromhex(self.__INIT_KEY))
+
         payload = bytearray(0x50)
         payload[0x04:0x14] = [0x31]*16
         payload[0x1E] = 0x01
