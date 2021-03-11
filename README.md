@@ -3,19 +3,19 @@ Python control for Broadlink devices
 
 A simple Python API for controlling Broadlink devices. At present, the following devices are supported:
 
-- Universal remotes: `RM pro`, `RM pro+`, `RM pro plus`, `RM mini 3`, `RM4 pro`, `RM4 mini`, `RM4C mini`, `RM4S`
-- Smart plugs: `SP1`, `SP2`, `SP mini`, `SP mini+`, `SP3`, `SP3S`, `SP4L`, `SP4M`
-- Power strips: `MP1-1K4S`, `MP1-1K3S2U`, `MP2`
-- Control box: `SC1`, `SCB1E`, `MCB1`
-- Sensors: `A1`
-- Alarm kit: `S1C`, `S2KIT`
-- Light bulb: `LB1`, `SB800TD`
+- **Universal remotes**: RM home, RM mini 3, RM plus, RM pro, RM pro+, RM4 mini, RM4 pro, RM4C mini, RM4S
+- **Smart plugs**: SP mini, SP mini 3, SP mini+, SP1, SP2, SP2-BR, SP2-CL, SP2-IN, SP2-UK, SP3, SP3-EU, SP3S-EU, SP3S-US, SP4L-AU, SP4L-EU, SP4L-UK, SP4M, SP4M-US
+- **Power strips**: MP1-1K3S2U, MP1-1K4S, MP2
+- **Wi-Fi controlled switches**: MCB1, SC1, SCB1E
+- **Environment sensors**: A1
+- **Alarm kits**: S2KIT
+- **Light bulbs**: LB1, SB800TD
 
 Other devices with Broadlink DNA:
-- Smart plugs: `Ankuoo NEO`, `Ankuoo NEO PRO`, `Efergy Ego`, `BG AHC/U-01`
-- Outlet: `BG 800`, `BG 900`
-- Curtain motor: `Dooya DT360E-45/20`
-- Thermostat: `Hysen HY02B05H`
+- **Smart plugs**: Ankuoo NEO, Ankuoo NEO PRO, BG AHC/U-01, Efergy Ego
+- **Outlets**: BG 800, BG 900
+- **Curtain motors**: Dooya DT360E-45/20
+- **Thermostats**: Hysen HY02B05H
 
 There is currently no support for the cloud API.
 
