@@ -18,6 +18,12 @@ class rmmini(device):
         payload = self.decrypt(resp[0x38:])
         return payload[0x4:]
 
+    def update(self) -> None:
+        """Update device name and lock status."""
+        resp = self._send(0x1)
+        self.name = resp[0x48:].split(b"\x00")[0].decode()
+        self.is_locked = bool(resp[0x87])
+
     def send_data(self, data: bytes) -> None:
         """Send a code to the device."""
         self._send(0x2, data)
