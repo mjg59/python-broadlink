@@ -98,15 +98,15 @@ class device:
         mac: Union[bytes, str],
         devtype: int,
         timeout: int = 10,
-        name: str = None,
-        model: str = None,
-        manufacturer: str = None,
-        is_locked: bool = None,
+        name: str = "",
+        model: str = "",
+        manufacturer: str = "",
+        is_locked: bool = False,
     ) -> None:
         """Initialize the controller."""
         self.host = host
         self.mac = bytes.fromhex(mac) if isinstance(mac, str) else mac
-        self.devtype = devtype if devtype is not None else 0x272A
+        self.devtype = devtype
         self.timeout = timeout
         self.name = name
         self.model = model
@@ -121,25 +121,40 @@ class device:
         self.aes = None
         self.update_aes(bytes.fromhex(self.__INIT_KEY))
 
-    def __repr__(self):
-        return "<%s: %s %s (%s) at %s:%s | %s | %s | %s>" % (
-            type(self).__name__,
-            self.manufacturer,
-            self.model,
-            hex(self.devtype),
-            self.host[0],
-            self.host[1],
-            ":".join(format(x, "02x") for x in self.mac),
+    def __repr__(self) -> str:
+        """Return a formal representation of the device."""
+        return (
+            "%s.%s(%s, mac=%r, devtype=%r, timeout=%r, name=%r, "
+            "model=%r, manufacturer=%r, is_locked=%r)"
+        ) % (
+            self.__class__.__module__,
+            self.__class__.__qualname__,
+            self.host,
+            self.mac,
+            self.devtype,
+            self.timeout,
             self.name,
-            "Locked" if self.is_locked else "Unlocked",
+            self.model,
+            self.manufacturer,
+            self.is_locked,
         )
 
-    def __str__(self):
-        return "%s (%s at %s)" % (
-            self.name,
-            self.model or hex(self.devtype),
-            self.host[0],
-        )
+    def __str__(self) -> str:
+        """Return a readable representation of the device."""
+        model = []
+        if self.manufacturer:
+            model.append(self.manufacturer)
+        if self.model:
+            model.append(self.model)
+        model.append(hex(self.devtype))
+        model = " ".join(model)
+
+        info = []
+        info.append(model)
+        info.append(f"{self.host[0]}:{self.host[1]}")
+        info.append(":".join(format(x, "02x") for x in self.mac).upper())
+        info = " / ".join(info)
+        return "%s (%s)" % (self.name or "Unknown", info)
 
     def update_aes(self, key: bytes) -> None:
         """Update AES."""
@@ -225,7 +240,7 @@ class device:
         packet = bytearray(4)
         packet += name.encode("utf-8")
         packet += bytearray(0x50 - len(packet))
-        packet[0x43] = bool(self.is_locked)
+        packet[0x43] = self.is_locked
         response = self.send_packet(0x6A, packet)
         check_error(response[0x22:0x24])
         self.name = name
