@@ -1,37 +1,29 @@
 Command line interface for python-broadlink
 ===========================================
 
-This is a command line interface for broadlink python library
-
-Tested with BroadLink RMPRO / RM2
+This is a command line interface for the python-broadlink API.
 
 
 Requirements
 ------------
-You should have the broadlink python installed, this can be made in many linux distributions using :
+You need to install the module first:
 ```
-sudo pip install broadlink
+pip3 install broadlink
 ```
 
 Installation
 -----------
-Just copy this files
+Download "broadlink_cli" and "broadlink_discovery".
 
 
 Programs
 --------
+* broadlink_discovery: Discover Broadlink devices connected to the local network.
+
+* broadlink_cli: Send commands and query the Broadlink device.
 
 
-* broadlink_discovery 
-used to run the discovery in the network
-this program withh show the command line parameters to be used with
-broadlink_cli to select broadlink device
-
-* broadlink_cli 
-used to send commands and query the broadlink device
-
-
-device specification formats
+Device specification formats
 ----------------------------
 
 Using separate parameters for each information:
@@ -48,38 +40,99 @@ Using file with parameters:
 ```
 broadlink_cli --device @BEDROOM.device --temp
 ```
-This is prefered as the configuration is stored in file and you can change
-just a file to point to a different hardware 
+This is prefered as the configuration is stored in a file and you can change
+it later to point to a different device.
 
-Sample usage
-------------
+Example usage
+-------------
 
-Learn commands :
+### Common commands
+
+#### Join device to the Wi-Fi network
 ```
-# Learn and save to file
-broadlink_cli --device @BEDROOM.device --learnfile LG-TV.power
-# LEard and show at console
+broadlink_cli --joinwifi SSID PASSWORD
+```
+
+#### Discover devices connected to the local network
+```
+broadlink_discovery
+```
+
+### Universal remotes
+
+#### Learn IR code and show at console
+```
 broadlink_cli --device @BEDROOM.device --learn 
 ```
 
+#### Learn RF code and show at console
+```
+broadlink_cli --device @BEDROOM.device --rfscanlearn
+```
 
-Send command :
+#### Learn IR code and save to file
+```
+broadlink_cli --device @BEDROOM.device --learnfile LG-TV.power
+```
+
+#### Learn RF code and save to file
+```
+broadlink_cli --device @BEDROOM.device --rfscanlearn --learnfile LG-TV.power
+```
+
+#### Send code
+```
+broadlink_cli --device @BEDROOM.device --send DATA
+```
+
+#### Send code from file
 ```
 broadlink_cli --device @BEDROOM.device --send @LG-TV.power
-broadlink_cli --device @BEDROOM.device --send ....datafromlearncommand...
 ```
 
-Get Temperature :
+#### Check temperature
 ```
 broadlink_cli --device @BEDROOM.device --temperature
 ```
 
-Get Energy Consumption (For a SmartPlug) :
+#### Check humidity
 ```
-broadlink_cli --device @BEDROOM.device --energy
+broadlink_cli --device @BEDROOM.device --temperature
 ```
 
-Once joined to the Broadlink provisioning Wi-Fi, configure it with your Wi-Fi details:
+### Smart plugs
+
+#### Turn on
 ```
-broadlink_cli --joinwifi MySSID MyWifiPassword
+broadlink_cli --device @BEDROOM.device --turnon
+```
+
+#### Turn off
+```
+broadlink_cli --device @BEDROOM.device --turnoff
+```
+
+#### Turn on nightlight
+```
+broadlink_cli --device @BEDROOM.device --turnnlon
+```
+
+#### Turn off nightlight
+```
+broadlink_cli --device @BEDROOM.device --turnnloff
+```
+
+#### Check power state
+```
+broadlink_cli --device @BEDROOM.device --check
+```
+
+#### Check nightlight state
+```
+broadlink_cli --device @BEDROOM.device --checknl
+```
+
+#### Check power consumption
+```
+broadlink_cli --device @BEDROOM.device --energy
 ```
