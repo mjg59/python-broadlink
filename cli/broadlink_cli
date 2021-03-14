@@ -93,16 +93,16 @@ args = parser.parse_args()
 
 if args.device:
     values = args.device.split()
-    type = int(values[0], 0)
+    devtype = int(values[0], 0)
     host = values[1]
     mac = bytearray.fromhex(values[2])
 elif args.mac:
-    type = args.type
+    devtype = args.type
     host = args.host
     mac = bytearray.fromhex(args.mac)
 
 if args.host or args.device:
-    dev = broadlink.gendevice(type, (host, 80), mac)
+    dev = broadlink.gendevice(devtype, (host, 80), mac)
     dev.auth()
 
 if args.joinwifi:
