@@ -119,11 +119,7 @@ if args.humidity:
 if args.energy:
     print(dev.get_energy())
 if args.sensors:
-    try:
-        data = dev.check_sensors()
-    except:
-        data = {}
-        data['temperature'] = dev.check_temperature()
+    data = dev.check_sensors()
     for key in data:
         print("{} {}".format(key, data[key]))
 if args.send:
