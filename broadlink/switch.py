@@ -298,12 +298,12 @@ class sp4(device):
     def check_power(self) -> bool:
         """Return the power state of the device."""
         state = self.get_state()
-        return state["pwr"]
+        return bool(state["pwr"])
 
     def check_nightlight(self) -> bool:
         """Return the state of the night light."""
         state = self.get_state()
-        return state["ntlight"]
+        return bool(state["ntlight"])
 
     def get_state(self) -> dict:
         """Get full state of device."""

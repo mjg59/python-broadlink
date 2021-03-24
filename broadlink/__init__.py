@@ -44,6 +44,7 @@ SUPPORTED_TYPES = {
     0x756F: (sp4, "MCB1", "Broadlink"),
     0x7579: (sp4, "SP4L-EU", "Broadlink"),
     0x7583: (sp4, "SP mini 3", "Broadlink"),
+    0x7587: (sp4, "SP4L-UK", "Broadlink"),
     0x7D11: (sp4, "SP mini 3", "Broadlink"),
     0xA56A: (sp4, "MCB1", "Broadlink"),
     0xA589: (sp4, "SP4L-UK", "Broadlink"),
