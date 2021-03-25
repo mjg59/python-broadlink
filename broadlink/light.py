@@ -2,7 +2,7 @@
 import enum
 import json
 import struct
-import typing
+import typing as t
 
 from .device import device
 from .exceptions import check_error
@@ -58,32 +58,32 @@ class lb1(device):
         if green is not None:
             state["green"] = int(green)
         if brightness is not None:
-            state["brightness"] = brightness
+            state["brightness"] = int(brightness)
         if colortemp is not None:
-            state["colortemp"] = colortemp
+            state["colortemp"] = int(colortemp)
         if hue is not None:
-            state["hue"] = hue
+            state["hue"] = int(hue)
         if saturation is not None:
-            state["saturation"] = saturation
+            state["saturation"] = int(saturation)
         if transitionduration is not None:
-            state["transitionduration"] = transitionduration
+            state["transitionduration"] = int(transitionduration)
         if maxworktime is not None:
-            state["maxworktime"] = maxworktime
+            state["maxworktime"] = int(maxworktime)
         if bulb_colormode is not None:
-            state["bulb_colormode"] = bulb_colormode
+            state["bulb_colormode"] = int(bulb_colormode)
         if bulb_scenes is not None:
-            state["bulb_scenes"] = bulb_scenes
+            state["bulb_scenes"] = str(bulb_scenes)
         if bulb_scene is not None:
-            state["bulb_scene"] = bulb_scene
+            state["bulb_scene"] = str(bulb_scene)
         if bulb_sceneidx is not None:
-            state["bulb_sceneidx"] = bulb_sceneidx
+            state["bulb_sceneidx"] = int(bulb_sceneidx)
 
         packet = self._encode(2, state)
         response = self.send_packet(0x6A, packet)
         check_error(response[0x22:0x24])
         return self._decode(response)
 
-    def _encode(self, flag: int, obj: typing.Any) -> bytes:
+    def _encode(self, flag: int, obj: t.Any) -> bytes:
         """Encode a JSON packet."""
         # flag: 1 for reading, 2 for writing.
         packet = bytearray(14)
@@ -97,7 +97,7 @@ class lb1(device):
         packet[0x6:0x8] = checksum.to_bytes(2, "little")
         return packet
 
-    def _decode(self, response: bytes) -> typing.Any:
+    def _decode(self, response: bytes) -> t.Any:
         """Decode a JSON packet."""
         payload = self.decrypt(response[0x38:])
         js_len = struct.unpack_from("<I", payload, 0xA)[0]
@@ -154,30 +154,30 @@ class lb27r1(device):
         if green is not None:
             state["green"] = int(green)
         if brightness is not None:
-            state["brightness"] = brightness
+            state["brightness"] = int(brightness)
         if colortemp is not None:
-            state["colortemp"] = colortemp
+            state["colortemp"] = int(colortemp)
         if hue is not None:
-            state["hue"] = hue
+            state["hue"] = int(hue)
         if saturation is not None:
-            state["saturation"] = saturation
+            state["saturation"] = int(saturation)
         if transitionduration is not None:
-            state["transitionduration"] = transitionduration
+            state["transitionduration"] = int(transitionduration)
         if maxworktime is not None:
-            state["maxworktime"] = maxworktime
+            state["maxworktime"] = int(maxworktime)
         if bulb_colormode is not None:
-            state["bulb_colormode"] = bulb_colormode
+            state["bulb_colormode"] = int(bulb_colormode)
         if bulb_scenes is not None:
-            state["bulb_scenes"] = bulb_scenes
+            state["bulb_scenes"] = str(bulb_scenes)
         if bulb_scene is not None:
-            state["bulb_scene"] = bulb_scene
+            state["bulb_scene"] = str(bulb_scene)
 
         packet = self._encode(2, state)
         response = self.send_packet(0x6A, packet)
         check_error(response[0x22:0x24])
         return self._decode(response)
 
-    def _encode(self, flag: int, obj: typing.Any) -> bytes:
+    def _encode(self, flag: int, obj: t.Any) -> bytes:
         """Encode a JSON packet."""
         # flag: 1 for reading, 2 for writing.
         packet = bytearray(12)
@@ -190,7 +190,7 @@ class lb27r1(device):
         packet[0x4:0x6] = checksum.to_bytes(2, "little")
         return packet
 
-    def _decode(self, response: bytes) -> typing.Any:
+    def _decode(self, response: bytes) -> t.Any:
         """Decode a JSON packet."""
         payload = self.decrypt(response[0x38:])
         js_len = struct.unpack_from("<I", payload, 0x8)[0]
