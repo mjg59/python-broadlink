@@ -8,7 +8,7 @@ from .climate import hysen
 from .cover import dooya
 from .device import device, ping, scan
 from .exceptions import exception
-from .light import lb1
+from .light import lb1, lb27r1
 from .remote import rm, rm4, rm4mini, rm4pro, rmmini, rmminib, rmpro
 from .sensor import a1
 from .switch import bg1, mp1, sp1, sp2, sp2s, sp3, sp3s, sp4, sp4b
@@ -105,6 +105,7 @@ SUPPORTED_TYPES = {
     0x60C7: (lb1, "LB1", "Broadlink"),
     0x60C8: (lb1, "LB1", "Broadlink"),
     0x6112: (lb1, "LB1", "Broadlink"),
+    0xA4F4: (lb27r1, "LB27 R1", "Broadlink"),
     0x2722: (S1C, "S2KIT", "Broadlink"),
     0x4EAD: (hysen, "HY02B05H", "Hysen"),
     0x4E4D: (dooya, "DT360E-45/20", "Dooya"),
