@@ -1,8 +1,8 @@
 """Support for covers."""
 import time
 
+from . import exceptions as e
 from .device import device
-from .exceptions import check_error
 
 
 class dooya(device):
@@ -20,7 +20,7 @@ class dooya(device):
         packet[9] = 0xFA
         packet[10] = 0x44
         response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
+        e.check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
         return payload[4]
 

@@ -1,8 +1,8 @@
 """Support for sensors."""
 import struct
 
+from . import exceptions as e
 from .device import device
-from .exceptions import check_error
 
 
 class a1(device):
@@ -30,7 +30,7 @@ class a1(device):
         """Return the state of the sensors in raw format."""
         packet = bytearray([0x1])
         response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
+        e.check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
         data = payload[0x4:]
 
