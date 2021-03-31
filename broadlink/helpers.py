@@ -2,7 +2,7 @@
 from ctypes import c_ushort
 
 
-def calculate_crc16(input_data: bytes) -> int:
+def crc16(input_data: bytes) -> int:
     """Calculate the CRC-16 of a byte string."""
     crc16_tab = []
     crc16_constant = 0xA001
