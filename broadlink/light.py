@@ -4,8 +4,8 @@ import json
 import struct
 import typing as t
 
+from . import exceptions as e
 from .device import device
-from .exceptions import check_error
 
 
 class lb1(device):
@@ -27,7 +27,7 @@ class lb1(device):
         """
         packet = self._encode(1, {})
         response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
+        e.check_error(response[0x22:0x24])
         return self._decode(response)
 
     def set_state(
@@ -80,7 +80,7 @@ class lb1(device):
 
         packet = self._encode(2, state)
         response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
+        e.check_error(response[0x22:0x24])
         return self._decode(response)
 
     def _encode(self, flag: int, obj: t.Any) -> bytes:
@@ -124,7 +124,7 @@ class lb27r1(device):
         """
         packet = self._encode(1, {})
         response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
+        e.check_error(response[0x22:0x24])
         return self._decode(response)
 
     def set_state(
@@ -174,7 +174,7 @@ class lb27r1(device):
 
         packet = self._encode(2, state)
         response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
+        e.check_error(response[0x22:0x24])
         return self._decode(response)
 
     def _encode(self, flag: int, obj: t.Any) -> bytes:

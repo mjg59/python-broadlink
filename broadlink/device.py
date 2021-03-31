@@ -3,15 +3,15 @@ import socket
 import threading
 import random
 import time
-from typing import Generator, Tuple, Union
+import typing as t
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
-from .exceptions import check_error, exception
+from . import exceptions as e
 from .protocol import Datetime
 
-HelloResponse = Tuple[int, Tuple[str, int], str, str, bool]
+HelloResponse = t.Tuple[int, t.Tuple[str, int], str, str, bool]
 
 
 def scan(
@@ -19,7 +19,7 @@ def scan(
     local_ip_address: str = None,
     discover_ip_address: str = "255.255.255.255",
     discover_ip_port: int = 80,
-) -> Generator[HelloResponse, None, None]:
+) -> t.Generator[HelloResponse, None, None]:
     """Broadcast a hello message and yield responses."""
     conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -94,8 +94,8 @@ class device:
 
     def __init__(
         self,
-        host: Tuple[str, int],
-        mac: Union[bytes, str],
+        host: t.Tuple[str, int],
+        mac: t.Union[bytes, str],
         devtype: int,
         timeout: int = 10,
         name: str = "",
@@ -184,7 +184,7 @@ class device:
         payload[0x30:0x36] = "Test 1".encode()
 
         response = self.send_packet(0x65, payload)
-        check_error(response[0x22:0x24])
+        e.check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
 
         key = payload[0x04:0x14]
@@ -209,10 +209,10 @@ class device:
         try:
             devtype, host, mac, name, is_locked = next(responses)
         except StopIteration:
-            raise exception(-4000)  # Network timeout.
+            raise e.exception(-4000)  # Network timeout.
 
         if (devtype, host, mac) != (self.devtype, self.host, self.mac):
-            raise exception(-2040)  # Device information is not intact.
+            raise e.exception(-2040)  # Device information is not intact.
 
         self.name = name
         self.is_locked = is_locked
@@ -231,7 +231,7 @@ class device:
         """Get firmware version."""
         packet = bytearray([0x68])
         response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
+        e.check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
         return payload[0x4] | payload[0x5] << 8
 
@@ -242,7 +242,7 @@ class device:
         packet += bytearray(0x50 - len(packet))
         packet[0x43] = self.is_locked
         response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
+        e.check_error(response[0x22:0x24])
         self.name = name
 
     def set_lock(self, state: bool) -> None:
@@ -252,7 +252,7 @@ class device:
         packet += bytearray(0x50 - len(packet))
         packet[0x43] = bool(state)
         response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
+        e.check_error(response[0x22:0x24])
         self.is_locked = bool(state)
 
     def get_type(self) -> str:
@@ -294,13 +294,13 @@ class device:
                     break
                 except socket.timeout:
                     if (time.time() - start_time) > timeout:
-                        raise exception(-4000)  # Network timeout.
+                        raise e.exception(-4000)  # Network timeout.
 
         if len(resp) < 0x30:
-            raise exception(-4007)  # Length error.
+            raise e.exception(-4007)  # Length error.
 
         checksum = int.from_bytes(resp[0x20:0x22], "little")
         if sum(resp, 0xBEAF) - sum(resp[0x20:0x22]) & 0xFFFF != checksum:
-            raise exception(-4008)  # Checksum error.
+            raise e.exception(-4008)  # Checksum error.
 
         return resp
