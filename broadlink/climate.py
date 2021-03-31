@@ -1,8 +1,8 @@
 """Support for climate control."""
 from typing import List
 
+from . import exceptions as e
 from .device import device
-from .exceptions import check_error
 from .helpers import calculate_crc16
 
 
@@ -31,7 +31,7 @@ class hysen(device):
 
         # send to device
         response = self.send_packet(0x6A, request_payload)
-        check_error(response[0x22:0x24])
+        e.check_error(response[0x22:0x24])
         response_payload = self.decrypt(response[0x38:])
 
         # experimental check on CRC in response (first 2 bytes are len, and trailing bytes are crc)

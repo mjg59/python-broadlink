@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """The python-broadlink library."""
 import socket
-from typing import Generator, List, Tuple, Union
+import typing as t
 
+from . import exceptions as e
 from .alarm import S1C
 from .climate import hysen
 from .cover import dooya
 from .device import device, ping, scan
-from .exceptions import exception
 from .light import lb1, lb27r1
 from .remote import rm, rm4, rm4mini, rm4pro, rmmini, rmminib, rmpro
 from .sensor import a1
@@ -115,8 +115,8 @@ SUPPORTED_TYPES = {
 
 def gendevice(
     dev_type: int,
-    host: Tuple[str, int],
-    mac: Union[bytes, str],
+    host: t.Tuple[str, int],
+    mac: t.Union[bytes, str],
     name: str = None,
     is_locked: bool = None,
 ) -> device:
@@ -151,7 +151,7 @@ def hello(
     try:
         return next(xdiscover(timeout, local_ip_address, host, port))
     except StopIteration:
-        raise exception(-4000)  # Network timeout.
+        raise e.exception(-4000)  # Network timeout.
 
 
 def discover(
@@ -159,7 +159,7 @@ def discover(
     local_ip_address: str = None,
     discover_ip_address: str = "255.255.255.255",
     discover_ip_port: int = 80,
-) -> List[device]:
+) -> t.List[device]:
     """Discover devices connected to the local network."""
     responses = scan(timeout, local_ip_address, discover_ip_address, discover_ip_port)
     return [gendevice(*resp) for resp in responses]
@@ -170,7 +170,7 @@ def xdiscover(
     local_ip_address: str = None,
     discover_ip_address: str = "255.255.255.255",
     discover_ip_port: int = 80,
-) -> Generator[device, None, None]:
+) -> t.Generator[device, None, None]:
     """Discover devices connected to the local network.
 
     This function returns a generator that yields devices instantly.

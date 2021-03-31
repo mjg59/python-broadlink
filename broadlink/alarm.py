@@ -1,6 +1,6 @@
 """Support for alarm kits."""
+from . import exceptions as e
 from .device import device
-from .exceptions import check_error
 
 
 class S1C(device):
@@ -19,7 +19,7 @@ class S1C(device):
         packet = bytearray(16)
         packet[0] = 0x06  # 0x06 - get sensors info, 0x07 - probably add sensors
         response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
+        e.check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
         if not payload:
             return None
