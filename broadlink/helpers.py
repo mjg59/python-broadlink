@@ -1,11 +1,14 @@
 """Helper functions."""
 import typing as t
 
-def crc16(sequence: t.Sequence[int]) -> int:
+
+def crc16(
+    sequence: t.Sequence[int],
+    polynomial=0xA001,
+    init_value=0xFFFF,
+) -> int:
     """Calculate the CRC-16 of a byte string."""
     crc_table = []
-    polynomial = 0xA001
-
     for dividend in range(0, 256):
         remainder = dividend
         for _ in range(0, 8):
@@ -15,8 +18,7 @@ def crc16(sequence: t.Sequence[int]) -> int:
                 remainder = remainder >> 1 & 0xFFFF
         crc_table.append(remainder)
 
-    crc = 0xFFFF
-
+    crc = init_value
     for item in sequence:
         index = (crc ^ item) & 0x00FF
         base = crc >> 8 & 0xFFFF
