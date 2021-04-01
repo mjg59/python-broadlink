@@ -13,13 +13,13 @@ def crc16(sequence: t.Sequence[int]) -> int:
                 remainder = remainder >> 1 & 0xFFFF ^ polynomial
             else:
                 remainder = remainder >> 1 & 0xFFFF
-        crc_table.append(hex(remainder))
+        crc_table.append(remainder)
 
     crc = 0xFFFF
 
     for item in sequence:
         index = (crc ^ item) & 0x00FF
         base = crc >> 8 & 0xFFFF
-        crc = base ^ int(crc_table[index], 0)
+        crc = base ^ crc_table[index]
 
     return crc
