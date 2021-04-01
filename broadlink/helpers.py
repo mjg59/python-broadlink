@@ -12,16 +12,15 @@ def crc16(
     for dividend in range(0, 256):
         remainder = dividend
         for _ in range(0, 8):
-            if remainder & 0x0001:
-                remainder = remainder >> 1 & 0xFFFF ^ polynomial
+            if remainder & 1:
+                remainder = remainder >> 1 ^ polynomial
             else:
-                remainder = remainder >> 1 & 0xFFFF
+                remainder = remainder >> 1
         crc_table.append(remainder)
 
     crc = init_value
     for item in sequence:
-        index = (crc ^ item) & 0x00FF
-        base = crc >> 8 & 0xFFFF
+        index = (crc ^ item) & 0xFF
+        base = crc >> 8
         crc = base ^ crc_table[index]
-
     return crc
