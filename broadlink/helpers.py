@@ -6,8 +6,8 @@ _crc16_cache = {}
 
 def crc16(
     sequence: t.Sequence[int],
-    polynomial=0xA001,
-    init_value=0xFFFF,
+    polynomial: int = 0xA001,
+    init_value: int = 0xFFFF,
 ) -> int:
     """Calculate the CRC-16 of a byte string."""
     global _crc16_cache
