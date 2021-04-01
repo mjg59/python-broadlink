@@ -2,7 +2,7 @@
 import typing as t
 
 
-class CRC16:  # pylint: disable=R0903
+class CRC16:
     """Helps with CRC-16 calculation.
 
     CRC tables are cached for performance.
@@ -11,13 +11,8 @@ class CRC16:  # pylint: disable=R0903
     _cache = {}
 
     @classmethod
-    def calculate(
-        cls,
-        sequence: t.Sequence[int],
-        polynomial: int = 0xA001,  # Modbus CRC-16.
-        init_value: int = 0xFFFF,
-    ) -> int:
-        """Calculate the CRC-16 of a sequence of integers."""
+    def get_table(cls, polynomial: int):
+        """Return the CRC-16 table for a polynomial."""
         try:
             crc_table = cls._cache[polynomial]
         except KeyError:
@@ -31,7 +26,17 @@ class CRC16:  # pylint: disable=R0903
                         remainder = remainder >> 1
                 crc_table.append(remainder)
             cls._cache[polynomial] = crc_table
+        return crc_table
 
+    @classmethod
+    def calculate(
+        cls,
+        sequence: t.Sequence[int],
+        polynomial: int = 0xA001,  # CRC-16-ANSI.
+        init_value: int = 0xFFFF,
+    ) -> int:
+        """Calculate the CRC-16 of a sequence of integers."""
+        crc_table = cls.get_table(polynomial)
         crc = init_value
         for item in sequence:
             crc = crc >> 8 ^ crc_table[(crc ^ item) & 0xFF]
