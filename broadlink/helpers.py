@@ -9,7 +9,7 @@ def crc16(
     polynomial: int = 0xA001,
     init_value: int = 0xFFFF,
 ) -> int:
-    """Calculate the CRC-16 of a byte string."""
+    """Calculate the CRC-16 of a sequence of integers."""
     global _crc16_cache
 
     try:
