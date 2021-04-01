@@ -1,26 +1,32 @@
 """Helper functions."""
-from ctypes import c_ushort
+import typing as t
+
+_crc16_cache = {}
 
 
-def calculate_crc16(input_data: bytes) -> int:
-    """Calculate the CRC-16 of a byte string."""
-    crc16_tab = []
-    crc16_constant = 0xA001
+def crc16(
+    sequence: t.Sequence[int],
+    polynomial: int = 0xA001,  # Default: Modbus CRC-16.
+    init_value: int = 0xFFFF,
+) -> int:
+    """Calculate the CRC-16 of a sequence of integers."""
+    global _crc16_cache
 
-    for i in range(0, 256):
-        crc = c_ushort(i).value
-        for j in range(0, 8):
-            if crc & 0x0001:
-                crc = c_ushort(crc >> 1).value ^ crc16_constant
-            else:
-                crc = c_ushort(crc >> 1).value
-        crc16_tab.append(hex(crc))
+    try:
+        crc_table = _crc16_cache[polynomial]
+    except KeyError:
+        crc_table = []
+        for dividend in range(0, 256):
+            remainder = dividend
+            for _ in range(0, 8):
+                if remainder & 1:
+                    remainder = remainder >> 1 ^ polynomial
+                else:
+                    remainder = remainder >> 1
+            crc_table.append(remainder)
+        _crc16_cache[polynomial] = crc_table
 
-    crcValue = 0xFFFF
-
-    for c in input_data:
-        tmp = crcValue ^ c
-        rotated = c_ushort(crcValue >> 8).value
-        crcValue = rotated ^ int(crc16_tab[(tmp & 0x00FF)], 0)
-
-    return crcValue
+    crc = init_value
+    for item in sequence:
+        crc = crc >> 8 ^ crc_table[(crc ^ item) & 0xFF]
+    return crc
