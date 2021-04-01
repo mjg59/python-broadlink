@@ -1,6 +1,7 @@
 """Helper functions."""
+import typing as t
 
-def crc16(sequence: bytes) -> int:
+def crc16(sequence: t.Sequence[int]) -> int:
     """Calculate the CRC-16 of a byte string."""
     crc_table = []
     polynomial = 0xA001
