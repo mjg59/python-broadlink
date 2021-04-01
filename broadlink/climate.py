@@ -3,7 +3,7 @@ from typing import List
 
 from . import exceptions as e
 from .device import device
-from .helpers import calculate_crc16
+from .helpers import crc16
 
 
 class hysen(device):
@@ -19,7 +19,7 @@ class hysen(device):
 
     def send_request(self, input_payload: bytes) -> bytes:
         """Send a request to the device."""
-        crc = calculate_crc16(input_payload)
+        crc = crc16(input_payload)
 
         # first byte is length, +2 for CRC16
         request_payload = bytearray([len(input_payload) + 2, 0x00])
@@ -40,7 +40,7 @@ class hysen(device):
             raise ValueError(
                 "hysen_response_error", "first byte of response is not length"
             )
-        crc = calculate_crc16(response_payload[2:response_payload_len])
+        crc = crc16(response_payload[2:response_payload_len])
         if (response_payload[response_payload_len] == crc & 0xFF) and (
             response_payload[response_payload_len + 1] == (crc >> 8) & 0xFF
         ):
