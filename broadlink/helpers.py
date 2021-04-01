@@ -6,7 +6,7 @@ _crc16_cache = {}
 
 def crc16(
     sequence: t.Sequence[int],
-    polynomial: int = 0xA001,
+    polynomial: int = 0xA001,  # Default: Modbus CRC-16.
     init_value: int = 0xFFFF,
 ) -> int:
     """Calculate the CRC-16 of a sequence of integers."""
@@ -28,7 +28,5 @@ def crc16(
 
     crc = init_value
     for item in sequence:
-        index = (crc ^ item) & 0xFF
-        base = crc >> 8
-        crc = base ^ crc_table[index]
+        crc = crc >> 8 ^ crc_table[(crc ^ item) & 0xFF]
     return crc
