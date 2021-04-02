@@ -207,12 +207,30 @@ class device:
             discover_ip_port=self.host[1],
         )
         try:
-            devtype, host, mac, name, is_locked = next(responses)
-        except StopIteration:
-            raise e.exception(-4000)  # Network timeout.
+            devtype, _, mac, name, is_locked = next(responses)
 
-        if (devtype, host, mac) != (self.devtype, self.host, self.mac):
-            raise e.exception(-2040)  # Device information is not intact.
+        except StopIteration as err:
+            raise e.NetworkTimeoutError(
+                -4000,
+                "Network timeout",
+                f"No response received within {self.timeout}s",
+            ) from err
+
+        if mac != self.mac:
+            raise e.DataValidationError(
+                -2040,
+                "Device information is not intact",
+                "The MAC address is different",
+                f"Expected {self.mac} and received {mac}",
+            )
+
+        if devtype != self.devtype:
+            raise e.DataValidationError(
+                -2040,
+                "Device information is not intact",
+                "The product ID is different",
+                f"Expected {self.devtype} and received {devtype}",
+            )
 
         self.name = name
         self.is_locked = is_locked
@@ -292,15 +310,29 @@ class device:
                 try:
                     resp = conn.recvfrom(2048)[0]
                     break
-                except socket.timeout:
+                except socket.timeout as err:
                     if (time.time() - start_time) > timeout:
-                        raise e.exception(-4000)  # Network timeout.
+                        raise e.NetworkTimeoutError(
+                            -4000,
+                            "Network timeout",
+                            f"No response received within {timeout}s",
+                        ) from err
 
         if len(resp) < 0x30:
-            raise e.exception(-4007)  # Length error.
+            raise e.DataValidationError(
+                -4007,
+                "Received data packet length error",
+                f"Expected at least 48 bytes and received {len(resp)}",
+            )
 
-        checksum = int.from_bytes(resp[0x20:0x22], "little")
-        if sum(resp, 0xBEAF) - sum(resp[0x20:0x22]) & 0xFFFF != checksum:
-            raise e.exception(-4008)  # Checksum error.
+        nom_checksum = int.from_bytes(resp[0x20:0x22], "little")
+        real_checksum = sum(resp, 0xBEAF) - sum(resp[0x20:0x22]) & 0xFFFF
+
+        if nom_checksum != real_checksum:
+            raise e.DataValidationError(
+                -4008,
+                "Received data packet check error",
+                f"Expected a checksum of {nom_checksum} and received {real_checksum}",
+            )
 
         return resp

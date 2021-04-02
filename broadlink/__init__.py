@@ -151,8 +151,12 @@ def hello(
     """
     try:
         return next(xdiscover(timeout, local_ip_address, host, port))
-    except StopIteration:
-        raise e.exception(-4000)  # Network timeout.
+    except StopIteration as err:
+        raise e.NetworkTimeoutError(
+            -4000,
+            "Network timeout",
+            f"No response received within {timeout}s",
+        ) from err
 
 
 def discover(
