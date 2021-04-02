@@ -92,6 +92,7 @@ SUPPORTED_TYPES = {
     0x6539: (rm4mini, "RM4C mini", "Broadlink"),
     0x653A: (rm4mini, "RM4 mini", "Broadlink"),
     0x6026: (rm4pro, "RM4 pro", "Broadlink"),
+    0x6184: (rm4pro, "RM4C pro", "Broadlink"),
     0x61A2: (rm4pro, "RM4 pro", "Broadlink"),
     0x649B: (rm4pro, "RM4 pro", "Broadlink"),
     0x653C: (rm4pro, "RM4 pro", "Broadlink"),
