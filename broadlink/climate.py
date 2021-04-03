@@ -2,11 +2,11 @@
 from typing import List
 
 from . import exceptions as e
-from .device import device
+from .device import Device
 from .helpers import CRC16
 
 
-class hysen(device):
+class hysen(Device):
     """Controls a Hysen HVAC."""
 
     TYPE = "Hysen heating controller"

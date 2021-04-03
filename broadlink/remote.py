@@ -2,10 +2,10 @@
 import struct
 
 from . import exceptions as e
-from .device import device
+from .device import Device
 
 
-class rmmini(device):
+class rmmini(Device):
     """Controls a Broadlink RM mini 3."""
 
     TYPE = "RMMINI"

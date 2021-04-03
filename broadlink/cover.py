@@ -2,10 +2,10 @@
 import time
 
 from . import exceptions as e
-from .device import device
+from .device import Device
 
 
-class dooya(device):
+class dooya(Device):
     """Controls a Dooya curtain motor."""
 
     TYPE = "Dooya DT360E"

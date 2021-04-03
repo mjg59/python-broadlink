@@ -7,7 +7,7 @@ from . import exceptions as e
 from .alarm import S1C
 from .climate import hysen
 from .cover import dooya
-from .device import device, ping, scan
+from .device import Device, ping, scan
 from .light import lb1, lb27r1
 from .remote import rm, rm4, rm4mini, rm4pro, rmmini, rmminib, rmpro
 from .sensor import a1
@@ -120,13 +120,13 @@ def gendevice(
     mac: t.Union[bytes, str],
     name: str = None,
     is_locked: bool = None,
-) -> device:
+) -> Device:
     """Generate a device."""
     try:
         dev_class, model, manufacturer = SUPPORTED_TYPES[dev_type]
 
     except KeyError:
-        return device(host, mac, dev_type, name=name, is_locked=is_locked)
+        return Device(host, mac, dev_type, name=name, is_locked=is_locked)
 
     return dev_class(
         host,
@@ -144,7 +144,7 @@ def hello(
     port: int = 80,
     timeout: int = 10,
     local_ip_address: str = None,
-) -> device:
+) -> Device:
     """Direct device discovery.
 
     Useful if the device is locked.
@@ -164,7 +164,7 @@ def discover(
     local_ip_address: str = None,
     discover_ip_address: str = "255.255.255.255",
     discover_ip_port: int = 80,
-) -> t.List[device]:
+) -> t.List[Device]:
     """Discover devices connected to the local network."""
     responses = scan(timeout, local_ip_address, discover_ip_address, discover_ip_port)
     return [gendevice(*resp) for resp in responses]
@@ -175,7 +175,7 @@ def xdiscover(
     local_ip_address: str = None,
     discover_ip_address: str = "255.255.255.255",
     discover_ip_port: int = 80,
-) -> t.Generator[device, None, None]:
+) -> t.Generator[Device, None, None]:
     """Discover devices connected to the local network.
 
     This function returns a generator that yields devices instantly.
