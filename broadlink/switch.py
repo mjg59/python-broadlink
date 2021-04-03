@@ -3,10 +3,10 @@ import json
 import struct
 
 from . import exceptions as e
-from .device import device
+from .device import Device
 
 
-class mp1(device):
+class mp1(Device):
     """Controls a Broadlink MP1."""
 
     TYPE = "MP1"
@@ -64,7 +64,7 @@ class mp1(device):
         return data
 
 
-class bg1(device):
+class bg1(Device):
     """Controls a BG Electrical smart outlet."""
 
     TYPE = "BG1"
@@ -142,7 +142,7 @@ class bg1(device):
         return state
 
 
-class sp1(device):
+class sp1(Device):
     """Controls a Broadlink SP1."""
 
     TYPE = "SP1"
@@ -155,7 +155,7 @@ class sp1(device):
         e.check_error(response[0x22:0x24])
 
 
-class sp2(device):
+class sp2(Device):
     """Controls a Broadlink SP2."""
 
     TYPE = "SP2"
@@ -193,7 +193,7 @@ class sp2s(sp2):
         return int.from_bytes(payload[0x4:0x7], "little") / 1000
 
 
-class sp3(device):
+class sp3(Device):
     """Controls a Broadlink SP3."""
 
     TYPE = "SP3"
@@ -254,7 +254,7 @@ class sp3s(sp2):
         return int(energy) / 100
 
 
-class sp4(device):
+class sp4(Device):
     """Controls a Broadlink SP4."""
 
     TYPE = "SP4"

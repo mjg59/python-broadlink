@@ -5,10 +5,10 @@ import struct
 import typing as t
 
 from . import exceptions as e
-from .device import device
+from .device import Device
 
 
-class lb1(device):
+class lb1(Device):
     """Controls a Broadlink LB1."""
 
     TYPE = "LB1"
@@ -105,7 +105,7 @@ class lb1(device):
         return state
 
 
-class lb27r1(device):
+class lb27r1(Device):
     """Controls a Broadlink LB27 R1."""
 
     TYPE = "LB27R1"

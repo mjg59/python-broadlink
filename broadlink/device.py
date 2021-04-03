@@ -84,7 +84,7 @@ def ping(address: str, port: int = 80) -> None:
         conn.sendto(packet, (address, port))
 
 
-class device:
+class Device:
     """Controls a Broadlink device."""
 
     TYPE = "Unknown"
