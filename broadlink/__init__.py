@@ -5,7 +5,7 @@ import typing as t
 
 from . import exceptions as e
 from .alarm import S1C
-from .climate import hysen
+from .climate import hysen, hvac
 from .cover import dooya
 from .device import device, ping, scan
 from .light import lb1, lb27r1
@@ -108,11 +108,11 @@ SUPPORTED_TYPES = {
     0x6112: (lb1, "LB1", "Broadlink"),
     0xA4F4: (lb27r1, "LB27 R1", "Broadlink"),
     0x2722: (S1C, "S2KIT", "Broadlink"),
+    0X4E2A: (hvac, "HVAC", "Licensed manufacturer"),
     0x4EAD: (hysen, "HY02B05H", "Hysen"),
     0x4E4D: (dooya, "DT360E-45/20", "Dooya"),
     0x51E3: (bg1, "BG800/BG900", "BG Electrical"),
 }
-
 
 def gendevice(
     dev_type: int,
