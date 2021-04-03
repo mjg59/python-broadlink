@@ -1,9 +1,9 @@
 """Support for alarm kits."""
 from . import exceptions as e
-from .device import device
+from .device import Device
 
 
-class S1C(device):
+class S1C(Device):
     """Controls a Broadlink S1C."""
 
     TYPE = "S1C"

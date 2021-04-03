@@ -2,10 +2,10 @@
 import struct
 
 from . import exceptions as e
-from .device import device
+from .device import Device
 
 
-class a1(device):
+class a1(Device):
     """Controls a Broadlink A1."""
 
     TYPE = "A1"
