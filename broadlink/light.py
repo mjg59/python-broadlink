@@ -2,7 +2,6 @@
 import enum
 import json
 import struct
-import typing as t
 
 from . import exceptions as e
 from .device import Device
