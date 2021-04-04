@@ -74,7 +74,7 @@ class bg1(Device):
 
         Example: `{"pwr":1,"pwr1":1,"pwr2":0,"maxworktime":60,"maxworktime1":60,"maxworktime2":0,"idcbrightness":50}`
         """
-        packet = self._encode(1, b"{}")
+        packet = self._encode(1, {})
         response = self.send_packet(0x6A, packet)
         e.check_error(response[0x22:0x24])
         return self._decode(response)
@@ -90,28 +90,28 @@ class bg1(Device):
         idcbrightness: int = None,
     ) -> dict:
         """Set the power state of the device."""
-        data = {}
+        state = {}
         if pwr is not None:
-            data["pwr"] = int(bool(pwr))
+            state["pwr"] = int(bool(pwr))
         if pwr1 is not None:
-            data["pwr1"] = int(bool(pwr1))
+            state["pwr1"] = int(bool(pwr1))
         if pwr2 is not None:
-            data["pwr2"] = int(bool(pwr2))
+            state["pwr2"] = int(bool(pwr2))
         if maxworktime is not None:
-            data["maxworktime"] = maxworktime
+            state["maxworktime"] = maxworktime
         if maxworktime1 is not None:
-            data["maxworktime1"] = maxworktime1
+            state["maxworktime1"] = maxworktime1
         if maxworktime2 is not None:
-            data["maxworktime2"] = maxworktime2
+            state["maxworktime2"] = maxworktime2
         if idcbrightness is not None:
-            data["idcbrightness"] = idcbrightness
-        js = json.dumps(data).encode("utf8")
-        packet = self._encode(2, js)
+            state["idcbrightness"] = idcbrightness
+
+        packet = self._encode(2, state)
         response = self.send_packet(0x6A, packet)
         e.check_error(response[0x22:0x24])
         return self._decode(response)
 
-    def _encode(self, flag: int, js: str) -> bytes:
+    def _encode(self, flag: int, state: dict) -> bytes:
         """Encode a message."""
         #  The packet format is:
         #  0x00-0x01 length
@@ -122,16 +122,14 @@ class bg1(Device):
         #  0x0a-0x0d length of json
         #  0x0e- json data
         packet = bytearray(14)
-        length = 4 + 2 + 2 + 4 + len(js)
+        data = json.dumps(state).encode()
+        length = 12 + len(data)
         struct.pack_into(
-            "<HHHHBBI", packet, 0, length, 0xA5A5, 0x5A5A, 0x0000, flag, 0x0B, len(js)
+            "<HHHHBBI", packet, 0, length, 0xA5A5, 0x5A5A, 0x0000, flag, 0x0B, len(data)
         )
-        for i in range(len(js)):
-            packet.append(js[i])
-
-        checksum = sum(packet[0x08:], 0xC0AD) & 0xFFFF
-        packet[0x06] = checksum & 0xFF
-        packet[0x07] = checksum >> 8
+        packet.extend(data)
+        checksum = sum(packet[0x2:], 0xBEAF) & 0xFFFF
+        packet[0x06:0x08] = checksum.to_bytes(2, "little")
         return packet
 
     def _decode(self, response: bytes) -> dict:
@@ -277,21 +275,21 @@ class sp4(Device):
         childlock: bool = None,
     ) -> dict:
         """Set state of device."""
-        data = {}
+        state = {}
         if pwr is not None:
-            data["pwr"] = int(bool(pwr))
+            state["pwr"] = int(bool(pwr))
         if ntlight is not None:
-            data["ntlight"] = int(bool(ntlight))
+            state["ntlight"] = int(bool(ntlight))
         if indicator is not None:
-            data["indicator"] = int(bool(indicator))
+            state["indicator"] = int(bool(indicator))
         if ntlbrightness is not None:
-            data["ntlbrightness"] = ntlbrightness
+            state["ntlbrightness"] = ntlbrightness
         if maxworktime is not None:
-            data["maxworktime"] = maxworktime
+            state["maxworktime"] = maxworktime
         if childlock is not None:
-            data["childlock"] = int(bool(childlock))
+            state["childlock"] = int(bool(childlock))
 
-        packet = self._encode(2, data)
+        packet = self._encode(2, state)
         response = self.send_packet(0x6A, packet)
         return self._decode(response)
 
@@ -313,15 +311,14 @@ class sp4(Device):
 
     def _encode(self, flag: int, state: dict) -> bytes:
         """Encode a message."""
-        payload = json.dumps(state, separators=(",", ":")).encode()
         packet = bytearray(12)
+        data = json.dumps(state, separators=(",", ":")).encode()
         struct.pack_into(
-            "<HHHBBI", packet, 0, 0xA5A5, 0x5A5A, 0x0000, flag, 0x0B, len(payload)
+            "<HHHBBI", packet, 0, 0xA5A5, 0x5A5A, 0x0000, flag, 0x0B, len(data)
         )
-        packet.extend(payload)
+        packet.extend(data)
         checksum = sum(packet, 0xBEAF) & 0xFFFF
-        packet[0x04] = checksum & 0xFF
-        packet[0x05] = checksum >> 8
+        packet[0x04:0x06] = checksum.to_bytes(2, "little")
         return packet
 
     def _decode(self, response: bytes) -> dict:
@@ -352,9 +349,9 @@ class sp4b(sp4):
 
     def _encode(self, flag: int, state: dict) -> bytes:
         """Encode a message."""
-        payload = json.dumps(state, separators=(",", ":")).encode()
         packet = bytearray(14)
-        length = 4 + 2 + 2 + 4 + len(payload)
+        data = json.dumps(state, separators=(",", ":")).encode()
+        length = 12 + len(data)
         struct.pack_into(
             "<HHHHBBI",
             packet,
@@ -365,12 +362,11 @@ class sp4b(sp4):
             0x0000,
             flag,
             0x0B,
-            len(payload),
+            len(data),
         )
-        packet.extend(payload)
-        checksum = sum(packet[0x8:], 0xC0AD) & 0xFFFF
-        packet[0x06] = checksum & 0xFF
-        packet[0x07] = checksum >> 8
+        packet.extend(data)
+        checksum = sum(packet[0x02:], 0xBEAF) & 0xFFFF
+        packet[0x06:0x08] = checksum.to_bytes(2, "little")
         return packet
 
     def _decode(self, response: bytes) -> dict:

@@ -1,5 +1,5 @@
 """Support for climate control."""
-from typing import List
+import typing as t
 
 from . import exceptions as e
 from .device import Device
@@ -47,12 +47,12 @@ class hysen(Device):
             return response_payload[2:response_payload_len]
         raise ValueError("hysen_response_error", "CRC check on response failed")
 
-    def get_temp(self) -> int:
+    def get_temp(self) -> float:
         """Return the room temperature in degrees celsius."""
         payload = self.send_request(bytearray([0x01, 0x03, 0x00, 0x00, 0x00, 0x08]))
         return payload[0x05] / 2.0
 
-    def get_external_temp(self) -> int:
+    def get_external_temp(self) -> float:
         """Return the external temperature in degrees celsius."""
         payload = self.send_request(bytearray([0x01, 0x03, 0x00, 0x00, 0x00, 0x08]))
         return payload[18] / 2.0
@@ -210,7 +210,7 @@ class hysen(Device):
     # {'start_hour':17, 'start_minute':30, 'temp': 22 }
     # Each one specifies the thermostat temp that will become effective at start_hour:start_minute
     # weekend is similar but only has 2 (e.g. switch on in morning and off in afternoon)
-    def set_schedule(self, weekday: List[dict], weekend: List[dict]) -> None:
+    def set_schedule(self, weekday: t.List[dict], weekend: t.List[dict]) -> None:
         """Set timer schedule."""
         # Begin with some magic values ...
         input_payload = bytearray([0x01, 0x10, 0x00, 0x0A, 0x00, 0x0C, 0x18])

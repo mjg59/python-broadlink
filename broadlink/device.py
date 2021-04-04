@@ -141,20 +141,12 @@ class Device:
 
     def __str__(self) -> str:
         """Return a readable representation of the device."""
-        model = []
-        if self.manufacturer:
-            model.append(self.manufacturer)
-        if self.model:
-            model.append(self.model)
-        model.append(hex(self.devtype))
-        model = " ".join(model)
-
-        info = []
-        info.append(model)
-        info.append(f"{self.host[0]}:{self.host[1]}")
-        info.append(":".join(format(x, "02x") for x in self.mac).upper())
-        info = " / ".join(info)
-        return "%s (%s)" % (self.name or "Unknown", info)
+        return "%s (%s / %s:%s / %s)" % (
+            self.name or "Unknown",
+            " ".join(filter(None, [self.manufacturer, self.model, hex(self.devtype)])),
+            *self.host,
+            ":".join(format(x, "02X") for x in self.mac),
+        )
 
     def update_aes(self, key: bytes) -> None:
         """Update AES."""
@@ -177,13 +169,13 @@ class Device:
         self.id = 0
         self.update_aes(bytes.fromhex(self.__INIT_KEY))
 
-        payload = bytearray(0x50)
-        payload[0x04:0x14] = [0x31]*16
-        payload[0x1E] = 0x01
-        payload[0x2D] = 0x01
-        payload[0x30:0x36] = "Test 1".encode()
+        packet = bytearray(0x50)
+        packet[0x04:0x14] = [0x31] * 16
+        packet[0x1E] = 0x01
+        packet[0x2D] = 0x01
+        packet[0x30:0x36] = "Test 1".encode()
 
-        response = self.send_packet(0x65, payload)
+        response = self.send_packet(0x65, packet)
         e.check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
 

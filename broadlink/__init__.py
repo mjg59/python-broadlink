@@ -118,8 +118,8 @@ def gendevice(
     dev_type: int,
     host: t.Tuple[str, int],
     mac: t.Union[bytes, str],
-    name: str = None,
-    is_locked: bool = None,
+    name: str = "",
+    is_locked: bool = False,
 ) -> Device:
     """Generate a device."""
     try:
