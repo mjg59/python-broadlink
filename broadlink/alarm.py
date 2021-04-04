@@ -9,15 +9,15 @@ class S1C(Device):
     TYPE = "S1C"
 
     _SENSORS_TYPES = {
-        0x31: "Door Sensor",  # 49 as hex
-        0x91: "Key Fob",  # 145 as hex, as serial on fob corpse
-        0x21: "Motion Sensor",  # 33 as hex
+        0x31: "Door Sensor",
+        0x91: "Key Fob",
+        0x21: "Motion Sensor",
     }
 
     def get_sensors_status(self) -> dict:
         """Return the state of the sensors."""
         packet = bytearray(16)
-        packet[0] = 0x06  # 0x06 - get sensors info, 0x07 - probably add sensors
+        packet[0] = 0x06
         response = self.send_packet(0x6A, packet)
         e.check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])

@@ -11,30 +11,20 @@ class hysen(Device):
 
     TYPE = "Hysen heating controller"
 
-    # Send a request
-    # input_payload should be a bytearray, usually 6 bytes, e.g. bytearray([0x01,0x06,0x00,0x02,0x10,0x00])
-    # Returns decrypted payload
-    # New behaviour: raises a ValueError if the device response indicates an error or CRC check fails
-    # The function prepends length (2 bytes) and appends CRC
-
     def send_request(self, input_payload: bytes) -> bytes:
         """Send a request to the device."""
         crc = CRC16.calculate(input_payload)
 
-        # first byte is length, +2 for CRC16
         request_payload = bytearray([len(input_payload) + 2, 0x00])
         request_payload.extend(input_payload)
 
-        # append CRC
         request_payload.append(crc & 0xFF)
         request_payload.append((crc >> 8) & 0xFF)
 
-        # send to device
         response = self.send_packet(0x6A, request_payload)
         e.check_error(response[0x22:0x24])
         response_payload = self.decrypt(response[0x38:])
 
-        # experimental check on CRC in response (first 2 bytes are len, and trailing bytes are crc)
         response_payload_len = response_payload[0]
         if response_payload_len + 2 > len(response_payload):
             raise ValueError(
@@ -212,10 +202,8 @@ class hysen(Device):
     # weekend is similar but only has 2 (e.g. switch on in morning and off in afternoon)
     def set_schedule(self, weekday: t.List[dict], weekend: t.List[dict]) -> None:
         """Set timer schedule."""
-        # Begin with some magic values ...
         input_payload = bytearray([0x01, 0x10, 0x00, 0x0A, 0x00, 0x0C, 0x18])
 
-        # Now simply append times/temps
         # weekday times
         for i in range(0, 6):
             input_payload.append(weekday[i]["start_hour"])

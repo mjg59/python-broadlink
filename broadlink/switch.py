@@ -111,14 +111,6 @@ class bg1(Device):
 
     def _encode(self, flag: int, state: dict) -> bytes:
         """Encode a message."""
-        #  The packet format is:
-        #  0x00-0x01 length
-        #  0x02-0x05 header
-        #  0x06-0x07 00
-        #  0x08 flag (1 for read or 2 write?)
-        #  0x09 unknown (0xb)
-        #  0x0a-0x0d length of json
-        #  0x0e- json data
         packet = bytearray(14)
         data = json.dumps(state).encode()
         length = 12 + len(data)
