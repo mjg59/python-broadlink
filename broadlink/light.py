@@ -15,6 +15,7 @@ class lb1(Device):
     @enum.unique
     class ColorMode(enum.IntEnum):
         """Enumerates color modes."""
+
         RGB = 0
         WHITE = 1
         SCENE = 2
@@ -86,7 +87,7 @@ class lb1(Device):
         """Encode a JSON packet."""
         # flag: 1 for reading, 2 for writing.
         packet = bytearray(14)
-        data = json.dumps(state, separators=(',', ':')).encode()
+        data = json.dumps(state, separators=(",", ":")).encode()
         p_len = 12 + len(data)
         struct.pack_into(
             "<HHHHBBI", packet, 0, p_len, 0xA5A5, 0x5A5A, 0, flag, 0x0B, len(data)
@@ -112,6 +113,7 @@ class lb27r1(Device):
     @enum.unique
     class ColorMode(enum.IntEnum):
         """Enumerates color modes."""
+
         RGB = 0
         WHITE = 1
         SCENE = 2
@@ -180,10 +182,8 @@ class lb27r1(Device):
         """Encode a JSON packet."""
         # flag: 1 for reading, 2 for writing.
         packet = bytearray(12)
-        data = json.dumps(state, separators=(',', ':')).encode()
-        struct.pack_into(
-            "<HHHBBI", packet, 0, 0xA5A5, 0x5A5A, 0, flag, 0x0B, len(data)
-        )
+        data = json.dumps(state, separators=(",", ":")).encode()
+        struct.pack_into("<HHHBBI", packet, 0, 0xA5A5, 0x5A5A, 0, flag, 0x0B, len(data))
         packet.extend(data)
         checksum = sum(packet, 0xBEAF) & 0xFFFF
         packet[0x04:0x06] = checksum.to_bytes(2, "little")

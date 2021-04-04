@@ -10,7 +10,7 @@ class rmmini(Device):
 
     TYPE = "RMMINI"
 
-    def _send(self, command: int, data: bytes = b'') -> bytes:
+    def _send(self, command: int, data: bytes = b"") -> bytes:
         """Send a packet to the device."""
         packet = struct.pack("<I", command) + data
         resp = self.send_packet(0x6A, packet)
@@ -75,14 +75,14 @@ class rmminib(rmmini):
 
     TYPE = "RMMINIB"
 
-    def _send(self, command: int, data: bytes = b'') -> bytes:
+    def _send(self, command: int, data: bytes = b"") -> bytes:
         """Send a packet to the device."""
         packet = struct.pack("<HI", len(data) + 4, command) + data
         resp = self.send_packet(0x6A, packet)
         e.check_error(resp[0x22:0x24])
         payload = self.decrypt(resp[0x38:])
         p_len = struct.unpack("<H", payload[:0x2])[0]
-        return payload[0x6:p_len+2]
+        return payload[0x6 : p_len + 2]
 
 
 class rm4mini(rmminib):
@@ -96,7 +96,7 @@ class rm4mini(rmminib):
         temp = struct.unpack("<bb", resp[:0x2])
         return {
             "temperature": temp[0x0] + temp[0x1] / 100.0,
-            "humidity": resp[0x2] + resp[0x3] / 100.0
+            "humidity": resp[0x2] + resp[0x3] / 100.0,
         }
 
     def check_temperature(self) -> float:
