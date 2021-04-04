@@ -53,15 +53,13 @@ class mp1(Device):
 
     def check_power(self) -> dict:
         """Return the power state of the device."""
-        state = self.check_power_raw()
-        if state is None:
-            return {"s1": None, "s2": None, "s3": None, "s4": None}
-        data = {}
-        data["s1"] = bool(state & 0x01)
-        data["s2"] = bool(state & 0x02)
-        data["s3"] = bool(state & 0x04)
-        data["s4"] = bool(state & 0x08)
-        return data
+        data = self.check_power_raw()
+        return {
+            "s1": bool(data & 1),
+            "s2": bool(data & 2),
+            "s3": bool(data & 4),
+            "s4": bool(data & 8),
+        }
 
 
 class bg1(Device):
@@ -148,7 +146,7 @@ class sp1(Device):
     def set_power(self, pwr: bool) -> None:
         """Set the power state of the device."""
         packet = bytearray(4)
-        packet[0] = int(bool(pwr))
+        packet[0] = bool(pwr)
         response = self.send_packet(0x66, packet)
         e.check_error(response[0x22:0x24])
 
@@ -162,7 +160,7 @@ class sp2(Device):
         """Set the power state of the device."""
         packet = bytearray(16)
         packet[0] = 2
-        packet[4] = int(bool(pwr))
+        packet[4] = bool(pwr)
         response = self.send_packet(0x6A, packet)
         e.check_error(response[0x22:0x24])
 
@@ -200,10 +198,7 @@ class sp3(Device):
         """Set the power state of the device."""
         packet = bytearray(16)
         packet[0] = 2
-        if self.check_nightlight():
-            packet[4] = 3 if pwr else 2
-        else:
-            packet[4] = 1 if pwr else 0
+        packet[4] = self.check_nightlight() << 1 | bool(pwr)
         response = self.send_packet(0x6A, packet)
         e.check_error(response[0x22:0x24])
 
@@ -211,10 +206,7 @@ class sp3(Device):
         """Set the night light state of the device."""
         packet = bytearray(16)
         packet[0] = 2
-        if self.check_power():
-            packet[4] = 3 if ntlight else 1
-        else:
-            packet[4] = 2 if ntlight else 0
+        packet[4] = bool(ntlight) << 1 | self.check_power()
         response = self.send_packet(0x6A, packet)
         e.check_error(response[0x22:0x24])
 
@@ -225,7 +217,7 @@ class sp3(Device):
         response = self.send_packet(0x6A, packet)
         e.check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
-        return bool(payload[0x4] == 1 or payload[0x4] == 3 or payload[0x4] == 0xFD)
+        return bool(payload[0x4] & 1)
 
     def check_nightlight(self) -> bool:
         """Return the state of the night light."""
@@ -234,7 +226,7 @@ class sp3(Device):
         response = self.send_packet(0x6A, packet)
         e.check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
-        return bool(payload[0x4] == 2 or payload[0x4] == 3 or payload[0x4] == 0xFF)
+        return bool(payload[0x4] & 2)
 
 
 class sp3s(sp2):

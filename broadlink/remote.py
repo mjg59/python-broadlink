@@ -87,7 +87,7 @@ class rmminib(rmmini):
 
 class rm4mini(rmminib):
     """Controls a Broadlink RM4 mini."""
-    
+
     TYPE = "RM4MINI"
 
     def check_sensors(self) -> dict:

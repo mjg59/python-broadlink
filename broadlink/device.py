@@ -179,12 +179,8 @@ class Device:
         e.check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
 
-        key = payload[0x04:0x14]
-        if len(key) % 16 != 0:
-            return False
-
         self.id = int.from_bytes(payload[:0x4], "little")
-        self.update_aes(key)
+        self.update_aes(payload[0x04:0x14])
         return True
 
     def hello(self, local_ip_address=None) -> bool:
@@ -276,8 +272,8 @@ class Device:
         packet[0x00:0x08] = bytes.fromhex("5aa5aa555aa5aa55")
         packet[0x24:0x26] = self.devtype.to_bytes(2, "little")
         packet[0x26:0x28] = packet_type.to_bytes(2, "little")
-        packet[0x28:0x2a] = self.count.to_bytes(2, "little")
-        packet[0x2a:0x30] = self.mac[::-1]
+        packet[0x28:0x2A] = self.count.to_bytes(2, "little")
+        packet[0x2A:0x30] = self.mac[::-1]
         packet[0x30:0x34] = self.id.to_bytes(4, "little")
 
         p_checksum = sum(payload, 0xBEAF) & 0xFFFF

@@ -21,8 +21,6 @@ class S1C(Device):
         response = self.send_packet(0x6A, packet)
         e.check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
-        if not payload:
-            return None
         count = payload[0x4]
         sensor_data = payload[0x6:]
         sensors = [
