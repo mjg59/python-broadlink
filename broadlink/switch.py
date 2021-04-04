@@ -11,7 +11,7 @@ class mp1(Device):
 
     TYPE = "MP1"
 
-    def set_power_mask(self, sid_mask: int, state: bool) -> None:
+    def set_power_mask(self, sid_mask: int, pwr: bool) -> None:
         """Set the power state of the device."""
         packet = bytearray(16)
         packet[0x00] = 0x0D
@@ -19,20 +19,20 @@ class mp1(Device):
         packet[0x03] = 0xA5
         packet[0x04] = 0x5A
         packet[0x05] = 0x5A
-        packet[0x06] = 0xB2 + ((sid_mask << 1) if state else sid_mask)
+        packet[0x06] = 0xB2 + ((sid_mask << 1) if pwr else sid_mask)
         packet[0x07] = 0xC0
         packet[0x08] = 0x02
         packet[0x0A] = 0x03
         packet[0x0D] = sid_mask
-        packet[0x0E] = sid_mask if state else 0
+        packet[0x0E] = sid_mask if pwr else 0
 
         response = self.send_packet(0x6A, packet)
         e.check_error(response[0x22:0x24])
 
-    def set_power(self, sid: int, state: bool) -> None:
+    def set_power(self, sid: int, pwr: bool) -> None:
         """Set the power state of the device."""
         sid_mask = 0x01 << (sid - 1)
-        self.set_power_mask(sid_mask, state)
+        self.set_power_mask(sid_mask, pwr)
 
     def check_power_raw(self) -> int:
         """Return the power state of the device in raw format."""
@@ -145,10 +145,10 @@ class sp1(Device):
 
     TYPE = "SP1"
 
-    def set_power(self, state: bool) -> None:
+    def set_power(self, pwr: bool) -> None:
         """Set the power state of the device."""
         packet = bytearray(4)
-        packet[0] = state
+        packet[0] = int(bool(pwr))
         response = self.send_packet(0x66, packet)
         e.check_error(response[0x22:0x24])
 
@@ -158,11 +158,11 @@ class sp2(Device):
 
     TYPE = "SP2"
 
-    def set_power(self, state: bool) -> None:
+    def set_power(self, pwr: bool) -> None:
         """Set the power state of the device."""
         packet = bytearray(16)
         packet[0] = 2
-        packet[4] = int(bool(state))
+        packet[4] = int(bool(pwr))
         response = self.send_packet(0x6A, packet)
         e.check_error(response[0x22:0x24])
 
@@ -196,25 +196,25 @@ class sp3(Device):
 
     TYPE = "SP3"
 
-    def set_power(self, state: bool) -> None:
+    def set_power(self, pwr: bool) -> None:
         """Set the power state of the device."""
         packet = bytearray(16)
         packet[0] = 2
         if self.check_nightlight():
-            packet[4] = 3 if state else 2
+            packet[4] = 3 if pwr else 2
         else:
-            packet[4] = 1 if state else 0
+            packet[4] = 1 if pwr else 0
         response = self.send_packet(0x6A, packet)
         e.check_error(response[0x22:0x24])
 
-    def set_nightlight(self, state: bool) -> None:
+    def set_nightlight(self, ntlight: bool) -> None:
         """Set the night light state of the device."""
         packet = bytearray(16)
         packet[0] = 2
         if self.check_power():
-            packet[4] = 3 if state else 1
+            packet[4] = 3 if ntlight else 1
         else:
-            packet[4] = 2 if state else 0
+            packet[4] = 2 if ntlight else 0
         response = self.send_packet(0x6A, packet)
         e.check_error(response[0x22:0x24])
 
@@ -257,13 +257,13 @@ class sp4(Device):
 
     TYPE = "SP4"
 
-    def set_power(self, state: bool) -> None:
+    def set_power(self, pwr: bool) -> None:
         """Set the power state of the device."""
-        self.set_state(pwr=state)
+        self.set_state(pwr=pwr)
 
-    def set_nightlight(self, state: bool) -> None:
+    def set_nightlight(self, ntlight: bool) -> None:
         """Set the night light state of the device."""
-        self.set_state(ntlight=state)
+        self.set_state(ntlight=ntlight)
 
     def set_state(
         self,
