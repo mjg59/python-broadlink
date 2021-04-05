@@ -1,5 +1,5 @@
 """Support for climate control."""
-from typing import List
+import typing as t
 
 from . import exceptions as e
 from .device import Device
@@ -11,50 +11,38 @@ class hysen(Device):
 
     TYPE = "Hysen heating controller"
 
-    # Send a request
-    # input_payload should be a bytearray, usually 6 bytes, e.g. bytearray([0x01,0x06,0x00,0x02,0x10,0x00])
-    # Returns decrypted payload
-    # New behaviour: raises a ValueError if the device response indicates an error or CRC check fails
-    # The function prepends length (2 bytes) and appends CRC
-
-    def send_request(self, input_payload: bytes) -> bytes:
+    def send_request(self, request: t.Sequence[int]) -> bytes:
         """Send a request to the device."""
-        crc = CRC16.calculate(input_payload)
+        packet = bytearray()
+        packet.extend((len(request) + 2).to_bytes(2, "little"))
+        packet.extend(request)
+        packet.extend(CRC16.calculate(request).to_bytes(2, "little"))
 
-        # first byte is length, +2 for CRC16
-        request_payload = bytearray([len(input_payload) + 2, 0x00])
-        request_payload.extend(input_payload)
-
-        # append CRC
-        request_payload.append(crc & 0xFF)
-        request_payload.append((crc >> 8) & 0xFF)
-
-        # send to device
-        response = self.send_packet(0x6A, request_payload)
+        response = self.send_packet(0x6A, packet)
         e.check_error(response[0x22:0x24])
-        response_payload = self.decrypt(response[0x38:])
+        payload = self.decrypt(response[0x38:])
 
-        # experimental check on CRC in response (first 2 bytes are len, and trailing bytes are crc)
-        response_payload_len = response_payload[0]
-        if response_payload_len + 2 > len(response_payload):
+        p_len = int.from_bytes(payload[:0x02], "little")
+        if p_len + 2 > len(payload):
             raise ValueError(
                 "hysen_response_error", "first byte of response is not length"
             )
-        crc = CRC16.calculate(response_payload[2:response_payload_len])
-        if (response_payload[response_payload_len] == crc & 0xFF) and (
-            response_payload[response_payload_len + 1] == (crc >> 8) & 0xFF
-        ):
-            return response_payload[2:response_payload_len]
-        raise ValueError("hysen_response_error", "CRC check on response failed")
 
-    def get_temp(self) -> int:
+        nom_crc = int.from_bytes(payload[p_len : p_len + 2], "little")
+        real_crc = CRC16.calculate(payload[0x02:p_len])
+        if nom_crc != real_crc:
+            raise ValueError("hysen_response_error", "CRC check on response failed")
+
+        return payload[0x02:p_len]
+
+    def get_temp(self) -> float:
         """Return the room temperature in degrees celsius."""
-        payload = self.send_request(bytearray([0x01, 0x03, 0x00, 0x00, 0x00, 0x08]))
+        payload = self.send_request([0x01, 0x03, 0x00, 0x00, 0x00, 0x08])
         return payload[0x05] / 2.0
 
-    def get_external_temp(self) -> int:
+    def get_external_temp(self) -> float:
         """Return the external temperature in degrees celsius."""
-        payload = self.send_request(bytearray([0x01, 0x03, 0x00, 0x00, 0x00, 0x08]))
+        payload = self.send_request([0x01, 0x03, 0x00, 0x00, 0x00, 0x08])
         return payload[18] / 2.0
 
     def get_full_status(self) -> dict:
@@ -62,28 +50,28 @@ class hysen(Device):
 
         Timer schedule included.
         """
-        payload = self.send_request(bytearray([0x01, 0x03, 0x00, 0x00, 0x00, 0x16]))
+        payload = self.send_request([0x01, 0x03, 0x00, 0x00, 0x00, 0x16])
         data = {}
         data["remote_lock"] = payload[3] & 1
         data["power"] = payload[4] & 1
         data["active"] = (payload[4] >> 4) & 1
         data["temp_manual"] = (payload[4] >> 6) & 1
-        data["room_temp"] = (payload[5] & 255) / 2.0
-        data["thermostat_temp"] = (payload[6] & 255) / 2.0
-        data["auto_mode"] = payload[7] & 15
-        data["loop_mode"] = (payload[7] >> 4) & 15
+        data["room_temp"] = payload[5] / 2.0
+        data["thermostat_temp"] = payload[6] / 2.0
+        data["auto_mode"] = payload[7] & 0xF
+        data["loop_mode"] = payload[7] >> 4
         data["sensor"] = payload[8]
         data["osv"] = payload[9]
         data["dif"] = payload[10]
         data["svh"] = payload[11]
         data["svl"] = payload[12]
-        data["room_temp_adj"] = ((payload[13] << 8) + payload[14]) / 2.0
-        if data["room_temp_adj"] > 32767:
-            data["room_temp_adj"] = 32767 - data["room_temp_adj"]
+        data["room_temp_adj"] = (
+            int.from_bytes(payload[13:15], "big", signed=True) / 10.0
+        )
         data["fre"] = payload[15]
         data["poweron"] = payload[16]
         data["unknown"] = payload[17]
-        data["external_temp"] = (payload[18] & 255) / 2.0
+        data["external_temp"] = payload[18] / 2.0
         data["hour"] = payload[19]
         data["min"] = payload[20]
         data["sec"] = payload[21]
@@ -124,7 +112,7 @@ class hysen(Device):
     def set_mode(self, auto_mode: int, loop_mode: int, sensor: int = 0) -> None:
         """Set the mode of the device."""
         mode_byte = ((loop_mode + 1) << 4) + auto_mode
-        self.send_request(bytearray([0x01, 0x06, 0x00, 0x02, mode_byte, sensor]))
+        self.send_request([0x01, 0x06, 0x00, 0x02, mode_byte, sensor])
 
     # Advanced settings
     # Sensor mode (SEN) sensor = 0 for internal sensor, 1 for external sensor,
@@ -133,7 +121,7 @@ class hysen(Device):
     # Deadzone for floor temprature (dIF) dif = 1..9. Factory default: 2C
     # Upper temperature limit for internal sensor (SVH) svh = 5..99. Factory default: 35C
     # Lower temperature limit for internal sensor (SVL) svl = 5..99. Factory default: 5C
-    # Actual temperature calibration (AdJ) adj = -0.5. Prescision 0.1C
+    # Actual temperature calibration (AdJ) adj = -0.5. Precision 0.1C
     # Anti-freezing function (FrE) fre = 0 for anti-freezing function shut down,
     #  1 for anti-freezing function open. Factory default: 0
     # Power on memory (POn) poweron = 0 for power on memory off, 1 for power on memory on. Factory default: 0
@@ -150,7 +138,7 @@ class hysen(Device):
         poweron: int,
     ) -> None:
         """Set advanced options."""
-        input_payload = bytearray(
+        self.send_request(
             [
                 0x01,
                 0x10,
@@ -165,13 +153,12 @@ class hysen(Device):
                 dif,
                 svh,
                 svl,
-                (int(adj * 2) >> 8 & 0xFF),
-                (int(adj * 2) & 0xFF),
+                int(adj * 10) >> 8 & 0xFF,
+                int(adj * 10) & 0xFF,
                 fre,
                 poweron,
             ]
         )
-        self.send_request(input_payload)
 
     # For backwards compatibility only.  Prefer calling set_mode directly.
     # Note this function invokes loop_mode=0 and sensor=0.
@@ -186,22 +173,20 @@ class hysen(Device):
     # Set temperature for manual mode (also activates manual mode if currently in automatic)
     def set_temp(self, temp: float) -> None:
         """Set the target temperature."""
-        self.send_request(bytearray([0x01, 0x06, 0x00, 0x01, 0x00, int(temp * 2)]))
+        self.send_request([0x01, 0x06, 0x00, 0x01, 0x00, int(temp * 2)])
 
     # Set device on(1) or off(0), does not deactivate Wifi connectivity.
     # Remote lock disables control by buttons on thermostat.
     def set_power(self, power: int = 1, remote_lock: int = 0) -> None:
         """Set the power state of the device."""
-        self.send_request(bytearray([0x01, 0x06, 0x00, 0x00, remote_lock, power]))
+        self.send_request([0x01, 0x06, 0x00, 0x00, remote_lock, power])
 
     # set time on device
     # n.b. day=1 is Monday, ..., day=7 is Sunday
     def set_time(self, hour: int, minute: int, second: int, day: int) -> None:
         """Set the time."""
         self.send_request(
-            bytearray(
-                [0x01, 0x10, 0x00, 0x08, 0x00, 0x02, 0x04, hour, minute, second, day]
-            )
+            [0x01, 0x10, 0x00, 0x08, 0x00, 0x02, 0x04, hour, minute, second, day]
         )
 
     # Set timer schedule
@@ -210,28 +195,26 @@ class hysen(Device):
     # {'start_hour':17, 'start_minute':30, 'temp': 22 }
     # Each one specifies the thermostat temp that will become effective at start_hour:start_minute
     # weekend is similar but only has 2 (e.g. switch on in morning and off in afternoon)
-    def set_schedule(self, weekday: List[dict], weekend: List[dict]) -> None:
+    def set_schedule(self, weekday: t.List[dict], weekend: t.List[dict]) -> None:
         """Set timer schedule."""
-        # Begin with some magic values ...
-        input_payload = bytearray([0x01, 0x10, 0x00, 0x0A, 0x00, 0x0C, 0x18])
+        request = [0x01, 0x10, 0x00, 0x0A, 0x00, 0x0C, 0x18]
 
-        # Now simply append times/temps
         # weekday times
         for i in range(0, 6):
-            input_payload.append(weekday[i]["start_hour"])
-            input_payload.append(weekday[i]["start_minute"])
+            request.append(weekday[i]["start_hour"])
+            request.append(weekday[i]["start_minute"])
 
         # weekend times
         for i in range(0, 2):
-            input_payload.append(weekend[i]["start_hour"])
-            input_payload.append(weekend[i]["start_minute"])
+            request.append(weekend[i]["start_hour"])
+            request.append(weekend[i]["start_minute"])
 
         # weekday temperatures
         for i in range(0, 6):
-            input_payload.append(int(weekday[i]["temp"] * 2))
+            request.append(int(weekday[i]["temp"] * 2))
 
         # weekend temperatures
         for i in range(0, 2):
-            input_payload.append(int(weekend[i]["temp"] * 2))
+            request.append(int(weekend[i]["temp"] * 2))
 
-        self.send_request(input_payload)
+        self.send_request(request)
