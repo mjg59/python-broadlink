@@ -8,10 +8,10 @@ class CRC16:
     CRC tables are cached for performance.
     """
 
-    _cache = {}
+    _cache: t.Dict[int, t.List[int]] = {}
 
     @classmethod
-    def get_table(cls, polynomial: int):
+    def get_table(cls, polynomial: int) -> t.List[int]:
         """Return the CRC-16 table for a polynomial."""
         try:
             crc_table = cls._cache[polynomial]

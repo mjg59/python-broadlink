@@ -2,7 +2,6 @@
 import enum
 import json
 import struct
-import typing as t
 
 from . import exceptions as e
 from .device import Device
@@ -16,6 +15,7 @@ class lb1(Device):
     @enum.unique
     class ColorMode(enum.IntEnum):
         """Enumerates color modes."""
+
         RGB = 0
         WHITE = 1
         SCENE = 2
@@ -83,21 +83,21 @@ class lb1(Device):
         e.check_error(response[0x22:0x24])
         return self._decode(response)
 
-    def _encode(self, flag: int, obj: t.Any) -> bytes:
+    def _encode(self, flag: int, state: dict) -> bytes:
         """Encode a JSON packet."""
         # flag: 1 for reading, 2 for writing.
         packet = bytearray(14)
-        js = json.dumps(obj, separators=[',', ':']).encode()
-        p_len = 12 + len(js)
+        data = json.dumps(state, separators=(",", ":")).encode()
+        p_len = 12 + len(data)
         struct.pack_into(
-            "<HHHHBBI", packet, 0, p_len, 0xA5A5, 0x5A5A, 0, flag, 0xB, len(js)
+            "<HHHHBBI", packet, 0, p_len, 0xA5A5, 0x5A5A, 0, flag, 0x0B, len(data)
         )
-        packet += js
-        checksum = sum(packet[0x8:], 0xC0AD) & 0xFFFF
-        packet[0x6:0x8] = checksum.to_bytes(2, "little")
+        packet.extend(data)
+        checksum = sum(packet[0x02:], 0xBEAF) & 0xFFFF
+        packet[0x06:0x08] = checksum.to_bytes(2, "little")
         return packet
 
-    def _decode(self, response: bytes) -> t.Any:
+    def _decode(self, response: bytes) -> dict:
         """Decode a JSON packet."""
         payload = self.decrypt(response[0x38:])
         js_len = struct.unpack_from("<I", payload, 0xA)[0]
@@ -113,6 +113,7 @@ class lb27r1(Device):
     @enum.unique
     class ColorMode(enum.IntEnum):
         """Enumerates color modes."""
+
         RGB = 0
         WHITE = 1
         SCENE = 2
@@ -177,22 +178,20 @@ class lb27r1(Device):
         e.check_error(response[0x22:0x24])
         return self._decode(response)
 
-    def _encode(self, flag: int, obj: t.Any) -> bytes:
+    def _encode(self, flag: int, state: dict) -> bytes:
         """Encode a JSON packet."""
         # flag: 1 for reading, 2 for writing.
         packet = bytearray(12)
-        js = json.dumps(obj, separators=[',', ':']).encode()
-        struct.pack_into(
-            "<HHHBBI", packet, 0, 0xA5A5, 0x5A5A, 0, flag, 0xB, len(js)
-        )
-        packet += js
-        checksum = sum(packet[0x6:], 0xC0AD) & 0xFFFF
-        packet[0x4:0x6] = checksum.to_bytes(2, "little")
+        data = json.dumps(state, separators=(",", ":")).encode()
+        struct.pack_into("<HHHBBI", packet, 0, 0xA5A5, 0x5A5A, 0, flag, 0x0B, len(data))
+        packet.extend(data)
+        checksum = sum(packet, 0xBEAF) & 0xFFFF
+        packet[0x04:0x06] = checksum.to_bytes(2, "little")
         return packet
 
-    def _decode(self, response: bytes) -> t.Any:
+    def _decode(self, response: bytes) -> dict:
         """Decode a JSON packet."""
         payload = self.decrypt(response[0x38:])
-        js_len = struct.unpack_from("<I", payload, 0x8)[0]
-        state = json.loads(payload[0xC : 0xC + js_len])
+        js_len = struct.unpack_from("<I", payload, 0x08)[0]
+        state = json.loads(payload[0x0C : 0x0C + js_len])
         return state

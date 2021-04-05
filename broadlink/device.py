@@ -141,20 +141,12 @@ class Device:
 
     def __str__(self) -> str:
         """Return a readable representation of the device."""
-        model = []
-        if self.manufacturer:
-            model.append(self.manufacturer)
-        if self.model:
-            model.append(self.model)
-        model.append(hex(self.devtype))
-        model = " ".join(model)
-
-        info = []
-        info.append(model)
-        info.append(f"{self.host[0]}:{self.host[1]}")
-        info.append(":".join(format(x, "02x") for x in self.mac).upper())
-        info = " / ".join(info)
-        return "%s (%s)" % (self.name or "Unknown", info)
+        return "%s (%s / %s:%s / %s)" % (
+            self.name or "Unknown",
+            " ".join(filter(None, [self.manufacturer, self.model, hex(self.devtype)])),
+            *self.host,
+            ":".join(format(x, "02X") for x in self.mac),
+        )
 
     def update_aes(self, key: bytes) -> None:
         """Update AES."""
@@ -177,22 +169,18 @@ class Device:
         self.id = 0
         self.update_aes(bytes.fromhex(self.__INIT_KEY))
 
-        payload = bytearray(0x50)
-        payload[0x04:0x14] = [0x31]*16
-        payload[0x1E] = 0x01
-        payload[0x2D] = 0x01
-        payload[0x30:0x36] = "Test 1".encode()
+        packet = bytearray(0x50)
+        packet[0x04:0x14] = [0x31] * 16
+        packet[0x1E] = 0x01
+        packet[0x2D] = 0x01
+        packet[0x30:0x36] = "Test 1".encode()
 
-        response = self.send_packet(0x65, payload)
+        response = self.send_packet(0x65, packet)
         e.check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
 
-        key = payload[0x04:0x14]
-        if len(key) % 16 != 0:
-            return False
-
         self.id = int.from_bytes(payload[:0x4], "little")
-        self.update_aes(key)
+        self.update_aes(payload[0x04:0x14])
         return True
 
     def hello(self, local_ip_address=None) -> bool:
@@ -284,8 +272,8 @@ class Device:
         packet[0x00:0x08] = bytes.fromhex("5aa5aa555aa5aa55")
         packet[0x24:0x26] = self.devtype.to_bytes(2, "little")
         packet[0x26:0x28] = packet_type.to_bytes(2, "little")
-        packet[0x28:0x2a] = self.count.to_bytes(2, "little")
-        packet[0x2a:0x30] = self.mac[::-1]
+        packet[0x28:0x2A] = self.count.to_bytes(2, "little")
+        packet[0x2A:0x30] = self.mac[::-1]
         packet[0x30:0x34] = self.id.to_bytes(4, "little")
 
         p_checksum = sum(payload, 0xBEAF) & 0xFFFF
