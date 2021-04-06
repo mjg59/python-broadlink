@@ -64,7 +64,7 @@ def scan(
                 discovered.append((host, mac, devtype))
 
                 name = resp[0x40:].split(b"\x00")[0].decode()
-                is_locked = bool(resp[-1])
+                is_locked = bool(resp[0x7F])
                 yield devtype, host, mac, name, is_locked
     finally:
         conn.close()
