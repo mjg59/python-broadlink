@@ -1,7 +1,9 @@
-Troubleshooting
-===============
+# Troubleshooting
 
-WiFi Connectivity
------------------
+## Firmware issues
 
-- Some devices ship with firmware that cannot connect to WiFi with non-alphnumeric passwords. To work around this, change your WiFi password to one with just letters and numbers, or create a separate guest network with a simpler password. Once the firmware is updated, the device should be able to connect with a normal secure password.
+### AP setup fails with non-alphanumeric passwords
+
+Some devices ship with firmware that cannot connect to WLANs with non-alphanumeric passwords. To fix this, update the firmware to the latest version. You can also change the password to one with just letters and numbers or create a separate guest network with a simpler password.
+
+_First seen on Broadlink RM4 pro 0x6026. Already fixed in firmware v52079._
