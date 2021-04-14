@@ -57,12 +57,14 @@ def format_durations(data):
     return result
 
 
-def parse_durations(str):
-    result = []
-    for s in str.split():
-        result.append(abs(int(s)))
-    return result
+def parse_durations(durations):
+    return [
+        abs(int(duration))
+        for duration in durations.split()
+    ]
 
+def base64_to_hex(base64_string):
+	return codecs.getencoder("hex_codec")(base64.decodestring(base64_string))[0]
 
 parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
 parser.add_argument("--device", help="device definition as 'type host mac'")
@@ -79,6 +81,7 @@ parser.add_argument("--turnnlon", action="store_true", help="turn on nightlight 
 parser.add_argument("--turnnloff", action="store_true", help="turn off nightlight on the device")
 parser.add_argument("--switch", action="store_true", help="switch state from on to off and off to on")
 parser.add_argument("--send", action="store_true", help="send command")
+parser.add_argument("--send-base64", action="store_true", help="send base64 command string")
 parser.add_argument("--sensors", action="store_true", help="check all sensors")
 parser.add_argument("--learn", action="store_true", help="learn command")
 parser.add_argument("--rfscanlearn", action="store_true", help="rf scan learning")
@@ -126,6 +129,11 @@ if args.sensors:
 if args.send:
     data = durations_to_broadlink(parse_durations(' '.join(args.data))) \
         if args.durations else bytearray.fromhex(''.join(args.data))
+    dev.send_data(data)
+if args.send_base64:
+    data = [base64_to_hex(input_data) for input_data in args.data]
+    data = durations_to_broadlink(parse_durations(' '.join(data))) \
+        if args.durations else bytearray.fromhex(''.join(data))
     dev.send_data(data)
 if args.learn or (args.learnfile and not args.rfscanlearn):
     dev.enter_learning()
