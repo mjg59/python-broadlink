@@ -6,130 +6,6 @@ from . import exceptions as e
 from .device import Device
 
 
-class mp1(Device):
-    """Controls a Broadlink MP1."""
-
-    TYPE = "MP1"
-
-    def set_power_mask(self, sid_mask: int, pwr: bool) -> None:
-        """Set the power state of the device."""
-        packet = bytearray(16)
-        packet[0x00] = 0x0D
-        packet[0x02] = 0xA5
-        packet[0x03] = 0xA5
-        packet[0x04] = 0x5A
-        packet[0x05] = 0x5A
-        packet[0x06] = 0xB2 + ((sid_mask << 1) if pwr else sid_mask)
-        packet[0x07] = 0xC0
-        packet[0x08] = 0x02
-        packet[0x0A] = 0x03
-        packet[0x0D] = sid_mask
-        packet[0x0E] = sid_mask if pwr else 0
-
-        response = self.send_packet(0x6A, packet)
-        e.check_error(response[0x22:0x24])
-
-    def set_power(self, sid: int, pwr: bool) -> None:
-        """Set the power state of the device."""
-        sid_mask = 0x01 << (sid - 1)
-        self.set_power_mask(sid_mask, pwr)
-
-    def check_power_raw(self) -> int:
-        """Return the power state of the device in raw format."""
-        packet = bytearray(16)
-        packet[0x00] = 0x0A
-        packet[0x02] = 0xA5
-        packet[0x03] = 0xA5
-        packet[0x04] = 0x5A
-        packet[0x05] = 0x5A
-        packet[0x06] = 0xAE
-        packet[0x07] = 0xC0
-        packet[0x08] = 0x01
-
-        response = self.send_packet(0x6A, packet)
-        e.check_error(response[0x22:0x24])
-        payload = self.decrypt(response[0x38:])
-        return payload[0x0E]
-
-    def check_power(self) -> dict:
-        """Return the power state of the device."""
-        data = self.check_power_raw()
-        return {
-            "s1": bool(data & 1),
-            "s2": bool(data & 2),
-            "s3": bool(data & 4),
-            "s4": bool(data & 8),
-        }
-
-
-class bg1(Device):
-    """Controls a BG Electrical smart outlet."""
-
-    TYPE = "BG1"
-
-    def get_state(self) -> dict:
-        """Return the power state of the device.
-
-        Example: `{"pwr":1,"pwr1":1,"pwr2":0,"maxworktime":60,"maxworktime1":60,"maxworktime2":0,"idcbrightness":50}`
-        """
-        packet = self._encode(1, {})
-        response = self.send_packet(0x6A, packet)
-        e.check_error(response[0x22:0x24])
-        return self._decode(response)
-
-    def set_state(
-        self,
-        pwr: bool = None,
-        pwr1: bool = None,
-        pwr2: bool = None,
-        maxworktime: int = None,
-        maxworktime1: int = None,
-        maxworktime2: int = None,
-        idcbrightness: int = None,
-    ) -> dict:
-        """Set the power state of the device."""
-        state = {}
-        if pwr is not None:
-            state["pwr"] = int(bool(pwr))
-        if pwr1 is not None:
-            state["pwr1"] = int(bool(pwr1))
-        if pwr2 is not None:
-            state["pwr2"] = int(bool(pwr2))
-        if maxworktime is not None:
-            state["maxworktime"] = maxworktime
-        if maxworktime1 is not None:
-            state["maxworktime1"] = maxworktime1
-        if maxworktime2 is not None:
-            state["maxworktime2"] = maxworktime2
-        if idcbrightness is not None:
-            state["idcbrightness"] = idcbrightness
-
-        packet = self._encode(2, state)
-        response = self.send_packet(0x6A, packet)
-        e.check_error(response[0x22:0x24])
-        return self._decode(response)
-
-    def _encode(self, flag: int, state: dict) -> bytes:
-        """Encode a message."""
-        packet = bytearray(14)
-        data = json.dumps(state).encode()
-        length = 12 + len(data)
-        struct.pack_into(
-            "<HHHHBBI", packet, 0, length, 0xA5A5, 0x5A5A, 0x0000, flag, 0x0B, len(data)
-        )
-        packet.extend(data)
-        checksum = sum(packet[0x2:], 0xBEAF) & 0xFFFF
-        packet[0x06:0x08] = checksum.to_bytes(2, "little")
-        return packet
-
-    def _decode(self, response: bytes) -> dict:
-        """Decode a message."""
-        payload = self.decrypt(response[0x38:])
-        js_len = struct.unpack_from("<I", payload, 0x0A)[0]
-        state = json.loads(payload[0x0E : 0x0E + js_len])
-        return state
-
-
 class sp1(Device):
     """Controls a Broadlink SP1."""
 
@@ -360,3 +236,127 @@ class sp4b(sp4):
         js_len = struct.unpack_from("<I", payload, 0xA)[0]
         state = json.loads(payload[0x0E : 0x0E + js_len])
         return state
+
+
+class bg1(Device):
+    """Controls a BG Electrical smart outlet."""
+
+    TYPE = "BG1"
+
+    def get_state(self) -> dict:
+        """Return the power state of the device.
+
+        Example: `{"pwr":1,"pwr1":1,"pwr2":0,"maxworktime":60,"maxworktime1":60,"maxworktime2":0,"idcbrightness":50}`
+        """
+        packet = self._encode(1, {})
+        response = self.send_packet(0x6A, packet)
+        e.check_error(response[0x22:0x24])
+        return self._decode(response)
+
+    def set_state(
+        self,
+        pwr: bool = None,
+        pwr1: bool = None,
+        pwr2: bool = None,
+        maxworktime: int = None,
+        maxworktime1: int = None,
+        maxworktime2: int = None,
+        idcbrightness: int = None,
+    ) -> dict:
+        """Set the power state of the device."""
+        state = {}
+        if pwr is not None:
+            state["pwr"] = int(bool(pwr))
+        if pwr1 is not None:
+            state["pwr1"] = int(bool(pwr1))
+        if pwr2 is not None:
+            state["pwr2"] = int(bool(pwr2))
+        if maxworktime is not None:
+            state["maxworktime"] = maxworktime
+        if maxworktime1 is not None:
+            state["maxworktime1"] = maxworktime1
+        if maxworktime2 is not None:
+            state["maxworktime2"] = maxworktime2
+        if idcbrightness is not None:
+            state["idcbrightness"] = idcbrightness
+
+        packet = self._encode(2, state)
+        response = self.send_packet(0x6A, packet)
+        e.check_error(response[0x22:0x24])
+        return self._decode(response)
+
+    def _encode(self, flag: int, state: dict) -> bytes:
+        """Encode a message."""
+        packet = bytearray(14)
+        data = json.dumps(state).encode()
+        length = 12 + len(data)
+        struct.pack_into(
+            "<HHHHBBI", packet, 0, length, 0xA5A5, 0x5A5A, 0x0000, flag, 0x0B, len(data)
+        )
+        packet.extend(data)
+        checksum = sum(packet[0x2:], 0xBEAF) & 0xFFFF
+        packet[0x06:0x08] = checksum.to_bytes(2, "little")
+        return packet
+
+    def _decode(self, response: bytes) -> dict:
+        """Decode a message."""
+        payload = self.decrypt(response[0x38:])
+        js_len = struct.unpack_from("<I", payload, 0x0A)[0]
+        state = json.loads(payload[0x0E : 0x0E + js_len])
+        return state
+
+
+class mp1(Device):
+    """Controls a Broadlink MP1."""
+
+    TYPE = "MP1"
+
+    def set_power_mask(self, sid_mask: int, pwr: bool) -> None:
+        """Set the power state of the device."""
+        packet = bytearray(16)
+        packet[0x00] = 0x0D
+        packet[0x02] = 0xA5
+        packet[0x03] = 0xA5
+        packet[0x04] = 0x5A
+        packet[0x05] = 0x5A
+        packet[0x06] = 0xB2 + ((sid_mask << 1) if pwr else sid_mask)
+        packet[0x07] = 0xC0
+        packet[0x08] = 0x02
+        packet[0x0A] = 0x03
+        packet[0x0D] = sid_mask
+        packet[0x0E] = sid_mask if pwr else 0
+
+        response = self.send_packet(0x6A, packet)
+        e.check_error(response[0x22:0x24])
+
+    def set_power(self, sid: int, pwr: bool) -> None:
+        """Set the power state of the device."""
+        sid_mask = 0x01 << (sid - 1)
+        self.set_power_mask(sid_mask, pwr)
+
+    def check_power_raw(self) -> int:
+        """Return the power state of the device in raw format."""
+        packet = bytearray(16)
+        packet[0x00] = 0x0A
+        packet[0x02] = 0xA5
+        packet[0x03] = 0xA5
+        packet[0x04] = 0x5A
+        packet[0x05] = 0x5A
+        packet[0x06] = 0xAE
+        packet[0x07] = 0xC0
+        packet[0x08] = 0x01
+
+        response = self.send_packet(0x6A, packet)
+        e.check_error(response[0x22:0x24])
+        payload = self.decrypt(response[0x38:])
+        return payload[0x0E]
+
+    def check_power(self) -> dict:
+        """Return the power state of the device."""
+        data = self.check_power_raw()
+        return {
+            "s1": bool(data & 1),
+            "s2": bool(data & 2),
+            "s3": bool(data & 4),
+            "s4": bool(data & 8),
+        }
