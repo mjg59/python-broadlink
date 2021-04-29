@@ -106,8 +106,8 @@ class hysen(Device):
     # Manual mode will activate last used temperature.
     # In typical usage call set_temp to activate manual control and set temp.
     # loop_mode refers to index in [ "12345,67", "123456,7", "1234567" ]
-    # E.g. loop_mode = 0 ("12345,67") means Saturday and Sunday follow the "weekend" schedule
-    # loop_mode = 2 ("1234567") means every day (including Saturday and Sunday) follows the "weekday" schedule
+    # E.g. loop_mode = 0 ("12345,67") means Saturday and Sunday (weekend schedule)
+    # loop_mode = 2 ("1234567") means every day, including Saturday and Sunday (weekday schedule)
     # The sensor command is currently experimental
     def set_mode(self, auto_mode: int, loop_mode: int, sensor: int = 0) -> None:
         """Set the mode of the device."""
@@ -124,7 +124,7 @@ class hysen(Device):
     # Actual temperature calibration (AdJ) adj = -0.5. Precision 0.1C
     # Anti-freezing function (FrE) fre = 0 for anti-freezing function shut down,
     #  1 for anti-freezing function open. Factory default: 0
-    # Power on memory (POn) poweron = 0 for power on memory off, 1 for power on memory on. Factory default: 0
+    # Power on memory (POn) poweron = 0 for off, 1 for on. Default: 0
     def set_advanced(
         self,
         loop_mode: int,
