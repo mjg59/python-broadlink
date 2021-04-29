@@ -9,7 +9,12 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 from . import exceptions as e
-from .const import DEFAULT_BCAST_ADDR, DEFAULT_PORT, DEFAULT_RETRY_INTVL, DEFAULT_TIMEOUT
+from .const import (
+    DEFAULT_BCAST_ADDR,
+    DEFAULT_PORT,
+    DEFAULT_RETRY_INTVL,
+    DEFAULT_TIMEOUT,
+)
 from .protocol import Datetime
 
 HelloResponse = t.Tuple[int, t.Tuple[str, int], str, str, bool]
