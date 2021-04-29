@@ -9,16 +9,17 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 from . import exceptions as e
+from .const import DEFAULT_BCAST_ADDR, DEFAULT_PORT, DEFAULT_RETRY_INTVL, DEFAULT_TIMEOUT
 from .protocol import Datetime
 
 HelloResponse = t.Tuple[int, t.Tuple[str, int], str, str, bool]
 
 
 def scan(
-    timeout: int = 10,
+    timeout: int = DEFAULT_TIMEOUT,
     local_ip_address: str = None,
-    discover_ip_address: str = "255.255.255.255",
-    discover_ip_port: int = 80,
+    discover_ip_address: str = DEFAULT_BCAST_ADDR,
+    discover_ip_port: int = DEFAULT_PORT,
 ) -> t.Generator[HelloResponse, None, None]:
     """Broadcast a hello message and yield responses."""
     conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -70,7 +71,7 @@ def scan(
         conn.close()
 
 
-def ping(address: str, port: int = 80) -> None:
+def ping(address: str, port: int = DEFAULT_PORT) -> None:
     """Send a ping packet to an address.
 
     This packet feeds the watchdog timer of firmwares >= v53.
@@ -97,7 +98,7 @@ class Device:
         host: t.Tuple[str, int],
         mac: t.Union[bytes, str],
         devtype: int,
-        timeout: int = 10,
+        timeout: int = DEFAULT_TIMEOUT,
         name: str = "",
         model: str = "",
         manufacturer: str = "",
@@ -292,7 +293,7 @@ class Device:
 
             while True:
                 time_left = timeout - (time.time() - start_time)
-                conn.settimeout(min(1, time_left))
+                conn.settimeout(min(DEFAULT_RETRY_INTVL, time_left))
                 conn.sendto(packet, self.host)
 
                 try:
