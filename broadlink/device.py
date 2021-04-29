@@ -9,7 +9,12 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 from . import exceptions as e
-from .const import DEFAULT_BCAST_ADDR, DEFAULT_PORT, DEFAULT_RETRY_INTVL, DEFAULT_TIMEOUT
+from .const import (
+    DEFAULT_BCAST_ADDR,
+    DEFAULT_PORT,
+    DEFAULT_RETRY_INTVL,
+    DEFAULT_TIMEOUT,
+)
 from .protocol import Datetime
 
 HelloResponse = t.Tuple[int, t.Tuple[str, int], str, str, bool]
@@ -48,7 +53,7 @@ def scan(
     try:
         while (time.time() - start_time) < timeout:
             time_left = timeout - (time.time() - start_time)
-            conn.settimeout(min(1, time_left))
+            conn.settimeout(min(DEFAULT_RETRY_INTVL, time_left))
             conn.sendto(packet, (discover_ip_address, discover_ip_port))
 
             while True:

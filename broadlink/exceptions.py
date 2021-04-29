@@ -27,6 +27,7 @@ class BroadlinkException(Exception):
 
     def __eq__(self, other):
         """Return self==value."""
+        # pylint: disable=unidiomatic-typecheck
         return type(self) == type(other) and self.args == other.args
 
     def __hash__(self):
