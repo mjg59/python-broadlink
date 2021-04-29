@@ -5,6 +5,7 @@ import codecs
 import time
 
 import broadlink
+from broadlink.const import DEFAULT_PORT
 from broadlink.exceptions import ReadError, StorageError
 
 TICK = 32.84
@@ -102,7 +103,7 @@ elif args.mac:
     mac = bytearray.fromhex(args.mac)
 
 if args.host or args.device:
-    dev = broadlink.gendevice(devtype, (host, 80), mac)
+    dev = broadlink.gendevice(devtype, (host, DEFAULT_PORT), mac)
     dev.auth()
 
 if args.joinwifi:

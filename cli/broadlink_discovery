@@ -2,12 +2,13 @@
 import argparse
 
 import broadlink
+from broadlink.const import DEFAULT_BCAST_ADDR, DEFAULT_TIMEOUT
 from broadlink.exceptions import StorageError
 
 parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
-parser.add_argument("--timeout", type=int, default=5, help="timeout to wait for receiving discovery responses")
+parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help="timeout to wait for receiving discovery responses")
 parser.add_argument("--ip", default=None, help="ip address to use in the discovery")
-parser.add_argument("--dst-ip", default="255.255.255.255", help="destination ip address to use in the discovery")
+parser.add_argument("--dst-ip", default=DEFAULT_BCAST_ADDR, help="destination ip address to use in the discovery")
 args = parser.parse_args()
 
 print("Discovering...")

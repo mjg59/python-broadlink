@@ -4,6 +4,7 @@ import socket
 import typing as t
 
 from . import exceptions as e
+from .const import DEFAULT_BCAST_ADDR, DEFAULT_PORT, DEFAULT_TIMEOUT
 from .alarm import S1C
 from .climate import hysen
 from .cover import dooya
@@ -143,8 +144,8 @@ def gendevice(
 
 def hello(
     host: str,
-    port: int = 80,
-    timeout: int = 10,
+    port: int = DEFAULT_PORT,
+    timeout: int = DEFAULT_TIMEOUT,
     local_ip_address: str = None,
 ) -> Device:
     """Direct device discovery.
@@ -162,10 +163,10 @@ def hello(
 
 
 def discover(
-    timeout: int = 10,
+    timeout: int = DEFAULT_TIMEOUT,
     local_ip_address: str = None,
-    discover_ip_address: str = "255.255.255.255",
-    discover_ip_port: int = 80,
+    discover_ip_address: str = DEFAULT_BCAST_ADDR,
+    discover_ip_port: int = DEFAULT_PORT,
 ) -> t.List[Device]:
     """Discover devices connected to the local network."""
     responses = scan(timeout, local_ip_address, discover_ip_address, discover_ip_port)
@@ -173,10 +174,10 @@ def discover(
 
 
 def xdiscover(
-    timeout: int = 10,
+    timeout: int = DEFAULT_TIMEOUT,
     local_ip_address: str = None,
-    discover_ip_address: str = "255.255.255.255",
-    discover_ip_port: int = 80,
+    discover_ip_address: str = DEFAULT_BCAST_ADDR,
+    discover_ip_port: int = DEFAULT_PORT,
 ) -> t.Generator[Device, None, None]:
     """Discover devices connected to the local network.
 
@@ -218,5 +219,5 @@ def setup(ssid: str, password: str, security_mode: int) -> None:
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Internet  # UDP
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    sock.sendto(payload, ("255.255.255.255", 80))
+    sock.sendto(payload, (DEFAULT_BCAST_ADDR, DEFAULT_PORT))
     sock.close()
