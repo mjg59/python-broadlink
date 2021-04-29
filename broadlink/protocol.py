@@ -1,3 +1,4 @@
+"""The networking part of the python-broadlink library."""
 import datetime as dt
 import time
 

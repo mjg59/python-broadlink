@@ -1,4 +1,4 @@
-"""Support for climate control."""
+"""Support for HVAC units."""
 import typing as t
 
 from . import exceptions as e
