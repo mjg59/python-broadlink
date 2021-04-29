@@ -105,10 +105,10 @@ class lb1(Device):
         return state
 
 
-class lb27r1(Device):
-    """Controls a Broadlink LB27 R1."""
+class lb2(Device):
+    """Controls a Broadlink LB26/LB27."""
 
-    TYPE = "LB27R1"
+    TYPE = "LB2"
 
     @enum.unique
     class ColorMode(enum.IntEnum):
