@@ -2,6 +2,7 @@
 import struct
 
 from . import exceptions as e
+from .const import DEFAULT_NUM_ATTEMPTS
 from .device import Device
 
 
@@ -61,9 +62,16 @@ class rmpro(rmmini):
 
     def check_sensors(self) -> dict:
         """Return the state of the sensors."""
-        resp = self._send(0x1)
-        temp = struct.unpack("<bb", resp[:0x2])
-        return {"temperature": temp[0x0] + temp[0x1] / 10.0}
+        for _ in range(DEFAULT_NUM_ATTEMPTS):
+            resp = self._send(0x1)
+            temp = struct.unpack("<bb", resp[:0x2])
+            temperature = temp[0x0] + temp[0x1] / 10.0
+
+            # Firmware issue. We need to retry and confirm that -7 is not a bug.
+            # See https://github.com/home-assistant/core/issues/42100.
+            if temperature != -7:
+                break
+        return {"temperature": temperature}
 
     def check_temperature(self) -> float:
         """Return the temperature."""
