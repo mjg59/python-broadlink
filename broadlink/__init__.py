@@ -148,14 +148,15 @@ def hello(
     host: str,
     port: int = DEFAULT_PORT,
     timeout: int = DEFAULT_TIMEOUT,
-    local_ip_address: str = None,
 ) -> Device:
     """Direct device discovery.
 
     Useful if the device is locked.
     """
     try:
-        return next(xdiscover(timeout, local_ip_address, host, port))
+        return next(
+            xdiscover(timeout=timeout, discover_ip_address=host, discover_ip_port=port)
+        )
     except StopIteration as err:
         raise e.NetworkTimeoutError(
             -4000,
