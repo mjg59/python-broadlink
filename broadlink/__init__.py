@@ -93,6 +93,7 @@ SUPPORTED_TYPES = {
     0x61A2: (rm4pro, "RM4 pro", "Broadlink"),
     0x649B: (rm4pro, "RM4 pro", "Broadlink"),
     0x653C: (rm4pro, "RM4 pro", "Broadlink"),
+    0x6184: (rm4pro, "RM4C pro", "Broadlink"),
     0x2714: (a1, "e-Sensor", "Broadlink"),
     0x4EB5: (mp1, "MP1-1K4S", "Broadlink"),
     0x4EF7: (mp1, "MP1-1K4S", "Broadlink (OEM)"),
