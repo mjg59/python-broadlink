@@ -84,6 +84,7 @@ parser.add_argument("--send", action="store_true", help="send command")
 parser.add_argument("--sensors", action="store_true", help="check all sensors")
 parser.add_argument("--learn", action="store_true", help="learn command")
 parser.add_argument("--rfscanlearn", action="store_true", help="rf scan learning")
+parser.add_argument("--rflearn", nargs="?", type=float, const=433.92, metavar="FREQUENCY", help="rf learning on specified FREQUENCY, default: 433.92")
 parser.add_argument("--learnfile", help="save learned command to a specified file")
 parser.add_argument("--durations", action="store_true",
                     help="use durations in micro seconds instead of the Broadlink format")
@@ -127,7 +128,7 @@ if args.send:
     data = durations_to_broadlink(parse_durations(' '.join(args.data))) \
         if args.durations else bytearray.fromhex(''.join(args.data))
     dev.send_data(data)
-if args.learn or (args.learnfile and not args.rfscanlearn):
+if args.learn or (args.learnfile and not args.rfscanlearn and not args.rflearn):
     dev.enter_learning()
     print("Learning...")
     start = time.time()
@@ -195,28 +196,35 @@ if args.switch:
     else:
         dev.set_power(True)
         print('* Switch to ON *')
-if args.rfscanlearn:
+if args.rfscanlearn or args.rflearn:
     dev.sweep_frequency()
-    print("Learning RF Frequency, press and hold the button to learn...")
+    if args.rfscanlearn:
+        print("Learning RF Frequency, press and hold the button to learn...")
 
-    start = time.time()
-    while time.time() - start < TIMEOUT:
-        time.sleep(1)
-        if dev.check_frequency():
-            break
+        start = time.time()
+        while time.time() - start < TIMEOUT:
+            time.sleep(1)
+            locked, frequency = dev.check_frequency_ex()
+            if locked:
+                break
+            print("Sweeping {}MHz...".format(frequency))
+        else:
+            print("RF Frequency not found")
+            dev.cancel_sweep_frequency()
+            exit(1)
+        frequency = dev.get_frequency()
+
+        print("Found RF Frequency {}MHz - 1 of 2!".format(frequency))
+        print("You can now let go of the button")
+
+        input("Press enter to continue...")
+
+        dev.find_rf_packet()
     else:
-        print("RF Frequency not found")
-        dev.cancel_sweep_frequency()
-        exit(1)
-
-    print("Found RF Frequency - 1 of 2!")
-    print("You can now let go of the button")
-
-    input("Press enter to continue...")
+        dev.find_rf_packet(args.rflearn)
+        print("Device tuned to {}MHz".format(dev.get_frequency()))
 
     print("To complete learning, single press the button you want to learn")
-
-    dev.find_rf_packet()
 
     start = time.time()
     while time.time() - start < TIMEOUT:
@@ -231,7 +239,8 @@ if args.rfscanlearn:
         print("No data received...")
         exit(1)
 
-    print("Found RF Frequency - 2 of 2!")
+    if args.rfscanlearn:
+        print("Found RF Frequency - 2 of 2!")
     learned = format_durations(to_microseconds(bytearray(data))) \
         if args.durations \
         else ''.join(format(x, '02x') for x in bytearray(data))
