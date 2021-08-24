@@ -63,6 +63,18 @@ class mp1(device):
         data["s4"] = bool(state & 0x08)
         return data
 
+class mp1m(mp1):
+    """Controls a Broadlink MP1M."""
+
+    TYPE = "MP1M"
+
+    def get_energy(self) -> float:
+        """Return the energy state of the device."""
+        packet = bytearray([8, 0, 254, 1, 5, 1, 0, 0, 0, 45])
+        response = self.send_packet(0x6A, packet)
+        check_error(response[0x22:0x24])
+        payload = self.decrypt(response[0x38:])
+        return int((payload[0x07] + payload[0x06] / 100) * 100) + payload[0x05] / 100
 
 class bg1(device):
     """Controls a BG Electrical smart outlet."""
