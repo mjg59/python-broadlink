@@ -11,7 +11,7 @@ from .exceptions import exception
 from .light import lb1
 from .remote import rm, rm4, rm4mini, rm4pro, rmmini, rmminib, rmpro
 from .sensor import a1
-from .switch import bg1, mp1, sp1, sp2, sp2s, sp3, sp3s, sp4, sp4b
+from .switch import bg1, mp1, mp1m, sp1, sp2, sp2s, sp3, sp3s, sp4, sp4b
 
 SUPPORTED_TYPES = {
     0x0000: (sp1, "SP1", "Broadlink"),
