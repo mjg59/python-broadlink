@@ -139,10 +139,10 @@ SUPPORTED_TYPES = {
     lb1: {
         0x5043: ("SB800TD", "Broadlink (OEM)"),
         0x504E: ("LB1", "Broadlink"),
+        0x606E: ("SB500TD", "Broadlink (OEM)"),
         0x60C7: ("LB1", "Broadlink"),
         0x60C8: ("LB1", "Broadlink"),
         0x6112: ("LB1", "Broadlink"),
-        0x606E: ("SL-2 E14", "Clas Ohlson"),
     },
     lb2: {
         0xA4F4: ("LB27 R1", "Broadlink"),
