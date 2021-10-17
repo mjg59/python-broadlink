@@ -7,9 +7,17 @@ from .helpers import CRC16
 
 
 class hysen(Device):
-    """Controls a Hysen HVAC."""
+    """Controls a Hysen heating thermostat.
 
-    TYPE = "Hysen heating controller"
+    This device is manufactured by Hysen and sold under different
+    brands, including Floureon, Beca Energy, Beok and Decdeal.
+
+    Supported models:
+    - HY02B05H
+    - HY03WE
+    """
+
+    TYPE = "HYS"
 
     def send_request(self, request: t.Sequence[int]) -> bytes:
         """Send a request to the device."""
