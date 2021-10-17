@@ -152,7 +152,7 @@ SUPPORTED_TYPES = {
         0x2722: ("S2KIT", "Broadlink"),
     },
     hysen: {
-        0x4EAD: ("HY02B05H", "Hysen"),
+        0x4EAD: ("HY02/HY03", "Hysen"),
     },
     dooya: {
         0x4E4D: ("DT360E-45/20", "Dooya"),
