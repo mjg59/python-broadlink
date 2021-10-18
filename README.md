@@ -49,6 +49,13 @@ broadlink.setup('myssid', 'mynetworkpass', 3)
 
 Security mode options are (0 = none, 1 = WEP, 2 = WPA1, 3 = WPA2, 4 = WPA1/2)
 
+#### Advanced options
+
+You may need to specify a broadcast address if setup is not working.
+```python3
+broadlink.setup('myssid', 'mynetworkpass', 3, ip_address='192.168.0.255')
+```
+
 ### Discovery
 
 Use this function to discover devices:
