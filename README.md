@@ -67,17 +67,19 @@ devices = broadlink.discover()
 #### Advanced options
 You may need to specify `local_ip_address` or `discover_ip_address` if discovery does not return any devices.
 
+Using the IP address of your local machine:
 ```python3
-devices = broadlink.discover(local_ip_address='192.168.0.100')  # IP address of your local machine.
+devices = broadlink.discover(local_ip_address='192.168.0.100')
 ```
 
+Using the broadcast address of your subnet:
 ```python3
-devices = broadlink.discover(discover_ip_address='192.168.0.255')  # Broadcast address of your subnet.
+devices = broadlink.discover(discover_ip_address='192.168.0.255')
 ```
 
 If the device is locked, it may not be discoverable with broadcast. In such cases, you can use the unicast version `broadlink.hello()` for direct discovery:
 ```python3
-device = broadlink.hello('192.168.0.16')  # IP address of your Broadlink device.
+device = broadlink.hello('192.168.0.16')
 ```
 
 If you are a perfomance freak, use `broadlink.xdiscover()` to create devices instantly:
@@ -112,7 +114,7 @@ packet = device.check_data()
 
 ### Learning RF codes
 
-Learning IR codes takes place in five steps.
+Learning RF codes takes place in five steps.
 
 1. Sweep the frequency:
 ```python3
