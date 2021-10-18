@@ -12,7 +12,7 @@ from .device import Device, ping, scan
 from .light import lb1, lb2
 from .remote import rm, rm4, rm4mini, rm4pro, rmmini, rmminib, rmpro
 from .sensor import a1
-from .switch import bg1, mp1, sp1, sp2, sp2s, sp3, sp3s, sp4, sp4b
+from .switch import bg1, mp1, mp1s, sp1, sp2, sp2s, sp3, sp3s, sp4, sp4b
 
 SUPPORTED_TYPES = {
     sp1: {
@@ -133,9 +133,11 @@ SUPPORTED_TYPES = {
     },
     mp1: {
         0x4EB5: ("MP1-1K4S", "Broadlink"),
-        0x4EF7: ("MP1-1K4S", "Broadlink (OEM)"),
         0x4F1B: ("MP1-1K3S2U", "Broadlink (OEM)"),
         0x4F65: ("MP1-1K3S2U", "Broadlink"),
+    },
+    mp1s: {
+        0x4EF7: ("MP1-1K4S", "Broadlink (OEM)"),
     },
     lb1: {
         0x5043: ("SB800TD", "Broadlink (OEM)"),
