@@ -76,7 +76,7 @@ def scan(
         conn.close()
 
 
-def ping(address: str, port: int = DEFAULT_PORT) -> None:
+def ping(ip_address: str, port: int = DEFAULT_PORT) -> None:
     """Send a ping packet to an address.
 
     This packet feeds the watchdog timer of firmwares >= v53.
@@ -87,7 +87,7 @@ def ping(address: str, port: int = DEFAULT_PORT) -> None:
         conn.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         packet = bytearray(0x30)
         packet[0x26] = 1
-        conn.sendto(packet, (address, port))
+        conn.sendto(packet, (ip_address, port))
 
 
 class Device:
