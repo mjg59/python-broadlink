@@ -240,7 +240,12 @@ def xdiscover(
 
 # Setup a new Broadlink device via AP Mode. Review the README to see how to enter AP Mode.
 # Only tested with Broadlink RM3 Mini (Blackbean)
-def setup(ssid: str, password: str, security_mode: int) -> None:
+def setup(
+    ssid: str,
+    password: str,
+    security_mode: int,
+    ip_address: str = DEFAULT_BCAST_ADDR,
+) -> None:
     """Set up a new Broadlink device via AP mode."""
     # Security mode options are (0 - none, 1 = WEP, 2 = WPA1, 3 = WPA2, 4 = WPA1/2)
     payload = bytearray(0x88)
@@ -269,5 +274,5 @@ def setup(ssid: str, password: str, security_mode: int) -> None:
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Internet  # UDP
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    sock.sendto(payload, (DEFAULT_BCAST_ADDR, DEFAULT_PORT))
+    sock.sendto(payload, (ip_address, DEFAULT_PORT))
     sock.close()
