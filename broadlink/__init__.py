@@ -192,7 +192,7 @@ def gendevice(
 
 
 def hello(
-    host: str,
+    ip_address: str,
     port: int = DEFAULT_PORT,
     timeout: int = DEFAULT_TIMEOUT,
 ) -> Device:
@@ -202,7 +202,11 @@ def hello(
     """
     try:
         return next(
-            xdiscover(timeout=timeout, discover_ip_address=host, discover_ip_port=port)
+            xdiscover(
+                timeout=timeout,
+                discover_ip_address=ip_address,
+                discover_ip_port=port,
+            )
         )
     except StopIteration as err:
         raise e.NetworkTimeoutError(
