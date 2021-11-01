@@ -9,7 +9,7 @@ A Python module and CLI for controlling Broadlink devices locally. The following
 - **Power strips**: MP1-1K3S2U, MP1-1K4S, MP2
 - **Environment sensors**: A1
 - **Alarm kits**: S1C, S2KIT
-- **Light bulbs**: LB1, LB2, SB800TD
+- **Light bulbs**: LB1, LB26 R1, LB27 R1, SB800TD
 - **Curtain motors**: Dooya DT360E-45/20
 - **Thermostats**: Hysen HY02B05H
 
