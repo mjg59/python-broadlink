@@ -22,7 +22,19 @@ class s3(Device):
         payload = self.decrypt(bytearray.fromhex(hex_string))
         js_len = struct.unpack_from("<I", payload, 0x08)[0]
         print(json.loads(payload[0x0C : 0x0C + js_len]))
-    
+
+    def get_state(self,did: str = None) -> dict:
+        """Return the power state of the device."""
+        state = {}
+        if did is not None:
+            state["did"] = did
+        
+        packet = self._encode(1, state)
+        response = self.send_packet(0x6A, packet)
+        e.check_error(response[0x22:0x24])
+        return self._decode(response)
+
+ 
     def set_state(
         self,
         did: str = None,

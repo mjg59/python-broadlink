@@ -12,6 +12,7 @@ A Python module and CLI for controlling Broadlink devices locally. The following
 - **Light bulbs**: LB1, LB2, SB800TD
 - **Curtain motors**: Dooya DT360E-45/20
 - **Thermostats**: Hysen HY02B05H
+- **Hubs**: S3
 
 ## Installation
 
@@ -194,4 +195,21 @@ devices[0].set_state(bulb_colormode=1)
 ### Fetching sensor data
 ```python3
 data = device.check_sensors()
+```
+
+## Hubs
+
+Get sub-device state; use sub-device DID for the parameter which can be found in the broadlink app
+
+```python3
+device.get_state("00000000000000000000a043b0d06963")
+```
+
+Set sub-device state; (sub-device DID, pwr1, pwr2, pwr3) where pwr options are (None = no change; 1 = on and 0 = off)
+
+In the following example the first command turns pwr1 on and pwr2 off; while the 2nd command turns pwr2 off only.
+
+```python3
+device.set_state("00000000000000000000a043b0d0783a",1,0)
+device.set_state("00000000000000000000a043b0d0783a",None,0)
 ```
