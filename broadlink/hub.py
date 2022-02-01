@@ -11,17 +11,6 @@ class s3(Device):
     """Controls a Broadlink S3."""
 
     TYPE = "S3"
-    
-    def print_payload(self) -> None:
-        hex_string = "80958b19c3cdbbf4e44a07285a1f64a860dda677568d5369134ebef0345244d55dd827fdf7227d6424c73159bc311d0a336eec48a57830d4ccec3ebd06c176a8"  
-        payload = self.decrypt(bytearray.fromhex(hex_string))
-        js_len = struct.unpack_from("<I", payload, 0x08)[0]
-        print(json.loads(payload[0x0C : 0x0C + js_len]))
-        
-        hex_string = "1dd713e6bf12fee9a7e98a29148b1f4ba569e3106ead7fb38214fa66584a3c4e98669e027ba94df43b8015719ee1b0feb8d83f7d14b28170357094e283024bc68eddfceca43e6376e5ad3a713ad04714"
-        payload = self.decrypt(bytearray.fromhex(hex_string))
-        js_len = struct.unpack_from("<I", payload, 0x08)[0]
-        print(json.loads(payload[0x0C : 0x0C + js_len]))
 
     def get_state(self,did: str = None) -> dict:
         """Return the power state of the device."""
@@ -51,7 +40,7 @@ class s3(Device):
         if pwr2 is not None:
             state["pwr2"] = int(bool(pwr2))
         if pwr3 is not None:
-            state["pwr1"] = int(bool(pwr3))
+            state["pwr3"] = int(bool(pwr3))
 
         packet = self._encode(2, state)
         response = self.send_packet(0x6A, packet)
