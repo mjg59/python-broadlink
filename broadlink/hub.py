@@ -15,16 +15,10 @@ class s3(Device):
         sub_devices = []
         get_subdevices = True
         total = 0
-        state = '{"count":5,"index":0}'
+        state = {"count":5,"index":0}
         
         while(get_subdevices):
-            packet = bytearray(12)
-            data = state.encode()
-            struct.pack_into("<HHHBBI", packet, 0, 0xA5A5, 0x5A5A, 0, 0x0E, 0x0B, len(data))
-            packet.extend(data)
-            checksum = sum(packet, 0xBEAF) & 0xFFFF
-            packet[0x04:0x06] = checksum.to_bytes(2, "little")
-            
+            packet = self._encode(14, state)
             resp = self.send_packet(0x6a, packet)
             e.check_error(resp[0x22:0x24])
             resp = self._decode(resp)
@@ -35,7 +29,7 @@ class s3(Device):
             if len(sub_devices) == total:
                 get_subdevices = False
             else:
-                state = '{"count":5,"index":' + str(len(sub_devices)) +"}"
+                state["index"] += 5
             
         return(sub_devices)
 
