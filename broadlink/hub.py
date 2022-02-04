@@ -1,16 +1,43 @@
 """Support for hubs."""
 import struct
-import enum
 import json
 
 from . import exceptions as e
 from .device import Device
 
-
 class s3(Device):
     """Controls a Broadlink S3."""
 
     TYPE = "S3"
+            
+    def get_subdevices(self) -> dict:
+        """Return the lit of sub devices."""
+        sub_devices = []
+        get_subdevices = True
+        total = 0
+        state = '{"count":5,"index":0}'
+        
+        while(get_subdevices):
+            packet = bytearray(12)
+            data = state.encode()
+            struct.pack_into("<HHHBBI", packet, 0, 0xA5A5, 0x5A5A, 0, 0x0E, 0x0B, len(data))
+            packet.extend(data)
+            checksum = sum(packet, 0xBEAF) & 0xFFFF
+            packet[0x04:0x06] = checksum.to_bytes(2, "little")
+            
+            resp = self.send_packet(0x6a, packet)
+            e.check_error(resp[0x22:0x24])
+            resp = self._decode(resp)
+            
+            sub_devices.extend(resp["list"])
+            total = resp["total"]
+            
+            if len(sub_devices) == total:
+                get_subdevices = False
+            else:
+                state = '{"count":5,"index":' + str(len(sub_devices)) +"}"
+            
+        return(sub_devices)
 
     def get_state(self,did: str = None) -> dict:
         """Return the power state of the device."""
@@ -22,7 +49,6 @@ class s3(Device):
         response = self.send_packet(0x6A, packet)
         e.check_error(response[0x22:0x24])
         return self._decode(response)
-
  
     def set_state(
         self,
