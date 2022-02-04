@@ -199,7 +199,13 @@ data = device.check_sensors()
 
 ## Hubs
 
-Get sub-device state; use sub-device DID for the parameter which can be found in the broadlink app
+Return a list of sub-devices
+
+```python3
+device.get_subdevices()
+```
+
+Get sub-device state; use sub-device DID, obtained from get_subdevices() for the input parameter to query specific sub-device.
 
 ```python3
 device.get_state("00000000000000000000a043b0d06963")
