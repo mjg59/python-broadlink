@@ -18,6 +18,7 @@ from .hub import s3
 SUPPORTED_TYPES = {
     s3:  {
         0xa64d:("S3", "Broadlink"),
+        0xA59C:("S3", "Broadlink"),
     },
     sp1: {
         0x0000: ("SP1", "Broadlink"),
