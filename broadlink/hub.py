@@ -20,7 +20,7 @@ class s3(Device):
         for index in range(0, self.MAX_SUBDEVICES, step):
             state = {"count": step, "index": index}
             packet = self._encode(14, state)
-            resp = self.send_packet(0x6a, packet)
+            resp = self.send_packet(0x6A, packet)
             e.check_error(resp[0x22:0x24])
             resp = self._decode(resp)
 
@@ -30,7 +30,7 @@ class s3(Device):
 
         return sub_devices
 
-    def get_state(self,did: str = None) -> dict:
+    def get_state(self, did: str = None) -> dict:
         """Return the power state of the device."""
         state = {}
         if did is not None:
@@ -64,7 +64,6 @@ class s3(Device):
         e.check_error(response[0x22:0x24])
         return self._decode(response)
 
-
     def _encode(self, flag: int, state: dict) -> bytes:
         """Encode a JSON packet."""
         # flag: 1 for reading, 2 for writing.
@@ -81,4 +80,4 @@ class s3(Device):
         payload = self.decrypt(response[0x38:])
         js_len = struct.unpack_from("<I", payload, 0x08)[0]
         state = json.loads(payload[0x0C : 0x0C + js_len])
-        return state 
+        return state
