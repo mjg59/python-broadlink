@@ -199,23 +199,30 @@ data = device.check_sensors()
 
 ## Hubs
 
-Return a list of sub-devices
-
+### Discovering subdevices
 ```python3
 device.get_subdevices()
 ```
 
-Get sub-device state; use sub-device DID, obtained from get_subdevices() for the input parameter to query specific sub-device.
+### Fetching data
+Use the DID obtained from get_subdevices() for the input parameter to query specific sub-device.
 
 ```python3
-device.get_state("00000000000000000000a043b0d06963")
+device.get_state(did="00000000000000000000a043b0d06963")
 ```
 
-Set sub-device state; (sub-device DID, pwr1, pwr2, pwr3) where pwr options are (None = no change; 1 = on and 0 = off)
+### Setting state attributes
+The parameters depend on the type of subdevice that is being controlled. In this example, we are controlling LC-1 switches:
 
-In the following example the first command turns pwr1 on and pwr2 off; while the 2nd command turns pwr2 off only.
-
+#### Turn on
 ```python3
-device.set_state("00000000000000000000a043b0d0783a",1,0)
-device.set_state("00000000000000000000a043b0d0783a",None,0)
+device.set_state(did="00000000000000000000a043b0d0783a", pwr=1)
+device.set_state(did="00000000000000000000a043b0d0783a", pwr1=1)
+device.set_state(did="00000000000000000000a043b0d0783a", pwr2=1)
+```
+#### Turn off
+```python3
+device.set_state(did="00000000000000000000a043b0d0783a", pwr=0)
+device.set_state(did="00000000000000000000a043b0d0783a", pwr1=0)
+device.set_state(did="00000000000000000000a043b0d0783a", pwr2=0)
 ```
