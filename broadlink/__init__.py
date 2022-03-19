@@ -9,17 +9,13 @@ from .alarm import S1C
 from .climate import hysen
 from .cover import dooya
 from .device import Device, ping, scan
+from .hub import s3
 from .light import lb1, lb2
 from .remote import rm, rm4, rm4mini, rm4pro, rmmini, rmminib, rmpro
 from .sensor import a1
 from .switch import bg1, mp1, sp1, sp2, sp2s, sp3, sp3s, sp4, sp4b
-from .hub import s3
 
 SUPPORTED_TYPES = {
-    s3:  {
-        0xa64d:("S3", "Broadlink"),
-        0xA59C:("S3", "Broadlink"),
-    },
     sp1: {
         0x0000: ("SP1", "Broadlink"),
     },
@@ -155,6 +151,10 @@ SUPPORTED_TYPES = {
     },
     S1C: {
         0x2722: ("S2KIT", "Broadlink"),
+    },
+    s3:  {
+        0xA59C:("S3", "Broadlink"),
+        0xA64D:("S3", "Broadlink"),
     },
     hysen: {
         0x4EAD: ("HY02/HY03", "Hysen"),
