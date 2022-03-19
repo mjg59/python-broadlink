@@ -9,6 +9,7 @@ from .alarm import S1C
 from .climate import hysen
 from .cover import dooya
 from .device import Device, ping, scan
+from .hub import s3
 from .light import lb1, lb2
 from .remote import rm, rm4, rm4mini, rm4pro, rmmini, rmminib, rmpro
 from .sensor import a1
@@ -111,6 +112,7 @@ SUPPORTED_TYPES = {
     },
     rm4mini: {
         0x51DA: ("RM4 mini", "Broadlink"),
+        0x5209: ("RM4 TV mate", "Broadlink"),
         0x6070: ("RM4C mini", "Broadlink"),
         0x610E: ("RM4 mini", "Broadlink"),
         0x610F: ("RM4C mini", "Broadlink"),
@@ -122,6 +124,7 @@ SUPPORTED_TYPES = {
         0x653A: ("RM4 mini", "Broadlink"),
     },
     rm4pro: {
+        0x5213: ("RM4 pro", "Broadlink"),
         0x6026: ("RM4 pro", "Broadlink"),
         0x6184: ("RM4C pro", "Broadlink"),
         0x61A2: ("RM4 pro", "Broadlink"),
@@ -146,12 +149,19 @@ SUPPORTED_TYPES = {
         0x60C7: ("LB1", "Broadlink"),
         0x60C8: ("LB1", "Broadlink"),
         0x6112: ("LB1", "Broadlink"),
+        0x644C: ("LB27 R1", "Broadlink"),        
+        0x644E: ("LB26 R1", "Broadlink"),
     },
     lb2: {
         0xA4F4: ("LB27 R1", "Broadlink"),
+        0xA5F7: ("LB27 R1", "Broadlink"),
     },
     S1C: {
         0x2722: ("S2KIT", "Broadlink"),
+    },
+    s3:  {
+        0xA59C:("S3", "Broadlink"),
+        0xA64D:("S3", "Broadlink"),
     },
     hysen: {
         0x4EAD: ("HY02/HY03", "Hysen"),
