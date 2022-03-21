@@ -1,5 +1,6 @@
 """Support for universal remotes."""
 import struct
+import typing as t
 
 from . import exceptions as e
 from .device import Device
@@ -46,29 +47,18 @@ class rmpro(rmmini):
         """Sweep frequency."""
         self._send(0x19)
 
-    def check_frequency(self) -> bool:
+    def check_frequency(self) -> t.Tuple[bool, float]:
         """Return True if the frequency was identified successfully."""
         resp = self._send(0x1A)
-        return resp[0] == 1
+        is_found = bool(resp[0])
+        frequency = struct.unpack("<I", resp[1:5])[0] / 1000.0
+        return is_found, frequency
 
-    def check_frequency_ex(self) -> (bool, float):
-        """Return (True if the frequency was identified successfully, Current frequency)"""
-        resp = self._send(0x1A)
-        return resp[0] == 1, struct.unpack('<I', resp[1:5])[0] / 1000.0
-
-    def get_frequency(self) -> float:
-        """Return frequency device is tuned to in MHz"""
-        resp = self._send(0x1A)
-        return struct.unpack('<I', resp[1:5])[0] / 1000.0
-
-    def find_rf_packet(self, frequency=None) -> None:
-        """Enter radiofrequency learning mode, optionally tuning the device to a specific frequency"""
-        payload = b''
-        if frequency is not None:
-            payload = struct.pack('<I', int(frequency * 1000.0))
-            # Without this get_frequency() may suggest it is tuned to the
-            # specified frequency, but it fails to capture any signals:
-            self.cancel_sweep_frequency()
+    def find_rf_packet(self, frequency: float = None) -> None:
+        """Enter radiofrequency learning mode."""
+        payload = bytearray()
+        if frequency:
+            payload += struct.pack("<I", int(frequency * 1000))
         self._send(0x1B, payload)
 
     def cancel_sweep_frequency(self) -> None:
