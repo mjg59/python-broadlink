@@ -128,7 +128,7 @@ if args.send:
     data = durations_to_broadlink(parse_durations(' '.join(args.data))) \
         if args.durations else bytearray.fromhex(''.join(args.data))
     dev.send_data(data)
-if args.learn or (args.learnfile and not args.rfscanlearn and not args.rflearn):
+if args.learn or (args.learnfile and not args.rflearn):
     dev.enter_learning()
     print("Learning...")
     start = time.time()
