@@ -199,6 +199,7 @@ if args.switch:
 if args.rflearn:
     if args.frequency:
         frequency = args.frequency
+        print("Press the button you want to learn, a short press...")
     else:
         dev.sweep_frequency()
         print("Detecting radiofrequency, press and hold the button to learn...")
@@ -219,9 +220,9 @@ if args.rflearn:
 
         input("Press enter to continue...")
 
-    dev.find_rf_packet(frequency)
+        print("Press the button again, now a short press.")
 
-    print("Press the button again, now a short press.")
+    dev.find_rf_packet(frequency)
 
     start = time.time()
     while time.time() - start < TIMEOUT:
