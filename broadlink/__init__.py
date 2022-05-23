@@ -61,6 +61,7 @@ SUPPORTED_TYPES = {
         0x7583: ("SP mini 3", "Broadlink"),
         0x7587: ("SP4L-UK", "Broadlink"),
         0x7D11: ("SP mini 3", "Broadlink"),
+        0xA569: ("SP4L-UK", "Broadlink"),
         0xA56A: ("MCB1", "Broadlink"),
         0xA56B: ("SCB1E", "Broadlink"),
         0xA56C: ("SP4L-EU", "Broadlink"),
@@ -113,6 +114,9 @@ SUPPORTED_TYPES = {
     rm4mini: {
         0x51DA: ("RM4 mini", "Broadlink"),
         0x5209: ("RM4 TV mate", "Broadlink"),
+        0x520C: ("RM4 mini", "Broadlink"),
+        0x5212: ("RM4 TV mate", "Broadlink"),
+        0x5216: ("RM4 mini", "Broadlink"),
         0x6070: ("RM4C mini", "Broadlink"),
         0x610E: ("RM4 mini", "Broadlink"),
         0x610F: ("RM4C mini", "Broadlink"),
@@ -124,7 +128,9 @@ SUPPORTED_TYPES = {
         0x653A: ("RM4 mini", "Broadlink"),
     },
     rm4pro: {
+        0x520B: ("RM4 pro", "Broadlink"),
         0x5213: ("RM4 pro", "Broadlink"),
+        0x5218: ("RM4C pro", "Broadlink"),
         0x6026: ("RM4 pro", "Broadlink"),
         0x6184: ("RM4C pro", "Broadlink"),
         0x61A2: ("RM4 pro", "Broadlink"),
