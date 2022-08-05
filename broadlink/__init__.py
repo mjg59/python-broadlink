@@ -76,6 +76,7 @@ SUPPORTED_TYPES = {
         0x618B: ("SP4L-EU", "Broadlink"),
         0x6489: ("SP4L-AU", "Broadlink"),
         0x648B: ("SP4M-US", "Broadlink"),
+        0x648C: ("SP4L-US", "Broadlink"),
         0x6494: ("SCB2", "Broadlink"),
     },
     rmmini: {
