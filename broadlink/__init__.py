@@ -120,6 +120,7 @@ SUPPORTED_TYPES = {
         0x5211: ("RM4C mate", "Broadlink"),
         0x5212: ("RM4 TV mate", "Broadlink"),
         0x5216: ("RM4 mini", "Broadlink"),
+        0x521C: ("RM4 mini", "Broadlink"),
         0x6070: ("RM4C mini", "Broadlink"),
         0x610E: ("RM4 mini", "Broadlink"),
         0x610F: ("RM4C mini", "Broadlink"),
