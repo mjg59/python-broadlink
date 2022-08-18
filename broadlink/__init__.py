@@ -12,7 +12,7 @@ from .device import Device, ping, scan
 from .hub import s3
 from .light import lb1, lb2
 from .remote import rm, rm4, rm4mini, rm4pro, rmmini, rmminib, rmpro
-from .sensor import a1
+from .sensor import a1,a2
 from .switch import bg1, mp1, sp1, sp2, sp2s, sp3, sp3s, sp4, sp4b
 
 SUPPORTED_TYPES = {
