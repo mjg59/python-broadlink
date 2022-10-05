@@ -46,7 +46,7 @@ class hysen(Device):
     def get_temp(self) -> float:
         """Return the room temperature in degrees celsius."""
         payload = self.send_request([0x01, 0x03, 0x00, 0x00, 0x00, 0x08])
-        return payload[0x05] / 2.0
+        return payload[5] / 2.0 + ((((payload[17] >> 4) + 1) & 15) / 10.0)
 
     def get_external_temp(self) -> float:
         """Return the external temperature in degrees celsius."""
@@ -64,7 +64,7 @@ class hysen(Device):
         data["power"] = payload[4] & 1
         data["active"] = (payload[4] >> 4) & 1
         data["temp_manual"] = (payload[4] >> 6) & 1
-        data["room_temp"] = payload[5] / 2.0
+        data["room_temp"] = payload[5] / 2.0 + ((((payload[17] >> 4) + 1) & 15) / 10.0)
         data["thermostat_temp"] = payload[6] / 2.0
         data["auto_mode"] = payload[7] & 0xF
         data["loop_mode"] = payload[7] >> 4
