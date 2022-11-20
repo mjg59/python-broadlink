@@ -2,9 +2,9 @@ name: Python flake8
 
 on:
   push:
-    branches: [ main, master, dev, development ]
+    branches: [ master, dev ]
   pull_request:
-    branches: [ main, master, dev, development ]
+    branches: [ master, dev ]
 
 jobs:
   test:
