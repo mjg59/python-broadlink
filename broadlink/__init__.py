@@ -164,6 +164,7 @@ SUPPORTED_TYPES = {
     lb2: {
         0xA4F4: ("LB27 R1", "Broadlink"),
         0xA5F7: ("LB27 R1", "Broadlink"),
+        0xA6EF: ("Luceco Smart!", "BG Electrical"),
     },
     S1C: {
         0x2722: ("S2KIT", "Broadlink"),
