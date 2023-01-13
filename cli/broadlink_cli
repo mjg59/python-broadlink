@@ -38,14 +38,24 @@ def durations_to_broadlink(durations):
     result = bytearray()
     result.append(IR_TOKEN)
     result.append(0)
-    result.append(len(durations) % 256)
-    result.append(len(durations) / 256)
-    for dur in durations:
+    result.append(0) # overwrite later
+    result.append(0) # overwrite later
+
+    # Discard the final duration (a gap), ...
+    for dur in durations[:-1]:
         num = int(round(dur / TICK))
         if num > 255:
             result.append(0)
-            result.append(num / 256)
+            result.append(num // 256)
         result.append(num % 256)
+
+    # ... and replace it by the Broadlink IR ending token.
+    result.append(0x00)
+    result.append(0x0D)
+    result.append(0x05)
+    length = len(result)
+    result[2] = length % 256
+    result[3] = length // 256
     return result
 
 
@@ -58,9 +68,9 @@ def format_durations(data):
     return result
 
 
-def parse_durations(str):
+def parse_durations(data):
     result = []
-    for s in str.split():
+    for s in data:
         result.append(abs(int(s)))
     return result
 
@@ -86,8 +96,8 @@ parser.add_argument("--learn", action="store_true", help="learn command")
 parser.add_argument("--rfscanlearn", action="store_true", help="rf scan learning")
 parser.add_argument("--learnfile", help="save learned command to a specified file")
 parser.add_argument("--durations", action="store_true",
-                    help="use durations in micro seconds instead of the Broadlink format")
-parser.add_argument("--convert", action="store_true", help="convert input data to durations")
+                    help="use durations in micro seconds instead of the Broadlink format; for sending and learning. @-form not supported.")
+parser.add_argument("--convert", action="store_true", help="convert input data to durations and print")
 parser.add_argument("--joinwifi", nargs=2, help="Args are SSID PASSPHRASE to configure Broadlink device with")
 parser.add_argument("data", nargs='*', help="Data to send or convert")
 args = parser.parse_args()
@@ -124,7 +134,7 @@ if args.sensors:
     for key in data:
         print("{} {}".format(key, data[key]))
 if args.send:
-    data = durations_to_broadlink(parse_durations(' '.join(args.data))) \
+    data = durations_to_broadlink(parse_durations(args.data)) \
         if args.durations else bytearray.fromhex(''.join(args.data))
     dev.send_data(data)
 if args.learn or (args.learnfile and not args.rfscanlearn):
@@ -148,8 +158,9 @@ if args.learn or (args.learnfile and not args.rfscanlearn):
         else ''.join(format(x, '02x') for x in bytearray(data))
     if args.learn:
         print(learned)
-        decode_hex = codecs.getdecoder("hex_codec")
-        print("Base64: " + str(base64.b64encode(decode_hex(learned)[0])))
+        if not args.durations:
+            decode_hex = codecs.getdecoder("hex_codec")
+            print("Base64: " + str(base64.b64encode(decode_hex(learned)[0])))
     if args.learnfile:
         print("Saving to {}".format(args.learnfile))
         with open(args.learnfile, "w") as text_file:

@@ -62,7 +62,12 @@ broadlink_discovery
 
 #### Learn IR code and show at console
 ```
-broadlink_cli --device @BEDROOM.device --learn 
+broadlink_cli --device @BEDROOM.device --learn
+```
+
+#### Learn IR code and show at console as durations in micro seconds
+```
+broadlink_cli --device @BEDROOM.device --learn --durations
 ```
 
 #### Learn RF code and show at console
@@ -83,6 +88,11 @@ broadlink_cli --device @BEDROOM.device --rfscanlearn --learnfile LG-TV.power
 #### Send code
 ```
 broadlink_cli --device @BEDROOM.device --send DATA
+```
+
+#### Send code from durations in micro seconds
+```
+broadlink_cli --device @BEDROOM.device --send --durations DURATIONS
 ```
 
 #### Send code from file
