@@ -7,46 +7,13 @@ import time
 import broadlink
 from broadlink.const import DEFAULT_PORT
 from broadlink.exceptions import ReadError, StorageError
+from broadlink.remote import data_to_durations, durations_to_ir_data
 
-TICK = 32.84
 TIMEOUT = 30
-IR_TOKEN = 0x26
 
 
 def auto_int(x):
     return int(x, 0)
-
-
-def to_microseconds(bytes):
-    result = []
-    #  print bytes[0] # 0x26 = 38for IR
-    index = 4
-    while index < len(bytes):
-        chunk = bytes[index]
-        index += 1
-        if chunk == 0:
-            chunk = bytes[index]
-            chunk = 256 * chunk + bytes[index + 1]
-            index += 2
-        result.append(int(round(chunk * TICK)))
-        if chunk == 0x0d05:
-            break
-    return result
-
-
-def durations_to_broadlink(durations):
-    result = bytearray()
-    result.append(IR_TOKEN)
-    result.append(0)
-    result.append(len(durations) % 256)
-    result.append(len(durations) / 256)
-    for dur in durations:
-        num = int(round(dur / TICK))
-        if num > 255:
-            result.append(0)
-            result.append(num / 256)
-        result.append(num % 256)
-    return result
 
 
 def format_durations(data):
@@ -112,7 +79,7 @@ if args.joinwifi:
 
 if args.convert:
     data = bytearray.fromhex(''.join(args.data))
-    durations = to_microseconds(data)
+    durations = data_to_durations(data)
     print(format_durations(durations))
 if args.temperature:
     print(dev.check_temperature())
@@ -125,7 +92,7 @@ if args.sensors:
     for key in data:
         print("{} {}".format(key, data[key]))
 if args.send:
-    data = durations_to_broadlink(parse_durations(' '.join(args.data))) \
+    data = durations_to_ir_data(parse_durations(' '.join(args.data))) \
         if args.durations else bytearray.fromhex(''.join(args.data))
     dev.send_data(data)
 if args.learn or (args.learnfile and not args.rflearn):
@@ -144,7 +111,7 @@ if args.learn or (args.learnfile and not args.rflearn):
         print("No data received...")
         exit(1)
 
-    learned = format_durations(to_microseconds(bytearray(data))) \
+    learned = format_durations(data_to_durations(bytearray(data))) \
         if args.durations \
         else ''.join(format(x, '02x') for x in bytearray(data))
     if args.learn:
@@ -238,7 +205,7 @@ if args.rflearn:
         exit(1)
 
     print("Packet found!")
-    learned = format_durations(to_microseconds(bytearray(data))) \
+    learned = format_durations(data_to_durations(bytearray(data))) \
         if args.durations \
         else ''.join(format(x, '02x') for x in bytearray(data))
     if args.learnfile is None:
