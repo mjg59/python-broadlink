@@ -10,6 +10,10 @@ IR_TOKEN = 0x26
 
 
 def durations_to_ir_data(durations) -> None:
+    """Convert a microsecond duration sequence into a Broadlink IR packet
+
+    This can then be passed into send_data.
+    """
     result = bytearray()
     result.append(IR_TOKEN)
     result.append(0)
@@ -25,6 +29,10 @@ def durations_to_ir_data(durations) -> None:
 
 
 def data_to_durations(bytes):
+    """Parse a Broadlink packet into a microsecond duration sequence
+
+    Supports both IR and RF.
+    """
     result = []
     # XXX: Should check IR/RF token, repeat and length bytes.
     index = 4

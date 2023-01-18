@@ -111,17 +111,17 @@ if args.learn or (args.learnfile and not args.rflearn):
         print("No data received...")
         exit(1)
 
-    learned = format_durations(data_to_durations(bytearray(data))) \
+    learned_str = format_durations(data_to_durations(bytearray(data))) \
         if args.durations \
         else ''.join(format(x, '02x') for x in bytearray(data))
     if args.learn:
-        print(learned)
+        print(learned_str)
         decode_hex = codecs.getdecoder("hex_codec")
-        print("Base64: " + str(base64.b64encode(decode_hex(learned)[0])))
+        print("Base64: " + base64.b64encode(data).decode('ascii'))
     if args.learnfile:
         print("Saving to {}".format(args.learnfile))
         with open(args.learnfile, "w") as text_file:
-            text_file.write(learned)
+            text_file.write(learned_str)
 if args.check:
     if dev.check_power():
         print('* ON *')
