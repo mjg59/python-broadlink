@@ -4,6 +4,41 @@ import struct
 from . import exceptions as e
 from .device import Device
 
+TICK = 32.84
+IR_TOKEN = 0x26
+
+
+def durations_to_ir_data(durations) -> None:
+    result = bytearray()
+    result.append(IR_TOKEN)
+    result.append(0)
+    result.append(len(durations) % 256)
+    result.append(len(durations) / 256)
+    for dur in durations:
+        num = int(round(dur / TICK))
+        if num > 255:
+            result.append(0)
+            result.append(num / 256)
+        result.append(num % 256)
+    return result
+
+
+def data_to_durations(bytes):
+    result = []
+    # XXX: Should check IR/RF token, repeat and length bytes.
+    index = 4
+    while index < len(bytes):
+        chunk = bytes[index]
+        index += 1
+        if chunk == 0:
+            chunk = bytes[index]
+            chunk = 256 * chunk + bytes[index + 1]
+            index += 2
+        result.append(int(round(chunk * TICK)))
+        if chunk == 0x0D05:
+            break
+    return result
+
 
 class rmmini(Device):
     """Controls a Broadlink RM mini 3."""
