@@ -50,6 +50,13 @@ broadlink.setup('myssid', 'mynetworkpass', 3)
 
 Security mode options are (0 = none, 1 = WEP, 2 = WPA1, 3 = WPA2, 4 = WPA1/2)
 
+#### Advanced options
+
+You may need to specify a broadcast address if setup is not working.
+```python3
+broadlink.setup('myssid', 'mynetworkpass', 3, ip_address='192.168.0.255')
+```
+
 ### Discovery
 
 Use this function to discover devices:
@@ -61,17 +68,19 @@ devices = broadlink.discover()
 #### Advanced options
 You may need to specify `local_ip_address` or `discover_ip_address` if discovery does not return any devices.
 
+Using the IP address of your local machine:
 ```python3
-devices = broadlink.discover(local_ip_address='192.168.0.100')  # IP address of your local machine.
+devices = broadlink.discover(local_ip_address='192.168.0.100')
 ```
 
+Using the broadcast address of your subnet:
 ```python3
-devices = broadlink.discover(discover_ip_address='192.168.0.255')  # Broadcast address of your subnet.
+devices = broadlink.discover(discover_ip_address='192.168.0.255')
 ```
 
 If the device is locked, it may not be discoverable with broadcast. In such cases, you can use the unicast version `broadlink.hello()` for direct discovery:
 ```python3
-device = broadlink.hello('192.168.0.16')  # IP address of your Broadlink device.
+device = broadlink.hello('192.168.0.16')
 ```
 
 If you are a perfomance freak, use `broadlink.xdiscover()` to create devices instantly:
@@ -106,22 +115,32 @@ packet = device.check_data()
 
 ### Learning RF codes
 
-Learning IR codes takes place in five steps.
+Learning RF codes takes place in six steps.
 
 1. Sweep the frequency:
 ```python3
 device.sweep_frequency()
 ```
 2. When the LED blinks, point the remote at the Broadlink device for the first time and long press the button you want to learn.
-3. Enter learning mode:
+3. Check if the frequency was successfully identified:
+```python3
+ok = device.check_frequency()
+if ok:
+    print('Frequency found!')
+```
+4. Enter learning mode:
 ```python3
 device.find_rf_packet()
 ```
-4. When the LED blinks, point the remote at the Broadlink device for the second time and short press the button you want to learn.
-5. Get the RF packet:
+5. When the LED blinks, point the remote at the Broadlink device for the second time and short press the button you want to learn.
+6. Get the RF packet:
 ```python3
 packet = device.check_data()
 ```
+
+#### Notes
+
+Universal remotes with product id 0x2712 use the same method for learning IR and RF codes. They don't need to sweep frequency. Just call `device.enter_learning()` and `device.check_data()`.
 
 ### Canceling learning
 

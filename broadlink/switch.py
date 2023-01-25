@@ -360,3 +360,18 @@ class mp1(Device):
             "s3": bool(data & 4),
             "s4": bool(data & 8),
         }
+
+
+class mp1s(mp1):
+    """Controls a Broadlink MP1S."""
+
+    TYPE = "MP1S"
+
+    def get_energy(self) -> float:
+        """Return the power consumption in W."""
+        packet = bytearray([8, 0, 254, 1, 5, 1, 0, 0, 0, 45])
+        response = self.send_packet(0x6A, packet)
+        e.check_error(response[0x22:0x24])
+        payload = self.decrypt(response[0x38:])
+        energy = payload[0x7:0x4:-1].hex()
+        return int(energy) / 100

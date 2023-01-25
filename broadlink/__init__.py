@@ -13,7 +13,7 @@ from .hub import s3
 from .light import lb1, lb2
 from .remote import rm, rm4, rm4mini, rm4pro, rmmini, rmminib, rmpro
 from .sensor import a1
-from .switch import bg1, mp1, sp1, sp2, sp2s, sp3, sp3s, sp4, sp4b
+from .switch import bg1, mp1, mp1s, sp1, sp2, sp2s, sp3, sp3s, sp4, sp4b
 
 SUPPORTED_TYPES = {
     sp1: {
@@ -76,6 +76,7 @@ SUPPORTED_TYPES = {
         0x618B: ("SP4L-EU", "Broadlink"),
         0x6489: ("SP4L-AU", "Broadlink"),
         0x648B: ("SP4M-US", "Broadlink"),
+        0x648C: ("SP4L-US", "Broadlink"),
         0x6494: ("SCB2", "Broadlink"),
     },
     rmmini: {
@@ -115,8 +116,11 @@ SUPPORTED_TYPES = {
         0x51DA: ("RM4 mini", "Broadlink"),
         0x5209: ("RM4 TV mate", "Broadlink"),
         0x520C: ("RM4 mini", "Broadlink"),
+        0x520D: ("RM4C mini", "Broadlink"),
+        0x5211: ("RM4C mate", "Broadlink"),
         0x5212: ("RM4 TV mate", "Broadlink"),
         0x5216: ("RM4 mini", "Broadlink"),
+        0x521C: ("RM4 mini", "Broadlink"),
         0x6070: ("RM4C mini", "Broadlink"),
         0x610E: ("RM4 mini", "Broadlink"),
         0x610F: ("RM4C mini", "Broadlink"),
@@ -142,9 +146,11 @@ SUPPORTED_TYPES = {
     },
     mp1: {
         0x4EB5: ("MP1-1K4S", "Broadlink"),
-        0x4EF7: ("MP1-1K4S", "Broadlink (OEM)"),
         0x4F1B: ("MP1-1K3S2U", "Broadlink (OEM)"),
         0x4F65: ("MP1-1K3S2U", "Broadlink"),
+    },
+    mp1s: {
+        0x4EF7: ("MP1-1K4S", "Broadlink (OEM)"),
     },
     lb1: {
         0x5043: ("SB800TD", "Broadlink (OEM)"),
@@ -153,6 +159,7 @@ SUPPORTED_TYPES = {
         0x60C7: ("LB1", "Broadlink"),
         0x60C8: ("LB1", "Broadlink"),
         0x6112: ("LB1", "Broadlink"),
+        0x644B: ("LB1", "Broadlink"),
         0x644C: ("LB27 R1", "Broadlink"),        
         0x644E: ("LB26 R1", "Broadlink"),
     },
@@ -208,7 +215,7 @@ def gendevice(
 
 
 def hello(
-    host: str,
+    ip_address: str,
     port: int = DEFAULT_PORT,
     timeout: int = DEFAULT_TIMEOUT,
 ) -> Device:
@@ -218,7 +225,11 @@ def hello(
     """
     try:
         return next(
-            xdiscover(timeout=timeout, discover_ip_address=host, discover_ip_port=port)
+            xdiscover(
+                timeout=timeout,
+                discover_ip_address=ip_address,
+                discover_ip_port=port,
+            )
         )
     except StopIteration as err:
         raise e.NetworkTimeoutError(
@@ -256,7 +267,12 @@ def xdiscover(
 
 # Setup a new Broadlink device via AP Mode. Review the README to see how to enter AP Mode.
 # Only tested with Broadlink RM3 Mini (Blackbean)
-def setup(ssid: str, password: str, security_mode: int) -> None:
+def setup(
+    ssid: str,
+    password: str,
+    security_mode: int,
+    ip_address: str = DEFAULT_BCAST_ADDR,
+) -> None:
     """Set up a new Broadlink device via AP mode."""
     # Security mode options are (0 - none, 1 = WEP, 2 = WPA1, 3 = WPA2, 4 = WPA1/2)
     payload = bytearray(0x88)
@@ -285,5 +301,5 @@ def setup(ssid: str, password: str, security_mode: int) -> None:
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Internet  # UDP
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    sock.sendto(payload, (DEFAULT_BCAST_ADDR, DEFAULT_PORT))
+    sock.sendto(payload, (ip_address, DEFAULT_PORT))
     sock.close()
