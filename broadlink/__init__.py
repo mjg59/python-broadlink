@@ -13,7 +13,7 @@ from .hub import s3
 from .light import lb1, lb2
 from .remote import rm, rm4, rm4mini, rm4pro, rmmini, rmminib, rmpro
 from .sensor import a1
-from .switch import bg1, mp1, sp1, sp2, sp2s, sp3, sp3s, sp4, sp4b
+from .switch import bg1, ehc31, mp1, sp1, sp2, sp2s, sp3, sp3s, sp4, sp4b
 
 SUPPORTED_TYPES = {
     sp1: {
@@ -158,7 +158,7 @@ SUPPORTED_TYPES = {
         0x60C8: ("LB1", "Broadlink"),
         0x6112: ("LB1", "Broadlink"),
         0x644B: ("LB1", "Broadlink"),
-        0x644C: ("LB27 R1", "Broadlink"),        
+        0x644C: ("LB27 R1", "Broadlink"),
         0x644E: ("LB26 R1", "Broadlink"),
     },
     lb2: {
@@ -168,9 +168,9 @@ SUPPORTED_TYPES = {
     S1C: {
         0x2722: ("S2KIT", "Broadlink"),
     },
-    s3:  {
-        0xA59C:("S3", "Broadlink"),
-        0xA64D:("S3", "Broadlink"),
+    s3: {
+        0xA59C: ("S3", "Broadlink"),
+        0xA64D: ("S3", "Broadlink"),
     },
     hysen: {
         0x4EAD: ("HY02/HY03", "Hysen"),
@@ -180,6 +180,9 @@ SUPPORTED_TYPES = {
     },
     bg1: {
         0x51E3: ("BG800/BG900", "BG Electrical"),
+    },
+    ehc31: {
+        0x6480: ("EHC31", "BG Electrical"),
     },
 }
 

@@ -306,6 +306,69 @@ class bg1(Device):
         return state
 
 
+class ehc31(bg1):
+    """Controls a BG Electrical smart extension lead / power-strip."""
+
+    TYPE = "EHC31"
+
+    def set_state(
+        self,
+        pwr: bool = None,
+        pwr1: bool = None,
+        pwr2: bool = None,
+        pwr3: bool = None,
+        maxworktime1: int = None,
+        maxworktime2: int = None,
+        maxworktime3: int = None,
+        idcbrightness: int = None,
+        childlock: bool = None,
+        childlock1: bool = None,
+        childlock2: bool = None,
+        childlock3: bool = None,
+        childlock4: bool = None,
+    ) -> dict:
+        """Set the power state of the device.
+
+        `pwr` is read-only. Logic = `pwr1 or pwr2 or pwr3`
+
+        `childlock` and `childlock4` both control the master power button childlock.
+
+        `childlock1`, `childlock2`, and `childlock3` control childlock on individual sockets.
+        """
+        state = {}
+        if pwr is not None:
+            state["pwr"] = int(bool(pwr))
+        if pwr1 is not None:
+            state["pwr1"] = int(bool(pwr1))
+        if pwr2 is not None:
+            state["pwr2"] = int(bool(pwr2))
+        if pwr3 is not None:
+            state["pwr3"] = int(bool(pwr3))
+        if maxworktime1 is not None:
+            state["maxworktime1"] = maxworktime1
+        if maxworktime2 is not None:
+            state["maxworktime2"] = maxworktime2
+        if maxworktime3 is not None:
+            state["maxworktime3"] = maxworktime3
+        if idcbrightness is not None:
+            state["idcbrightness"] = idcbrightness
+        if childlock is not None:
+            state["childlock"] = int(bool(childlock))
+        if childlock1 is not None:
+            state["childlock1"] = int(bool(childlock1))
+        if childlock2 is not None:
+            state["childlock2"] = int(bool(childlock2))
+        if childlock3 is not None:
+            state["childlock3"] = int(bool(childlock3))
+        if childlock4 is not None:
+            state["childlock4"] = int(bool(childlock4))
+
+        packet = self._encode(2, state)
+        response = self.send_packet(0x6A, packet)
+        e.check_error(response[0x22:0x24])
+        return self._decode(response)
+
+
 class mp1(Device):
     """Controls a Broadlink MP1."""
 
