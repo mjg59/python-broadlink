@@ -83,6 +83,7 @@ SUPPORTED_TYPES = {
     rmmini: {
         0x2737: ("RM mini 3", "Broadlink"),
         0x278F: ("RM mini", "Broadlink"),
+        0x27B7: ("RM mini 3", "Broadlink"),
         0x27C2: ("RM mini 3", "Broadlink"),
         0x27C7: ("RM mini 3", "Broadlink"),
         0x27CC: ("RM mini 3", "Broadlink"),
