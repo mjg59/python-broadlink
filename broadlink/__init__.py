@@ -162,6 +162,7 @@ SUPPORTED_TYPES = {
         0x644B: ("LB1", "Broadlink"),
         0x644C: ("LB27 R1", "Broadlink"),        
         0x644E: ("LB26 R1", "Broadlink"),
+        0x6488: ("LB27 C1", "Broadlink"),
     },
     lb2: {
         0xA4F4: ("LB27 R1", "Broadlink"),
