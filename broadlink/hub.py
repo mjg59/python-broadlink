@@ -25,7 +25,7 @@ class s3(Device):
             resp = self._decode(resp)
 
             sub_devices.extend(resp["list"])
-            if len(sub_devices) == resp["total"]:
+            if len(sub_devices) >= resp["total"]:
                 break
 
         return sub_devices
