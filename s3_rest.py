@@ -2,9 +2,20 @@ from flask import Flask
 from flask import request
 import json
 import broadlink
+import os
 
+hub_ip = None
 device = None
 sub_devices = None
+
+try:
+    hub_ip = os.environ['HUBIP']
+    device = broadlink.hello(hub_ip)
+    device.auth()
+    sub_devices = device.get_subdevices()
+except Exception as e:
+    print('Set HUBIP environment variable: ')
+    print(e)
 
 def create_resp(state,gang):
     key = None
