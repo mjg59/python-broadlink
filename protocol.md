@@ -132,7 +132,7 @@ You must obtain an authorisation key from the device before you can communicate.
 |------|--------|
 |0x00-0x03|00|
 |0x04-0x12|A 15-digit value that represents this device. Broadlink's implementation uses the IMEI.|
-|0x13|01|
+|0x1e|0x01|
 |0x14-0x2c|00|
 |0x2d|0x01|
 |0x30-0x7f|NULL-terminated ASCII string containing the device name|
