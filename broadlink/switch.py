@@ -367,11 +367,40 @@ class mp1s(mp1):
 
     TYPE = "MP1S"
 
-    def get_energy(self) -> float:
-        """Return the power consumption in W."""
-        packet = bytearray([8, 0, 254, 1, 5, 1, 0, 0, 0, 45])
+    def get_status(self) -> dict:
+        """
+        Return the power state of the device.
+        voltage in V.
+        current in A.
+        power in W.
+        power consumption in kW·h.
+        """
+        packet = bytearray(16)
+        packet[0x00] = 0x0E
+        packet[0x02] = 0xA5
+        packet[0x03] = 0xA5
+        packet[0x04] = 0x5A
+        packet[0x05] = 0x5A
+        packet[0x06] = 0xB2
+        packet[0x07] = 0xC0
+        packet[0x08] = 0x01
+        packet[0x0A] = 0x04
+
         response = self.send_packet(0x6A, packet)
         e.check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
-        energy = payload[0x7:0x4:-1].hex()
-        return int(energy) / 100
+        payload_str = payload.hex()[4:-6]
+
+        def get_value(start, end, factors):
+            value = sum(int(payload_str[i-2:i]) * factor for i, 
+                        factor in zip(range(start, end, -2), factors))
+            return value
+        
+        return {
+            'voltage': get_value(34, 30, [10, 0.1]),
+            'current': get_value(40, 34, [1, 0.01, 0.0001]),
+            'power': get_value(46, 40, [100, 1, 0.01]),
+            'power_consumption': get_value(54, 46, [10000, 100, 1, 0.01])
+        }
+
+        
