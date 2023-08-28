@@ -97,7 +97,7 @@ broadlink_cli --device @BEDROOM.device --temperature
 
 #### Check humidity
 ```
-broadlink_cli --device @BEDROOM.device --temperature
+broadlink_cli --device @BEDROOM.device --humidity
 ```
 
 ### Smart plugs
