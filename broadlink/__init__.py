@@ -7,7 +7,7 @@ from . import exceptions as e
 from .const import DEFAULT_BCAST_ADDR, DEFAULT_PORT, DEFAULT_TIMEOUT
 from .alarm import S1C
 from .climate import hysen
-from .cover import dooya
+from .cover import dooya, dooya_v2
 from .device import Device, ping, scan
 from .hub import s3
 from .light import lb1, lb2
@@ -177,6 +177,9 @@ SUPPORTED_TYPES = {
     },
     dooya: {
         0x4E4D: ("DT360E-45/20", "Dooya"),
+    },
+    dooya_v2: {
+        0x4F6E: ("DT360E-45/20", "Dooya_v2"),
     },
     bg1: {
         0x51E3: ("BG800/BG900", "BG Electrical"),
