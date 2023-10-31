@@ -43,15 +43,28 @@ class hysen(Device):
 
         return payload[0x02:p_len]
 
+    def _room_or_ext_temp_logic(self, payload, base_index):
+        base_temp = payload[base_index] / 2.0
+        add_offset = (payload[4] >> 3) & 1  # should offset be added?
+        offset_raw_value = (payload[17] >> 4) & 3  # offset value
+        offset = (offset_raw_value + 1) / 10 if add_offset else 0.0
+        return base_temp + offset
+
+    def _room_temp_logic(self, payload):
+        return self._room_or_ext_temp_logic(payload, 5)
+
+    def _ext_temp_logic(self, payload):
+        return self._room_or_ext_temp_logic(payload, 18)
+
     def get_temp(self) -> float:
         """Return the room temperature in degrees celsius."""
         payload = self.send_request([0x01, 0x03, 0x00, 0x00, 0x00, 0x08])
-        return payload[0x05] / 2.0
+        return self._room_temp_logic(payload)
 
     def get_external_temp(self) -> float:
         """Return the external temperature in degrees celsius."""
         payload = self.send_request([0x01, 0x03, 0x00, 0x00, 0x00, 0x08])
-        return payload[18] / 2.0
+        return self._ext_temp_logic(payload)
 
     def get_full_status(self) -> dict:
         """Return the state of the device.
@@ -64,7 +77,7 @@ class hysen(Device):
         data["power"] = payload[4] & 1
         data["active"] = (payload[4] >> 4) & 1
         data["temp_manual"] = (payload[4] >> 6) & 1
-        data["room_temp"] = payload[5] / 2.0
+        data["room_temp"] = self._room_temp_logic(payload)
         data["thermostat_temp"] = payload[6] / 2.0
         data["auto_mode"] = payload[7] & 0xF
         data["loop_mode"] = payload[7] >> 4
@@ -79,7 +92,7 @@ class hysen(Device):
         data["fre"] = payload[15]
         data["poweron"] = payload[16]
         data["unknown"] = payload[17]
-        data["external_temp"] = payload[18] / 2.0
+        data["external_temp"] = self._ext_temp_logic(payload)
         data["hour"] = payload[19]
         data["min"] = payload[20]
         data["sec"] = payload[21]
