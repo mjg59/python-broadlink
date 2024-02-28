@@ -51,9 +51,15 @@ class rmpro(rmmini):
         resp = self._send(0x1A)
         return resp[0] == 1
 
-    def find_rf_packet(self) -> None:
-        """Enter radiofrequency learning mode."""
-        self._send(0x1B)
+    def find_rf_packet(self, frequency=None) -> None:
+        """Enter radiofrequency learning mode, optionally tuning the device to a specific frequency"""
+        payload = b''
+        if frequency is not None:
+            payload = struct.pack('<I', int(frequency * 1000.0))
+            # Without this get_frequency() may suggest it is tuned to the
+            # specified frequency, but it fails to capture any signals:
+            self.cancel_sweep_frequency()
+        self._send(0x1B, payload)
 
     def cancel_sweep_frequency(self) -> None:
         """Cancel sweep frequency."""

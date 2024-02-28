@@ -34,7 +34,7 @@ class CustomDeviceCreator:
                 with open(f"{self.name}.device", "rb") as file:
                     self.config = pickle.load(file)
                     existing_commands = self.config.keys()
-                    print(f"loaded device {self.name}.device with commands: {existing_commands}")
+                    print(f"loaded device {self.name}.device with commands: {', '.join(existing_commands)}")
             except:
                 print(f"failed to load device {self.name}.device, creating new device")
                 self.config = {}
@@ -60,12 +60,18 @@ class CustomDeviceCreator:
     def train_rf(self, command_name):
         print(f"training rf for {command_name}")
         packet = self.controller.train_rf()
-        self.__add_command(command_name, packet)
+        if packet:
+            self.__add_command(command_name, packet)
+            return True
+        return False
 
     def train_ir(self, command_name):
         print(f"training ir for {command_name}")
         packet = self.controller.train_ir()
-        self.__add_command(command_name, packet)
+        if packet:
+            self.__add_command(command_name, packet)
+            return True
+        return False
 
     def test_command(self, command_name):
         print(f"testing command for {command_name}")
