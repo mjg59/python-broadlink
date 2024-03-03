@@ -51,6 +51,16 @@ class rmpro(rmmini):
         resp = self._send(0x1A)
         return resp[0] == 1
 
+    def check_frequency_ex(self) -> (bool, float):
+        """Return (True if the frequency was identified successfully, Current frequency)"""
+        resp = self._send(0x1A)
+        return resp[0] == 1, struct.unpack('<I', resp[1:5])[0] / 1000.0
+
+    def get_frequency(self) -> float:
+        """Return frequency device is tuned to in MHz"""
+        resp = self._send(0x1A)
+        return struct.unpack('<I', resp[1:5])[0] / 1000.0
+      
     def find_rf_packet(self, frequency=None) -> None:
         """Enter radiofrequency learning mode, optionally tuning the device to a specific frequency"""
         payload = b''
