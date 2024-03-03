@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
+import os
+
 from lib.broadlink_controller import BroadlinkController
 from lib.custom_device import CustomDeviceCreator
 try:
+    raise ImportError
     import tkinter as tk
     from tkinter import filedialog
     tk_enabled = True
@@ -57,7 +60,7 @@ def select_if_multiple_func(devices):
 
         try:
             selection = int(selection)-1
-            if 0 < selection <= len(devices):
+            if 0 <= selection <= len(devices):
                 return devices[selection]
         except:
             pass
@@ -101,8 +104,22 @@ if modify_existing:
             filetypes=(("device files", "*.device"), ("all files", "*.*"))
         )
     else:
-        modify_existing_path = prompt("Enter the file path of the custom device to modify: ", completer=PathCompleter())
-        
+        modify_existing_dir_path = prompt(
+            "Enter the directory path containing the custom device to modify: ",
+            completer=PathCompleter(
+                only_directories=True
+            )
+        )
+
+        os.chdir(modify_existing_dir_path)
+
+        modify_existing_path = prompt(
+            "Select the custom device to modify: ",
+            completer=PathCompleter(
+                file_filter=lambda x: x.endswith(".device")
+            )
+        )
+
     custom_device_creator = CustomDeviceCreator(controller, modify_existing_path=modify_existing_path)
 else:
     while not custom_device_name:
@@ -159,7 +176,12 @@ if tk_enabled:
         title="Save custom device"
     )
 else:
-    file_path = prompt("Enter the directory path to save the custom device: ", completer=PathCompleter())
+    file_path = prompt(
+        "Enter the directory path to save the custom device: ",
+        completer=PathCompleter(
+            only_directories=True
+        )
+    )
 
 custom_device_creator.save(file_path)
 print(f"custom device saved to {file_path}")
