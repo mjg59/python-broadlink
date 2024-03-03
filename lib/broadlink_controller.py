@@ -5,7 +5,7 @@ import pickle
 
 
 class BroadlinkController:
-    def __init__(self, local_ip=None, rf_frequency=None, file_path=None):
+    def __init__(self, local_ip=None, rf_frequency=None, file_path=None, select_if_multiple_func=None):
         if file_path:
             print(f"loading controller from {file_path}")
             with open(file_path, "rb") as file:
@@ -14,6 +14,8 @@ class BroadlinkController:
             self.device = None
             self.local_ip = local_ip
             self.rf_frequency = rf_frequency
+
+        self._select_if_multiple = select_if_multiple_func
 
         self.__get_device()
         self.__auth_device()
@@ -32,7 +34,15 @@ class BroadlinkController:
         if not self.device:
             print("doing broad device search")
             device_list = broadlink.discover()
-            self.device = device_list[0] if len(device_list) > 0 else None
+            if len(device_list) > 0 and self._select_if_multiple:
+                print("multiple devices found, calling select_if_multiple_func for device selection")
+                self.device = self._select_if_multiple(device_list)
+            else:
+                if len(device_list) > 1:
+                    print("multiple devices found, no select_if_multiple_func provided. Selecting first device found.")
+                else:
+                    print("found one device, selecting")
+                self.device = device_list[0] if len(device_list) > 0 else None
 
         if self.device:
             print("found device")

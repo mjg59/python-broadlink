@@ -34,6 +34,27 @@ def is_ip_address(value):
     return True
 
 
+def select_if_multiple_func(devices):
+    device_identifier_string = "".join(
+        [
+            f"\n\t{i + 1}: {device.host[0]} {device.mac.hex()}"
+            for i, device in enumerate(devices)
+        ]
+    )
+
+    while True:
+        selection = input(f"Multiple devices found. Select the correct device.{device_identifier_string}\nSelection: ")
+
+        try:
+            selection = int(selection)-1
+            if 0 < selection <= len(devices):
+                return devices[selection]
+        except:
+            pass
+
+        print("invalid selection")
+
+
 input("Follow prompts to create a new custom device. Press Enter to continue...")
 
 rf_frequency = get_value_as_float_or_none(input("Enter RF Frequency as a float (ie: 422.32) if any: "))
@@ -50,7 +71,11 @@ if local_ip_address:
 else:
     print("no local ip address provided, a broadlink device search will be performed")
 
-controller = BroadlinkController(local_ip=local_ip_address, rf_frequency=rf_frequency)
+controller = BroadlinkController(
+    local_ip=local_ip_address,
+    rf_frequency=rf_frequency,
+    select_if_multiple_func=select_if_multiple_func
+)
 
 custom_device_name = None
 
