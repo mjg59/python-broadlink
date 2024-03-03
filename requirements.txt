@@ -1,4 +1,4 @@
+flask~=3.0.2
 setuptools~=68.2.0
 cryptography~=42.0.5
-flask~=3.0.2
-flasgger~=0.9.7.1
+prompt-toolkit==3.0.43
