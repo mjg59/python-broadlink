@@ -1,5 +1,15 @@
+#!/usr/bin/env python3
 from lib.broadlink_controller import BroadlinkController
 from lib.custom_device import CustomDeviceCreator
+try:
+    import tkinter as tk
+    from tkinter import filedialog
+    tk_enabled = True
+except:
+    from prompt_toolkit import prompt
+    from prompt_toolkit.completion import PathCompleter
+    from prompt_toolkit.shortcuts import button_dialog
+    tk_enabled = False
 
 
 def get_value_as_float_or_none(value):
@@ -82,8 +92,18 @@ custom_device_name = None
 modify_existing = input("Modify an existing device? (y/n) ").lower() == "y"
 
 if modify_existing:
-    custom_device_path = input("Enter the name of the custom device to modify: ")
-    custom_device_creator = CustomDeviceCreator(controller, custom_device_path, modify_existing=True)
+    if tk_enabled:
+        root = tk.Tk()
+        root.withdraw()
+        modify_existing_path = filedialog.askopenfilename(
+            initialdir="./",
+            title="Select custom device to modify",
+            filetypes=(("device files", "*.device"), ("all files", "*.*"))
+        )
+    else:
+        modify_existing_path = prompt("Enter the file path of the custom device to modify: ", completer=PathCompleter())
+        
+    custom_device_creator = CustomDeviceCreator(controller, modify_existing_path=modify_existing_path)
 else:
     while not custom_device_name:
         custom_device_name = input("Enter a name for the custom device: ")
@@ -120,15 +140,26 @@ while not done_creating:
         if test_command:
             custom_device_creator.test_command(command_name)
 
-        testing_success = input("Was the command successful? (y/n) ").lower() == "y"
+            testing_success = input("Was the command successful? (y/n) ").lower() == "y"
 
-        if not testing_success:
-            custom_device_creator.remove_command(command_name)
-            print(f"command {command_name} removed from the custom device {custom_device_name}")
-            print("command will need to be retrained")
-        else:
-            print(f"command {command_name} added to the custom device {custom_device_name}")
+            if not testing_success:
+                custom_device_creator.remove_command(command_name)
+                print(f"command {command_name} removed from the custom device {custom_device_name}")
+                print("command will need to be retrained")
+            else:
+                print(f"command {command_name} added to the custom device {custom_device_name}")
 
     done_creating = input("Done creating commands? (y/n) ").lower() == "y"
 
-custom_device_creator.save("./")
+if tk_enabled:
+    root = tk.Tk()
+    root.withdraw()
+    file_path = filedialog.askdirectory(
+        initialdir="./",
+        title="Save custom device"
+    )
+else:
+    file_path = prompt("Enter the directory path to save the custom device: ", completer=PathCompleter())
+
+custom_device_creator.save(file_path)
+print(f"custom device saved to {file_path}")
