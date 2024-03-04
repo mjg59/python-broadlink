@@ -1,3 +1,22 @@
+This fork has [ability to RF scan a specific frequency](https://github.com/mjg59/python-broadlink/commit/168b9015ab37692e1d1164bfc4dd0282f16ab018) by [@DarkStarSword](https://github.com/DarkStarSword) which was, sadly, never merged in the original repo.
+
+Install with:
+```
+pip3 install git+https://github.com/LordIvanhoe/python-broadlink.git
+```
+Download **broadlink_discovery** and **broadlink_cli** from cli dir.
+
+Discover your device with:
+```
+python3 broadlink_discovery
+```
+
+And, finally, scan for RF on specific freq.
+```
+python3 broadlink_cli --device "whatever discovery spits out" --frequency 433.92 --rflearn
+```
+
+
 # python-broadlink
 
 A Python module and CLI for controlling Broadlink devices locally. The following devices are supported:

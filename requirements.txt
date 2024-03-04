@@ -1,1 +1,4 @@
-cryptography==3.2
+flask~=3.0.2
+setuptools~=68.2.0
+cryptography~=42.0.5
+prompt-toolkit==3.0.43

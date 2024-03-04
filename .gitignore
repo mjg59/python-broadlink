@@ -1,1 +1,5 @@
 *.pyc
+local/**/*
+.idea/**/*
+.DS_Store
+**/*.device

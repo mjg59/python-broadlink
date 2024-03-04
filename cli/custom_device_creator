@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+import os
+
+from lib.broadlink_controller import BroadlinkController
+from lib.custom_device import CustomDeviceCreator
+try:
+    raise ImportError
+    import tkinter as tk
+    from tkinter import filedialog
+    tk_enabled = True
+except:
+    from prompt_toolkit import prompt
+    from prompt_toolkit.completion import PathCompleter
+    from prompt_toolkit.shortcuts import button_dialog
+    tk_enabled = False
+
+
+def get_value_as_float_or_none(value):
+    try:
+        return float(value)
+    except:
+        return None
+
+
+def get_value_as_int_or_none(value):
+    try:
+        return int(value)
+    except:
+        return None
+
+
+def get_value_as_ip_address_or_none(value):
+    if is_ip_address(value):
+        return value
+    return None
+
+
+def is_ip_address(value):
+    parts = value.split(".")
+    if len(parts) != 4:
+        return False
+    for part in parts:
+        if not part.isdigit():
+            return False
+        if int(part) < 0 or int(part) > 255:
+            return False
+    return True
+
+
+def select_if_multiple_func(devices):
+    device_identifier_string = "".join(
+        [
+            f"\n\t{i + 1}: {device.host[0]} {device.mac.hex()}"
+            for i, device in enumerate(devices)
+        ]
+    )
+
+    while True:
+        selection = input(f"Multiple devices found. Select the correct device.{device_identifier_string}\nSelection: ")
+
+        try:
+            selection = int(selection)-1
+            if 0 <= selection <= len(devices):
+                return devices[selection]
+        except:
+            pass
+
+        print("invalid selection")
+
+
+input("Follow prompts to create a new custom device. Press Enter to continue...")
+
+rf_frequency = get_value_as_float_or_none(input("Enter RF Frequency as a float (ie: 422.32) if any: "))
+
+if rf_frequency:
+    print(f"will use rf frequency {rf_frequency} for training")
+else:
+    print("no rf frequency provided, frequency sweep will be used for rf training")
+
+local_ip_address = get_value_as_ip_address_or_none(input("Enter local IP address of the broadlink device if any: "))
+
+if local_ip_address:
+    print(f"searching for broadlink device at {local_ip_address}")
+else:
+    print("no local ip address provided, a broadlink device search will be performed")
+
+controller = BroadlinkController(
+    local_ip=local_ip_address,
+    rf_frequency=rf_frequency,
+    select_if_multiple_func=select_if_multiple_func
+)
+
+custom_device_name = None
+
+modify_existing = input("Modify an existing device? (y/n) ").lower() == "y"
+
+if modify_existing:
+    if tk_enabled:
+        root = tk.Tk()
+        root.withdraw()
+        modify_existing_path = filedialog.askopenfilename(
+            initialdir="./",
+            title="Select custom device to modify",
+            filetypes=(("device files", "*.device"), ("all files", "*.*"))
+        )
+    else:
+        modify_existing_dir_path = prompt(
+            "Enter the directory path containing the custom device to modify: ",
+            completer=PathCompleter(
+                only_directories=True
+            )
+        )
+
+        os.chdir(modify_existing_dir_path)
+
+        modify_existing_path = prompt(
+            "Select the custom device to modify: ",
+            completer=PathCompleter(
+                file_filter=lambda x: x.endswith(".device")
+            )
+        )
+
+    custom_device_creator = CustomDeviceCreator(controller, modify_existing_path=modify_existing_path)
+else:
+    while not custom_device_name:
+        custom_device_name = input("Enter a name for the custom device: ")
+        if not custom_device_name:
+            print("custom device name cannot be empty")
+
+    custom_device_creator = CustomDeviceCreator(controller, custom_device_name)
+
+done_creating = False
+
+while not done_creating:
+    command_name = input("Enter a command name to add to the custom device: ")
+    if not command_name:
+        print("command name cannot be empty")
+        continue
+
+    while True:
+        selected_training_method = get_value_as_int_or_none(input("Train RF (1) or IR (2)?: "))
+        if not selected_training_method or selected_training_method not in [1, 2]:
+            print("invalid training method")
+            continue
+        break
+
+    did_train = False
+
+    if selected_training_method == 1:
+        did_train = custom_device_creator.train_rf(command_name)
+    else:
+        did_train = custom_device_creator.train_ir(command_name)
+
+    if did_train:
+        test_command = input("Would you like to test the command? (y/n) ").lower() == "y"
+
+        if test_command:
+            custom_device_creator.test_command(command_name)
+
+            testing_success = input("Was the command successful? (y/n) ").lower() == "y"
+
+            if not testing_success:
+                custom_device_creator.remove_command(command_name)
+                print(f"command {command_name} removed from the custom device {custom_device_name}")
+                print("command will need to be retrained")
+            else:
+                print(f"command {command_name} added to the custom device {custom_device_name}")
+
+    done_creating = input("Done creating commands? (y/n) ").lower() == "y"
+
+if tk_enabled:
+    root = tk.Tk()
+    root.withdraw()
+    file_path = filedialog.askdirectory(
+        initialdir="./",
+        title="Save custom device"
+    )
+else:
+    file_path = prompt(
+        "Enter the directory path to save the custom device: ",
+        completer=PathCompleter(
+            only_directories=True
+        )
+    )
+
+custom_device_creator.save(file_path)
+print(f"custom device saved to {file_path}")
