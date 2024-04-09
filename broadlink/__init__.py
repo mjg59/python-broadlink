@@ -55,6 +55,7 @@ SUPPORTED_TYPES = {
     },
     sp4: {
         0x7568: ("SP4L-CN", "Broadlink"),
+        0x756B: ("SP4M-JP", "Broadlink"),
         0x756C: ("SP4M", "Broadlink"),
         0x756F: ("MCB1", "Broadlink"),
         0x7579: ("SP4L-EU", "Broadlink"),
