@@ -367,7 +367,7 @@ class mp1s(mp1):
 
     TYPE = "MP1S"
 
-    def get_status(self) -> dict:
+    def get_state(self) -> dict:
         """Return the power state of the device.
 
         voltage in V.
