@@ -13,7 +13,7 @@ from .hub import s3
 from .light import lb1, lb2
 from .remote import rm, rm4, rm4mini, rm4pro, rmmini, rmminib, rmpro
 from .sensor import a1
-from .switch import bg1, mp1, mp1s, sp1, sp2, sp2s, sp3, sp3s, sp4, sp4b
+from .switch import bg1, ehc31, mp1, mp1s, sp1, sp2, sp2s, sp3, sp3s, sp4, sp4b
 
 SUPPORTED_TYPES = {
     sp1: {
@@ -182,6 +182,9 @@ SUPPORTED_TYPES = {
     },
     bg1: {
         0x51E3: ("BG800/BG900", "BG Electrical"),
+    },
+    ehc31: {
+        0x6480: ("EHC31", "BG Electrical"),
     },
 }
 
