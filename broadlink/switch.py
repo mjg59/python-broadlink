@@ -367,9 +367,9 @@ class mp1s(mp1):
 
     TYPE = "MP1S"
 
-    def get_status(self) -> dict:
-        """
-        Return the power state of the device.
+    def get_state(self) -> dict:
+        """Return the power state of the device.
+
         voltage in V.
         current in A.
         power in W.
@@ -392,15 +392,15 @@ class mp1s(mp1):
         payload_str = payload.hex()[4:-6]
 
         def get_value(start, end, factors):
-            value = sum(int(payload_str[i-2:i]) * factor for i, 
-                        factor in zip(range(start, end, -2), factors))
+            value = sum(
+                int(payload_str[i - 2 : i]) * factor
+                for i, factor in zip(range(start, end, -2), factors)
+            )
             return value
-        
-        return {
-            'voltage': get_value(34, 30, [10, 0.1]),
-            'current': get_value(40, 34, [1, 0.01, 0.0001]),
-            'power': get_value(46, 40, [100, 1, 0.01]),
-            'power_consumption': get_value(54, 46, [10000, 100, 1, 0.01])
-        }
 
-        
+        return {
+            "volt": get_value(34, 30, [10, 0.1]),
+            "current": get_value(40, 34, [1, 0.01, 0.0001]),
+            "power": get_value(46, 40, [100, 1, 0.01]),
+            "totalconsum": get_value(54, 46, [10000, 100, 1, 0.01]),
+        }
