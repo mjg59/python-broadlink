@@ -157,7 +157,7 @@ SUPPORTED_TYPES = {
     lb1: {
         0x5043: ("SB800TD", "Broadlink (OEM)"),
         0x504E: ("LB1", "Broadlink"),
-        0x606D: ("SLA2?RGB9W81", "Luceco/BG Electrical"),
+        0x606D: ("SLA22RGB9W81/SLA27RGB9W81", "Luceco"),
         0x606E: ("SB500TD", "Broadlink (OEM)"),
         0x60C7: ("LB1", "Broadlink"),
         0x60C8: ("LB1", "Broadlink"),
@@ -170,6 +170,7 @@ SUPPORTED_TYPES = {
     lb2: {
         0xA4F4: ("LB27 R1", "Broadlink"),
         0xA5F7: ("LB27 R1", "Broadlink"),
+        0xA6EF: ("EFCF60WSMT", "Luceco"),
     },
     S1C: {
         0x2722: ("S2KIT", "Broadlink"),
