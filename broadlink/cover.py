@@ -114,10 +114,10 @@ class dooya2(Device):
         self._send(2, [0x00, 0x09, new_percentage])
 
 
-class wsrc(Device):
+class wser(Device):
     """Controls a Wistar curtain motor"""
 
-    TYPE = "WSRC"
+    TYPE = "WSER"
 
     def _send(self, operation: int, data: bytes):
         """Send a command to the device."""
