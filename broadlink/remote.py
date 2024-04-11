@@ -5,47 +5,45 @@ import typing as t
 from . import exceptions as e
 from .device import Device
 
-TICK = 32.84
-IR_TOKEN = 0x26
 
+def pulses_to_data(pulses: t.List[int], tick: int = 32.84) -> None:
+    """Convert a microsecond duration sequence into a Broadlink IR packet."""
+    result = bytearray(4)
+    result[0x00] = 0x26
 
-def durations_to_ir_data(durations) -> None:
-    """Convert a microsecond duration sequence into a Broadlink IR packet
-
-    This can then be passed into send_data.
-    """
-    result = bytearray()
-    result.append(IR_TOKEN)
-    result.append(0)
-    result.append(len(durations) % 256)
-    result.append(len(durations) / 256)
-    for dur in durations:
-        num = int(round(dur / TICK))
-        if num > 255:
+    for pulse in pulses:
+        div, mod = divmod(int(pulse // tick), 256)
+        if div:
             result.append(0)
-            result.append(num / 256)
-        result.append(num % 256)
+            result.append(div)
+        result.append(mod)
+
+    data_len = len(result) - 4
+    result[0x02] = data_len & 0xFF
+    result[0x03] = data_len >> 8
+
     return result
 
 
-def data_to_durations(bytes):
-    """Parse a Broadlink packet into a microsecond duration sequence
-
-    Supports both IR and RF.
-    """
+def data_to_pulses(data: bytes, tick: int = 32.84) -> t.List[int]:
+    """Parse a Broadlink packet into a microsecond duration sequence."""
     result = []
-    # XXX: Should check IR/RF token, repeat and length bytes.
     index = 4
-    while index < len(bytes):
-        chunk = bytes[index]
+    end = min(256 * data[0x03] + data[0x02] + 4, len(data))
+
+    while index < end:
+        chunk = data[index]
         index += 1
+
         if chunk == 0:
-            chunk = bytes[index]
-            chunk = 256 * chunk + bytes[index + 1]
+            try:
+                chunk = 256 * data[index] + data[index + 1]
+            except IndexError:
+                raise ValueError("Malformed data.")
             index += 2
-        result.append(int(round(chunk * TICK)))
-        if chunk == 0x0D05:
-            break
+
+        result.append(int(chunk * tick))
+
     return result
 
 
