@@ -6,6 +6,47 @@ from . import exceptions as e
 from .device import Device
 
 
+def pulses_to_data(pulses: t.List[int], tick: int = 32.84) -> None:
+    """Convert a microsecond duration sequence into a Broadlink IR packet."""
+    result = bytearray(4)
+    result[0x00] = 0x26
+
+    for pulse in pulses:
+        div, mod = divmod(int(pulse // tick), 256)
+        if div:
+            result.append(0)
+            result.append(div)
+        result.append(mod)
+
+    data_len = len(result) - 4
+    result[0x02] = data_len & 0xFF
+    result[0x03] = data_len >> 8
+
+    return result
+
+
+def data_to_pulses(data: bytes, tick: int = 32.84) -> t.List[int]:
+    """Parse a Broadlink packet into a microsecond duration sequence."""
+    result = []
+    index = 4
+    end = min(256 * data[0x03] + data[0x02] + 4, len(data))
+
+    while index < end:
+        chunk = data[index]
+        index += 1
+
+        if chunk == 0:
+            try:
+                chunk = 256 * data[index] + data[index + 1]
+            except IndexError:
+                raise ValueError("Malformed data.")
+            index += 2
+
+        result.append(int(chunk * tick))
+
+    return result
+
+
 class rmmini(Device):
     """Controls a Broadlink RM mini 3."""
 
