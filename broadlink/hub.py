@@ -13,7 +13,7 @@ class s3(Device):
     MAX_SUBDEVICES = 8
 
     def get_subdevices(self, step: int = 5) -> list:
-        """Return the lit of sub devices."""
+        """Return a list of sub devices."""
         total = self.MAX_SUBDEVICES
         sub_devices = []
         seen = set()
