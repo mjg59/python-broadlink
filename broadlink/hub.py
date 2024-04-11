@@ -12,21 +12,33 @@ class s3(Device):
     TYPE = "S3"
     MAX_SUBDEVICES = 8
 
-    def get_subdevices(self) -> list:
-        """Return the lit of sub devices."""
+    def get_subdevices(self, step: int = 5) -> list:
+        """Return a list of sub devices."""
+        total = self.MAX_SUBDEVICES
         sub_devices = []
-        step = 5
+        seen = set()
+        index = 0
 
-        for index in range(0, self.MAX_SUBDEVICES, step):
+        while index < total:
             state = {"count": step, "index": index}
             packet = self._encode(14, state)
             resp = self.send_packet(0x6A, packet)
             e.check_error(resp[0x22:0x24])
             resp = self._decode(resp)
 
-            sub_devices.extend(resp["list"])
-            if len(sub_devices) == resp["total"]:
+            for device in resp["list"]:
+                did = device["did"]
+                if did in seen:
+                    continue
+
+                seen.add(did)
+                sub_devices.append(device)
+
+            total = resp["total"]
+            if len(seen) >= total:
                 break
+
+            index += step
 
         return sub_devices
 
