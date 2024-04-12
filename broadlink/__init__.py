@@ -63,6 +63,7 @@ SUPPORTED_TYPES = {
         0x7583: ("SP mini 3", "Broadlink"),
         0x7587: ("SP4L-UK", "Broadlink"),
         0x7D11: ("SP mini 3", "Broadlink"),
+        0xA4F9: ("WS4", "Broadlink (OEM)"),
         0xA569: ("SP4L-UK", "Broadlink"),
         0xA56A: ("MCB1", "Broadlink"),
         0xA56B: ("SCB1E", "Broadlink"),
@@ -176,8 +177,8 @@ SUPPORTED_TYPES = {
         0x2722: ("S2KIT", "Broadlink"),
     },
     s3:  {
-        0xA59C:("S3", "Broadlink"),
-        0xA64D:("S3", "Broadlink"),
+        0xA59C: ("S3", "Broadlink"),
+        0xA64D: ("S3", "Broadlink"),
     },
     hysen: {
         0x4EAD: ("HY02/HY03", "Hysen"),
