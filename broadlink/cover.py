@@ -65,7 +65,7 @@ class dooya2(Device):
 
     def _send(self, operation: int, data: bytes = b""):
         """Send a command to the device."""
-        packet = bytearray(14)
+        packet = bytearray(12)
         packet[0x02] = 0xA5
         packet[0x03] = 0xA5
         packet[0x04] = 0x5A
@@ -77,7 +77,8 @@ class dooya2(Device):
             data_len = len(data)
             packet[0x0A] = data_len & 0xFF
             packet[0x0B] = data_len >> 8
-            packet += bytes(data)
+            packet += bytes(2)
+            packet.extend(data)
 
         checksum = sum(packet, 0xBEAF) & 0xFFFF
         packet[0x06] = checksum & 0xFF
@@ -121,7 +122,7 @@ class wser(Device):
 
     def _send(self, operation: int, data: bytes = b""):
         """Send a command to the device."""
-        packet = bytearray(14)
+        packet = bytearray(12)
         packet[0x02] = 0xA5
         packet[0x03] = 0xA5
         packet[0x04] = 0x5A
@@ -133,7 +134,8 @@ class wser(Device):
             data_len = len(data)
             packet[0x0A] = data_len & 0xFF
             packet[0x0B] = data_len >> 8
-            packet += bytes(data)
+            packet += bytes(2)
+            packet.extend(data)
 
         checksum = sum(packet, 0xBEAF) & 0xFFFF
         packet[0x06] = checksum & 0xFF
