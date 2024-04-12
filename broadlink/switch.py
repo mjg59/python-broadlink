@@ -116,6 +116,25 @@ class sp4(Device):
     """Controls a Broadlink SP4."""
 
     TYPE = "SP4"
+    MAX_SUBDEVICES = 8
+
+    def get_subdevices(self) -> list:
+        """Return the lit of sub devices."""
+        sub_devices = []
+        step = 5
+
+        for index in range(0, self.MAX_SUBDEVICES, step):
+            state = {"count": step, "index": index}
+            packet = self._encode(14, state)
+            resp = self.send_packet(0x6A, packet)
+            e.check_error(resp[0x22:0x24])
+            resp = self._decode(resp)
+
+            sub_devices.extend(resp["list"])
+            if len(sub_devices) == resp["total"]:
+                break
+
+        return sub_devices
 
     def set_power(self, pwr: bool) -> None:
         """Set the power state of the device."""
@@ -127,6 +146,7 @@ class sp4(Device):
 
     def set_state(
         self,
+        did: str = None,
         pwr: bool = None,
         ntlight: bool = None,
         indicator: bool = None,
@@ -136,6 +156,8 @@ class sp4(Device):
     ) -> dict:
         """Set state of device."""
         state = {}
+        if did is not None:
+            state["did"] = did
         if pwr is not None:
             state["pwr"] = int(bool(pwr))
         if ntlight is not None:
@@ -163,9 +185,13 @@ class sp4(Device):
         state = self.get_state()
         return bool(state["ntlight"])
 
-    def get_state(self) -> dict:
-        """Get full state of device."""
-        packet = self._encode(1, {})
+    def get_state(self, did: str = None) -> dict:
+        """Return the state of the device."""
+        state = {}
+        if did is not None:
+            state["did"] = did
+
+        packet = self._encode(1, state)
         response = self.send_packet(0x6A, packet)
         return self._decode(response)
 
