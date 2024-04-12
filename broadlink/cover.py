@@ -63,31 +63,32 @@ class dooya2(Device):
 
     TYPE = "DT360E-2"
 
-    def _send(self, operation: int, data: bytes):
+    def _send(self, operation: int, data: bytes = b""):
         """Send a command to the device."""
-        packet = bytearray(14)
+        packet = bytearray(12)
         packet[0x02] = 0xA5
         packet[0x03] = 0xA5
         packet[0x04] = 0x5A
         packet[0x05] = 0x5A
         packet[0x08] = operation
         packet[0x09] = 0x0B
-        
-        data_len = len(data)
-        packet[0x0A] = data_len & 0xFF
-        packet[0x0B] = data_len >> 8
 
-        packet += bytes(data)
+        if data:
+            data_len = len(data)
+            packet[0x0A] = data_len & 0xFF
+            packet[0x0B] = data_len >> 8
+            packet += bytes(2)
+            packet.extend(data)
 
         checksum = sum(packet, 0xBEAF) & 0xFFFF
-        packet[6] = checksum & 0xFF
-        packet[7] = checksum >> 8
+        packet[0x06] = checksum & 0xFF
+        packet[0x07] = checksum >> 8
 
         packet_len = len(packet) - 2
-        packet[0] = packet_len & 0xFF
-        packet[1] = packet_len >> 8
+        packet[0x00] = packet_len & 0xFF
+        packet[0x01] = packet_len >> 8
 
-        resp = self.send_packet(0x6a, packet)
+        resp = self.send_packet(0x6A, packet)
         e.check_error(resp[0x22:0x24])
         payload = self.decrypt(resp[0x38:])
         return payload
@@ -119,31 +120,32 @@ class wser(Device):
 
     TYPE = "WSER"
 
-    def _send(self, operation: int, data: bytes):
+    def _send(self, operation: int, data: bytes = b""):
         """Send a command to the device."""
-        packet = bytearray(14)
+        packet = bytearray(12)
         packet[0x02] = 0xA5
         packet[0x03] = 0xA5
         packet[0x04] = 0x5A
         packet[0x05] = 0x5A
         packet[0x08] = operation
         packet[0x09] = 0x0B
-        
-        data_len = len(data)
-        packet[0x0A] = data_len & 0xFF
-        packet[0x0B] = data_len >> 8
 
-        packet += bytes(data)
+        if data:
+            data_len = len(data)
+            packet[0x0A] = data_len & 0xFF
+            packet[0x0B] = data_len >> 8
+            packet += bytes(2)
+            packet.extend(data)
 
         checksum = sum(packet, 0xBEAF) & 0xFFFF
-        packet[6] = checksum & 0xFF
-        packet[7] = checksum >> 8
+        packet[0x06] = checksum & 0xFF
+        packet[0x07] = checksum >> 8
 
         packet_len = len(packet) - 2
-        packet[0] = packet_len & 0xFF
-        packet[1] = packet_len >> 8
+        packet[0x00] = packet_len & 0xFF
+        packet[0x01] = packet_len >> 8
 
-        resp = self.send_packet(0x6a, packet)
+        resp = self.send_packet(0x6A, packet)
         e.check_error(resp[0x22:0x24])
         payload = self.decrypt(resp[0x38:])
         return payload
@@ -156,24 +158,24 @@ class wser(Device):
 
     def open(self) -> int:
         """Open the curtain."""
-        resp = self._send(2, [0x4a, 0x31, 0xa0])
+        resp = self._send(2, [0x4A, 0x31, 0xA0])
         position = resp[0x0E]
         return position
 
     def close(self) -> int:
         """Close the curtain."""
-        resp = self._send(2, [0x61, 0x32, 0xa0])
+        resp = self._send(2, [0x61, 0x32, 0xA0])
         position = resp[0x0E]
         return position
 
     def stop(self) -> int:
         """Stop the curtain."""
-        resp = self._send(2, [0x4c, 0x73, 0xa0])
+        resp = self._send(2, [0x4C, 0x73, 0xA0])
         position = resp[0x0E]
         return position
 
     def set_position(self, position: int) -> int:
         """Set the position of the curtain."""
-        resp = self._send(2, [position, 0x70, 0xa0])
+        resp = self._send(2, [position, 0x70, 0xA0])
         position = resp[0x0E]
         return position

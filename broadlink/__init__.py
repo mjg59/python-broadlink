@@ -12,7 +12,7 @@ from .device import Device, ping, scan
 from .hub import s3
 from .light import lb1, lb2
 from .remote import rm, rm4, rm4mini, rm4pro, rmmini, rmminib, rmpro
-from .sensor import a1
+from .sensor import a1, a2
 from .switch import bg1, ehc31, mp1, mp1s, sp1, sp2, sp2s, sp3, sp3s, sp4, sp4b
 
 SUPPORTED_TYPES = {
@@ -142,7 +142,10 @@ SUPPORTED_TYPES = {
         0x653C: ("RM4 pro", "Broadlink"),
     },
     a1: {
-        0x2714: ("e-Sensor", "Broadlink"),
+        0x2714: ("A1", "Broadlink"),
+    },
+    a2: {
+        0x4F60: ("A2", "Broadlink"),
     },
     mp1: {
         0x4EB5: ("MP1-1K4S", "Broadlink"),
