@@ -42,7 +42,7 @@ class s3(Device):
 
         return sub_devices
 
-    def get_state(self, did: str = None) -> dict:
+    def get_state(self, did: str | None = None) -> dict:
         """Return the power state of the device."""
         state = {}
         if did is not None:
@@ -55,10 +55,10 @@ class s3(Device):
 
     def set_state(
         self,
-        did: str = None,
-        pwr1: bool = None,
-        pwr2: bool = None,
-        pwr3: bool = None,
+        did: str | None = None,
+        pwr1: bool | None = None,
+        pwr2: bool | None = None,
+        pwr3: bool | None = None,
     ) -> dict:
         """Set the power state of the device."""
         state = {}
@@ -81,7 +81,9 @@ class s3(Device):
         # flag: 1 for reading, 2 for writing.
         packet = bytearray(12)
         data = json.dumps(state, separators=(",", ":")).encode()
-        struct.pack_into("<HHHBBI", packet, 0, 0xA5A5, 0x5A5A, 0, flag, 0x0B, len(data))
+        struct.pack_into(
+            "<HHHBBI", packet, 0, 0xA5A5, 0x5A5A, 0, flag, 0x0B, len(data)
+        )
         packet.extend(data)
         checksum = sum(packet, 0xBEAF) & 0xFFFF
         packet[0x04:0x06] = checksum.to_bytes(2, "little")
@@ -91,5 +93,5 @@ class s3(Device):
         """Decode a JSON packet."""
         payload = self.decrypt(response[0x38:])
         js_len = struct.unpack_from("<I", payload, 0x08)[0]
-        state = json.loads(payload[0x0C : 0x0C + js_len])
+        state = json.loads(payload[0x0C:0x0C+js_len])
         return state

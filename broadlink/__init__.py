@@ -269,7 +269,7 @@ def discover(
 
 def xdiscover(
     timeout: int = DEFAULT_TIMEOUT,
-    local_ip_address: str = None,
+    local_ip_address: str | None = None,
     discover_ip_address: str = DEFAULT_BCAST_ADDR,
     discover_ip_port: int = DEFAULT_PORT,
 ) -> t.Generator[Device, None, None]:
