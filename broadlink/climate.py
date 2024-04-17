@@ -351,76 +351,23 @@ class hvac(Device):
         e.check_error(response[0x22:0x24])
         return self._decode(response)[0x02:]
 
-    def get_state(self) -> dict:
-        """Returns a dictionary with the unit's parameters.
-
-        Returns:
-            dict:
-                power (bool):
-                target_temp (float): temperature set point 16<n<32
-                mode (hvac.Mode):
-                speed (hvac.Speed):
-                preset (hvac.Preset):
-                swing_h (hvac.SwHoriz):
-                swing_v (hvac.SwVert):
-                sleep (bool):
-                ifeel (bool):
-                display (bool):
-                health (bool):
-                clean (bool):
-                mildew (bool):
-        """
-        resp = self._send(1)
-
-        if len(resp) < 13:
-            raise e.DataValidationError(
-                -4007,
-                "Received data packet length error",
-                f"Expected at least 15 bytes and received {len(resp) + 2}",
-            )
-
+    def _parse_state(self, data: bytes) -> dict:
+        """Parse state."""
         state = {}
-        state["power"] = bool(resp[0x08] & 1 << 5)
-        state["target_temp"] = 8 + (resp[0x00] >> 3) + (resp[0x04] >> 7) * 0.5
-        state["swing_v"] = self.SwVert(resp[0x00] & 0b111)
-        state["swing_h"] = self.SwHoriz(resp[0x01] >> 5)
-        state["mode"] = self.Mode(resp[0x05] >> 5)
-        state["speed"] = self.Speed(resp[0x03] >> 5)
-        state["preset"] = self.Preset(resp[0x04] >> 6)
-        state["sleep"] = bool(resp[0x05] & 1 << 2)
-        state["ifeel"] = bool(resp[0x05] & 1 << 3)
-        state["health"] = bool(resp[0x08] & 1 << 1)
-        state["clean"] = bool(resp[0x08] & 1 << 2)
-        state["display"] = bool(resp[0x0A] & 1 << 4)
-        state["mildew"] = bool(resp[0x0A] & 1 << 3)
-
+        state["power"] = bool(data[0x08] & 1 << 5)
+        state["target_temp"] = 8 + (data[0x00] >> 3) + (data[0x04] >> 7) * 0.5
+        state["swing_v"] = self.SwVert(data[0x00] & 0b111)
+        state["swing_h"] = self.SwHoriz(data[0x01] >> 5)
+        state["mode"] = self.Mode(data[0x05] >> 5)
+        state["speed"] = self.Speed(data[0x03] >> 5)
+        state["preset"] = self.Preset(data[0x04] >> 6)
+        state["sleep"] = bool(data[0x05] & 1 << 2)
+        state["ifeel"] = bool(data[0x05] & 1 << 3)
+        state["health"] = bool(data[0x08] & 1 << 1)
+        state["clean"] = bool(data[0x08] & 1 << 2)
+        state["display"] = bool(data[0x0A] & 1 << 4)
+        state["mildew"] = bool(data[0x0A] & 1 << 3)
         return state
-
-    def get_ac_info(self) -> dict:
-        """Returns dictionary with AC info.
-
-        Returns:
-            dict:
-                power (bool): power
-                ambient_temp (float): ambient temperature
-        """
-        resp = self._send(2)
-
-        if len(resp) < 22:
-            raise e.DataValidationError(
-                -4007,
-                "Received data packet length error",
-                f"Expected at least 24 bytes and received {len(resp) + 2}",
-            )
-
-        ac_info = {}
-        ac_info["power"] = resp[0x1] & 1
-
-        ambient_temp = resp[0x05] & 0b11111, resp[0x15] & 0b11111
-        if any(ambient_temp):
-            ac_info["ambient_temp"] = ambient_temp[0] + ambient_temp[1] / 10.0
-
-        return ac_info
 
     def set_state(
         self,
@@ -437,7 +384,7 @@ class hvac(Device):
         health: bool,
         clean: bool,
         mildew: bool,
-    ) -> None:
+    ) -> dict:
         """Set the state of the device."""
         # TODO: decode unknown bits
         UNK0 = 0b100
@@ -467,4 +414,61 @@ class hvac(Device):
         data[0x0A] = display << 4 | mildew << 3
         data[0x0C] = UNK2
 
-        self._send(0, data)
+        resp = self._send(0, data)
+        return self._parse_state(resp)
+
+    def get_state(self) -> dict:
+        """Returns a dictionary with the unit's parameters.
+
+        Returns:
+            dict:
+                power (bool):
+                target_temp (float): temperature set point 16<n<32
+                mode (hvac.Mode):
+                speed (hvac.Speed):
+                preset (hvac.Preset):
+                swing_h (hvac.SwHoriz):
+                swing_v (hvac.SwVert):
+                sleep (bool):
+                ifeel (bool):
+                display (bool):
+                health (bool):
+                clean (bool):
+                mildew (bool):
+        """
+        resp = self._send(1)
+
+        if len(resp) < 13:
+            raise e.DataValidationError(
+                -4007,
+                "Received data packet length error",
+                f"Expected at least 15 bytes and received {len(resp) + 2}",
+            )
+
+        return self._parse_state(resp)
+
+    def get_ac_info(self) -> dict:
+        """Returns dictionary with AC info.
+
+        Returns:
+            dict:
+                power (bool): power
+                ambient_temp (float): ambient temperature
+        """
+        resp = self._send(2)
+
+        if len(resp) < 22:
+            raise e.DataValidationError(
+                -4007,
+                "Received data packet length error",
+                f"Expected at least 24 bytes and received {len(resp) + 2}",
+            )
+
+        ac_info = {}
+        ac_info["power"] = resp[0x1] & 1
+
+        ambient_temp = resp[0x05] & 0b11111, resp[0x15] & 0b11111
+        if any(ambient_temp):
+            ac_info["ambient_temp"] = ambient_temp[0] + ambient_temp[1] / 10.0
+
+        return ac_info
