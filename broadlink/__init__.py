@@ -71,6 +71,7 @@ SUPPORTED_TYPES = {
         0xA576: ("SP4L-AU", "Broadlink"),
         0xA589: ("SP4L-UK", "Broadlink"),
         0xA5D3: ("SP4L-EU", "Broadlink"),
+        0xA6F4: ("SP4D-US", "Broadlink"),
     },
     sp4b: {
         0x5115: ("SCB1E", "Broadlink"),
