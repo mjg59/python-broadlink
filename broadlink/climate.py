@@ -1,6 +1,5 @@
 """Support for climate control."""
 import enum
-import logging
 import struct
 from typing import List, Sequence
 
@@ -261,7 +260,7 @@ class hvac(Device):
     """Controls a HVAC.
 
     Supported models:
-    - Tornado SMART X SQ series.
+    - Tornado SMART X SQ series
     - Aux ASW-H12U3/JIR1DI-US
     - Aux ASW-H36U2/LFR1DI-US
     """
@@ -317,7 +316,7 @@ class hvac(Device):
     def _encode(self, data: bytes) -> bytes:
         """Encode data for transport."""
         packet = bytearray(10)
-        p_len = 8 + len(data)
+        p_len = 10 + len(data)
         struct.pack_into(
             "<HHHHH", packet, 0, p_len, 0x00BB, 0x8006, 0, len(data)
         )
@@ -346,8 +345,8 @@ class hvac(Device):
 
     def _send(self, command: int, data: bytes = b"") -> bytes:
         """Send a command to the unit."""
-        command = bytes([((command << 4) | 1), 1])
-        packet = self._encode(command + data)
+        prefix = bytes([((command << 4) | 1), 1])
+        packet = self._encode(prefix + data)
         response = self.send_packet(0x6A, packet)
         e.check_error(response[0x22:0x24])
         return self._decode(response)[0x02:]
@@ -365,6 +364,7 @@ class hvac(Device):
                 swing_h (hvac.SwHoriz):
                 swing_v (hvac.SwVert):
                 sleep (bool):
+                ifeel (bool):
                 display (bool):
                 health (bool):
                 clean (bool):
@@ -372,11 +372,15 @@ class hvac(Device):
         """
         resp = self._send(1)
 
-        if len(resp) != 0x0F:
-            raise ValueError(f"unexpected resp size: {len(resp)}")
+        if len(resp) < 13:
+            raise e.DataValidationError(
+                -4007,
+                "Received data packet length error",
+                f"Expected at least 15 bytes and received {len(resp) + 2}",
+            )
 
         state = {}
-        state["power"] = resp[0x08] & 1 << 5
+        state["power"] = bool(resp[0x08] & 1 << 5)
         state["target_temp"] = 8 + (resp[0x00] >> 3) + (resp[0x04] >> 7) * 0.5
         state["swing_v"] = self.SwVert(resp[0x00] & 0b111)
         state["swing_h"] = self.SwHoriz(resp[0x01] >> 5)
@@ -384,6 +388,7 @@ class hvac(Device):
         state["speed"] = self.Speed(resp[0x03] >> 5)
         state["preset"] = self.Preset(resp[0x04] >> 6)
         state["sleep"] = bool(resp[0x05] & 1 << 2)
+        state["ifeel"] = bool(resp[0x05] & 1 << 3)
         state["health"] = bool(resp[0x08] & 1 << 1)
         state["clean"] = bool(resp[0x08] & 1 << 2)
         state["display"] = bool(resp[0x0A] & 1 << 4)
@@ -400,8 +405,13 @@ class hvac(Device):
                 ambient_temp (float): ambient temperature
         """
         resp = self._send(2)
-        if len(resp) != 0x18:
-            raise ValueError(f"unexpected resp size: {len(resp)}")
+
+        if len(resp) < 22:
+            raise e.DataValidationError(
+                -4007,
+                "Received data packet length error",
+                f"Expected at least 24 bytes and received {len(resp) + 2}",
+            )
 
         ac_info = {}
         ac_info["power"] = resp[0x1] & 1
@@ -416,26 +426,25 @@ class hvac(Device):
         self,
         power: bool,
         target_temp: float,  # 16<=target_temp<=32
-        mode: int,  # hvac.Mode
-        speed: int,  # hvac.Speed
-        preset: int,  # hvac.Preset
-        swing_h: int,  # hvac.SwHoriz
-        swing_v: int,  # hvac.SwVert
+        mode: Mode,
+        speed: Speed,
+        preset: Preset,
+        swing_h: SwHoriz,
+        swing_v: SwVert,
         sleep: bool,
+        ifeel: bool,
         display: bool,
         health: bool,
         clean: bool,
         mildew: bool,
     ) -> None:
         """Set the state of the device."""
-        # TODO: What does these values represent?
+        # TODO: decode unknown bits
         UNK0 = 0b100
         UNK1 = 0b1101
         UNK2 = 0b101
 
         target_temp = round(target_temp * 2) / 2
-        if not 16 <= target_temp <= 32:
-            raise ValueError(f"target_temp out of range: {target_temp}")
 
         if preset == self.Preset.MUTE:
             if mode != self.Mode.FAN:
@@ -453,7 +462,7 @@ class hvac(Device):
         data[0x02] = ((target_temp % 1 == 0.5) << 7) | UNK1
         data[0x03] = speed << 5
         data[0x04] = preset << 6
-        data[0x05] = mode << 5 | (sleep << 2)
+        data[0x05] = mode << 5 | sleep << 2 | ifeel << 3
         data[0x08] = power << 5 | clean << 2 | (health and 0b11)
         data[0x0A] = display << 4 | mildew << 3
         data[0x0C] = UNK2
