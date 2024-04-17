@@ -178,7 +178,7 @@ SUPPORTED_TYPES = {
         0xA64D: ("S3", "Broadlink"),
     },
     hvac: {
-        0X4E2A: ("HVAC", "Licensed manufacturer"),
+        0x4E2A: ("HVAC", "Licensed manufacturer"),
     },
     hysen: {
         0x4EAD: ("HY02/HY03", "Hysen"),
