@@ -1,6 +1,7 @@
 """Support for hubs."""
 import struct
 import json
+from typing import Optional
 
 from . import exceptions as e
 from .device import Device
@@ -42,7 +43,7 @@ class s3(Device):
 
         return sub_devices
 
-    def get_state(self, did: str | None = None) -> dict:
+    def get_state(self, did: Optional[str] = None) -> dict:
         """Return the power state of the device."""
         state = {}
         if did is not None:
@@ -55,10 +56,10 @@ class s3(Device):
 
     def set_state(
         self,
-        did: str | None = None,
-        pwr1: bool | None = None,
-        pwr2: bool | None = None,
-        pwr3: bool | None = None,
+        did: Optional[str] = None,
+        pwr1: Optional[bool] = None,
+        pwr2: Optional[bool] = None,
+        pwr3: Optional[bool] = None,
     ) -> dict:
         """Set the power state of the device."""
         state = {}

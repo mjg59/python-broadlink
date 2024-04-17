@@ -3,7 +3,7 @@ import socket
 import threading
 import random
 import time
-import typing as t
+from typing import Generator, Optional, Tuple, Union
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -17,15 +17,15 @@ from .const import (
 )
 from .protocol import Datetime
 
-HelloResponse = t.Tuple[int, t.Tuple[str, int], str, str, bool]
+HelloResponse = Tuple[int, Tuple[str, int], str, str, bool]
 
 
 def scan(
     timeout: int = DEFAULT_TIMEOUT,
-    local_ip_address: str | None = None,
+    local_ip_address: Optional[str] = None,
     discover_ip_address: str = DEFAULT_BCAST_ADDR,
     discover_ip_port: int = DEFAULT_PORT,
-) -> t.Generator[HelloResponse, None, None]:
+) -> Generator[HelloResponse, None, None]:
     """Broadcast a hello message and yield responses."""
     conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -100,8 +100,8 @@ class Device:
 
     def __init__(
         self,
-        host: t.Tuple[str, int],
-        mac: t.Union[bytes, str],
+        host: Tuple[str, int],
+        mac: Union[bytes, str],
         devtype: int,
         timeout: int = DEFAULT_TIMEOUT,
         name: str = "",

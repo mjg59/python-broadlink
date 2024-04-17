@@ -2,7 +2,7 @@
 import argparse
 import base64
 import time
-import typing as t
+from typing import List
 
 import broadlink
 from broadlink.const import DEFAULT_PORT
@@ -16,7 +16,7 @@ def auto_int(x):
     return int(x, 0)
 
 
-def format_pulses(pulses: t.List[int]) -> str:
+def format_pulses(pulses: List[int]) -> str:
     """Format pulses."""
     return " ".join(
         f"+{pulse}" if i % 2 == 0 else f"-{pulse}"
@@ -24,7 +24,7 @@ def format_pulses(pulses: t.List[int]) -> str:
     )
 
 
-def parse_pulses(data: t.List[str]) -> t.List[int]:
+def parse_pulses(data: List[str]) -> List[int]:
     """Parse pulses."""
     return [abs(int(s)) for s in data]
 

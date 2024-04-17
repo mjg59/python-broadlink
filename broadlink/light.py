@@ -2,6 +2,7 @@
 import enum
 import json
 import struct
+from typing import Optional
 
 from . import exceptions as e
 from .device import Device
@@ -32,20 +33,20 @@ class lb1(Device):
 
     def set_state(
         self,
-        pwr: bool | None = None,
-        red: int | None = None,
-        blue: int | None = None,
-        green: int | None = None,
-        brightness: int | None = None,
-        colortemp: int | None = None,
-        hue: int | None = None,
-        saturation: int | None = None,
-        transitionduration: int | None = None,
-        maxworktime: int | None = None,
-        bulb_colormode: int | None = None,
-        bulb_scenes: str | None = None,
-        bulb_scene: str | None = None,
-        bulb_sceneidx: int | None = None,
+        pwr: Optional[bool] = None,
+        red: Optional[int] = None,
+        blue: Optional[int] = None,
+        green: Optional[int] = None,
+        brightness: Optional[int] = None,
+        colortemp: Optional[int] = None,
+        hue: Optional[int] = None,
+        saturation: Optional[int] = None,
+        transitionduration: Optional[int] = None,
+        maxworktime: Optional[int] = None,
+        bulb_colormode: Optional[int] = None,
+        bulb_scenes: Optional[str] = None,
+        bulb_scene: Optional[str] = None,
+        bulb_sceneidx: Optional[int] = None,
     ) -> dict:
         """Set the power state of the device."""
         state = {}
@@ -130,19 +131,19 @@ class lb2(Device):
 
     def set_state(
         self,
-        pwr: bool | None = None,
-        red: int | None = None,
-        blue: int | None = None,
-        green: int | None = None,
-        brightness: int | None = None,
-        colortemp: int | None = None,
-        hue: int | None = None,
-        saturation: int | None = None,
-        transitionduration: int | None = None,
-        maxworktime: int | None = None,
-        bulb_colormode: int | None = None,
-        bulb_scenes: str | None = None,
-        bulb_scene: str | None = None,
+        pwr: Optional[bool] = None,
+        red: Optional[int] = None,
+        blue: Optional[int] = None,
+        green: Optional[int] = None,
+        brightness: Optional[int] = None,
+        colortemp: Optional[int] = None,
+        hue: Optional[int] = None,
+        saturation: Optional[int] = None,
+        transitionduration: Optional[int] = None,
+        maxworktime: Optional[int] = None,
+        bulb_colormode: Optional[int] = None,
+        bulb_scenes: Optional[str] = None,
+        bulb_scene: Optional[str] = None,
     ) -> dict:
         """Set the power state of the device."""
         state = {}

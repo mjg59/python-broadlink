@@ -1,6 +1,7 @@
 """Support for switches."""
 import json
 import struct
+from typing import Optional
 
 from . import exceptions as e
 from .device import Device
@@ -127,12 +128,12 @@ class sp4(Device):
 
     def set_state(
         self,
-        pwr: bool | None = None,
-        ntlight: bool | None = None,
-        indicator: bool | None = None,
-        ntlbrightness: int | None = None,
-        maxworktime: int | None = None,
-        childlock: bool | None = None,
+        pwr: Optional[bool] = None,
+        ntlight: Optional[bool] = None,
+        indicator: Optional[bool] = None,
+        ntlbrightness: Optional[int] = None,
+        maxworktime: Optional[int] = None,
+        childlock: Optional[bool] = None,
     ) -> dict:
         """Set state of device."""
         state = {}
@@ -255,13 +256,13 @@ class bg1(Device):
 
     def set_state(
         self,
-        pwr: bool | None = None,
-        pwr1: bool | None = None,
-        pwr2: bool | None = None,
-        maxworktime: int | None = None,
-        maxworktime1: int | None = None,
-        maxworktime2: int | None = None,
-        idcbrightness: int | None = None,
+        pwr: Optional[bool] = None,
+        pwr1: Optional[bool] = None,
+        pwr2: Optional[bool] = None,
+        maxworktime: Optional[int] = None,
+        maxworktime1: Optional[int] = None,
+        maxworktime2: Optional[int] = None,
+        idcbrightness: Optional[int] = None,
     ) -> dict:
         """Set the power state of the device."""
         state = {}
@@ -322,19 +323,19 @@ class ehc31(bg1):
 
     def set_state(
         self,
-        pwr: bool | None = None,
-        pwr1: bool | None = None,
-        pwr2: bool | None = None,
-        pwr3: bool | None = None,
-        maxworktime1: int | None = None,
-        maxworktime2: int | None = None,
-        maxworktime3: int | None = None,
-        idcbrightness: int | None = None,
-        childlock: bool | None = None,
-        childlock1: bool | None = None,
-        childlock2: bool | None = None,
-        childlock3: bool | None = None,
-        childlock4: bool | None = None,
+        pwr: Optional[bool] = None,
+        pwr1: Optional[bool] = None,
+        pwr2: Optional[bool] = None,
+        pwr3: Optional[bool] = None,
+        maxworktime1: Optional[int] = None,
+        maxworktime2: Optional[int] = None,
+        maxworktime3: Optional[int] = None,
+        idcbrightness: Optional[int] = None,
+        childlock: Optional[bool] = None,
+        childlock1: Optional[bool] = None,
+        childlock2: Optional[bool] = None,
+        childlock3: Optional[bool] = None,
+        childlock4: Optional[bool] = None,
     ) -> dict:
         """Set the power state of the device."""
         state = {}
