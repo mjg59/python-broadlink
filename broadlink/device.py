@@ -3,23 +3,29 @@ import socket
 import threading
 import random
 import time
-from typing import Generator, Tuple, Union
+import typing as t
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
-from .exceptions import check_error, exception
+from . import exceptions as e
+from .const import (
+    DEFAULT_BCAST_ADDR,
+    DEFAULT_PORT,
+    DEFAULT_RETRY_INTVL,
+    DEFAULT_TIMEOUT,
+)
 from .protocol import Datetime
 
-HelloResponse = Tuple[int, Tuple[str, int], str, str, bool]
+HelloResponse = t.Tuple[int, t.Tuple[str, int], str, str, bool]
 
 
 def scan(
-    timeout: int = 10,
+    timeout: int = DEFAULT_TIMEOUT,
     local_ip_address: str = None,
-    discover_ip_address: str = "255.255.255.255",
-    discover_ip_port: int = 80,
-) -> Generator[HelloResponse, None, None]:
+    discover_ip_address: str = DEFAULT_BCAST_ADDR,
+    discover_ip_port: int = DEFAULT_PORT,
+) -> t.Generator[HelloResponse, None, None]:
     """Broadcast a hello message and yield responses."""
     conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -47,7 +53,7 @@ def scan(
     try:
         while (time.time() - start_time) < timeout:
             time_left = timeout - (time.time() - start_time)
-            conn.settimeout(min(1, time_left))
+            conn.settimeout(min(DEFAULT_RETRY_INTVL, time_left))
             conn.sendto(packet, (discover_ip_address, discover_ip_port))
 
             while True:
@@ -64,13 +70,13 @@ def scan(
                 discovered.append((host, mac, devtype))
 
                 name = resp[0x40:].split(b"\x00")[0].decode()
-                is_locked = bool(resp[-1])
+                is_locked = bool(resp[0x7F])
                 yield devtype, host, mac, name, is_locked
     finally:
         conn.close()
 
 
-def ping(address: str, port: int = 80) -> None:
+def ping(ip_address: str, port: int = DEFAULT_PORT) -> None:
     """Send a ping packet to an address.
 
     This packet feeds the watchdog timer of firmwares >= v53.
@@ -81,62 +87,71 @@ def ping(address: str, port: int = 80) -> None:
         conn.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         packet = bytearray(0x30)
         packet[0x26] = 1
-        conn.sendto(packet, (address, port))
+        conn.sendto(packet, (ip_address, port))
 
 
-class device:
+class Device:
     """Controls a Broadlink device."""
 
     TYPE = "Unknown"
 
+    __INIT_KEY = "097628343fe99e23765c1513accf8b02"
+    __INIT_VECT = "562e17996d093d28ddb3ba695a2e6f58"
+
     def __init__(
         self,
-        host: Tuple[str, int],
-        mac: Union[bytes, str],
+        host: t.Tuple[str, int],
+        mac: t.Union[bytes, str],
         devtype: int,
-        timeout: int = 10,
-        name: str = None,
-        model: str = None,
-        manufacturer: str = None,
-        is_locked: bool = None,
+        timeout: int = DEFAULT_TIMEOUT,
+        name: str = "",
+        model: str = "",
+        manufacturer: str = "",
+        is_locked: bool = False,
     ) -> None:
         """Initialize the controller."""
         self.host = host
         self.mac = bytes.fromhex(mac) if isinstance(mac, str) else mac
-        self.devtype = devtype if devtype is not None else 0x272A
+        self.devtype = devtype
         self.timeout = timeout
         self.name = name
         self.model = model
         self.manufacturer = manufacturer
         self.is_locked = is_locked
         self.count = random.randint(0x8000, 0xFFFF)
-        self.iv = bytes.fromhex("562e17996d093d28ddb3ba695a2e6f58")
+        self.iv = bytes.fromhex(self.__INIT_VECT)
         self.id = 0
         self.type = self.TYPE  # For backwards compatibility.
         self.lock = threading.Lock()
 
         self.aes = None
-        key = bytes.fromhex("097628343fe99e23765c1513accf8b02")
-        self.update_aes(key)
+        self.update_aes(bytes.fromhex(self.__INIT_KEY))
 
-    def __repr__(self):
-        return "<%s: %s %s (%s) at %s:%s | %s | %s | %s>" % (
-            type(self).__name__,
-            self.manufacturer,
-            self.model,
-            hex(self.devtype),
-            self.host[0],
-            self.host[1],
-            ":".join(format(x, "02x") for x in self.mac),
+    def __repr__(self) -> str:
+        """Return a formal representation of the device."""
+        return (
+            "%s.%s(%s, mac=%r, devtype=%r, timeout=%r, name=%r, "
+            "model=%r, manufacturer=%r, is_locked=%r)"
+        ) % (
+            self.__class__.__module__,
+            self.__class__.__qualname__,
+            self.host,
+            self.mac,
+            self.devtype,
+            self.timeout,
             self.name,
-            "Locked" if self.is_locked else "Unlocked",
+            self.model,
+            self.manufacturer,
+            self.is_locked,
         )
 
-    def __str__(self):
-        return "%s (%s at %s)" % (
-            self.name,
-            self.model or hex(self.devtype),
-            self.host[0],
+    def __str__(self) -> str:
+        """Return a readable representation of the device."""
+        return "%s (%s / %s:%s / %s)" % (
+            self.name or "Unknown",
+            " ".join(filter(None, [self.manufacturer, self.model, hex(self.devtype)])),
+            *self.host,
+            ":".join(format(x, "02X") for x in self.mac),
         )
 
     def update_aes(self, key: bytes) -> None:
@@ -157,22 +172,21 @@ class device:
 
     def auth(self) -> bool:
         """Authenticate to the device."""
-        payload = bytearray(0x50)
-        payload[0x04:0x14] = [0x31]*16
-        payload[0x1E] = 0x01
-        payload[0x2D] = 0x01
-        payload[0x30:0x37] = "Test 1".encode()
+        self.id = 0
+        self.update_aes(bytes.fromhex(self.__INIT_KEY))
 
-        response = self.send_packet(0x65, payload)
-        check_error(response[0x22:0x24])
+        packet = bytearray(0x50)
+        packet[0x04:0x14] = [0x31] * 16
+        packet[0x1E] = 0x01
+        packet[0x2D] = 0x01
+        packet[0x30:0x36] = "Test 1".encode()
+
+        response = self.send_packet(0x65, packet)
+        e.check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
 
-        key = payload[0x04:0x14]
-        if len(key) % 16 != 0:
-            return False
-
         self.id = int.from_bytes(payload[:0x4], "little")
-        self.update_aes(key)
+        self.update_aes(payload[0x04:0x14])
         return True
 
     def hello(self, local_ip_address=None) -> bool:
@@ -187,12 +201,30 @@ class device:
             discover_ip_port=self.host[1],
         )
         try:
-            devtype, host, mac, name, is_locked = next(responses)
-        except StopIteration:
-            raise exception(-4000)  # Network timeout.
+            devtype, _, mac, name, is_locked = next(responses)
 
-        if (devtype, host, mac) != (self.devtype, self.host, self.mac):
-            raise exception(-2040)  # Device information is not intact.
+        except StopIteration as err:
+            raise e.NetworkTimeoutError(
+                -4000,
+                "Network timeout",
+                f"No response received within {self.timeout}s",
+            ) from err
+
+        if mac != self.mac:
+            raise e.DataValidationError(
+                -2040,
+                "Device information is not intact",
+                "The MAC address is different",
+                f"Expected {self.mac} and received {mac}",
+            )
+
+        if devtype != self.devtype:
+            raise e.DataValidationError(
+                -2040,
+                "Device information is not intact",
+                "The product ID is different",
+                f"Expected {self.devtype} and received {devtype}",
+            )
 
         self.name = name
         self.is_locked = is_locked
@@ -211,7 +243,7 @@ class device:
         """Get firmware version."""
         packet = bytearray([0x68])
         response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
+        e.check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
         return payload[0x4] | payload[0x5] << 8
 
@@ -220,9 +252,9 @@ class device:
         packet = bytearray(4)
         packet += name.encode("utf-8")
         packet += bytearray(0x50 - len(packet))
-        packet[0x43] = bool(self.is_locked)
+        packet[0x43] = self.is_locked
         response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
+        e.check_error(response[0x22:0x24])
         self.name = name
 
     def set_lock(self, state: bool) -> None:
@@ -232,7 +264,7 @@ class device:
         packet += bytearray(0x50 - len(packet))
         packet[0x43] = bool(state)
         response = self.send_packet(0x6A, packet)
-        check_error(response[0x22:0x24])
+        e.check_error(response[0x22:0x24])
         self.is_locked = bool(state)
 
     def get_type(self) -> str:
@@ -246,8 +278,8 @@ class device:
         packet[0x00:0x08] = bytes.fromhex("5aa5aa555aa5aa55")
         packet[0x24:0x26] = self.devtype.to_bytes(2, "little")
         packet[0x26:0x28] = packet_type.to_bytes(2, "little")
-        packet[0x28:0x2a] = self.count.to_bytes(2, "little")
-        packet[0x2a:0x30] = self.mac[::-1]
+        packet[0x28:0x2A] = self.count.to_bytes(2, "little")
+        packet[0x2A:0x30] = self.mac[::-1]
         packet[0x30:0x34] = self.id.to_bytes(4, "little")
 
         p_checksum = sum(payload, 0xBEAF) & 0xFFFF
@@ -266,21 +298,35 @@ class device:
 
             while True:
                 time_left = timeout - (time.time() - start_time)
-                conn.settimeout(min(1, time_left))
+                conn.settimeout(min(DEFAULT_RETRY_INTVL, time_left))
                 conn.sendto(packet, self.host)
 
                 try:
                     resp = conn.recvfrom(2048)[0]
                     break
-                except socket.timeout:
+                except socket.timeout as err:
                     if (time.time() - start_time) > timeout:
-                        raise exception(-4000)  # Network timeout.
+                        raise e.NetworkTimeoutError(
+                            -4000,
+                            "Network timeout",
+                            f"No response received within {timeout}s",
+                        ) from err
 
         if len(resp) < 0x30:
-            raise exception(-4007)  # Length error.
+            raise e.DataValidationError(
+                -4007,
+                "Received data packet length error",
+                f"Expected at least 48 bytes and received {len(resp)}",
+            )
 
-        checksum = int.from_bytes(resp[0x20:0x22], "little")
-        if sum(resp, 0xBEAF) - sum(resp[0x20:0x22]) & 0xFFFF != checksum:
-            raise exception(-4008)  # Checksum error.
+        nom_checksum = int.from_bytes(resp[0x20:0x22], "little")
+        real_checksum = sum(resp, 0xBEAF) - sum(resp[0x20:0x22]) & 0xFFFF
+
+        if nom_checksum != real_checksum:
+            raise e.DataValidationError(
+                -4008,
+                "Received data packet check error",
+                f"Expected a checksum of {nom_checksum} and received {real_checksum}",
+            )
 
         return resp

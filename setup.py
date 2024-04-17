@@ -5,7 +5,7 @@
 from setuptools import setup, find_packages
 
 
-version = '0.16.0'
+version = '0.18.3'
 
 setup(
     name="broadlink",
@@ -15,8 +15,8 @@ setup(
     url="http://github.com/mjg59/python-broadlink",
     packages=find_packages(),
     scripts=[],
-    install_requires=["cryptography>=2.1.1"],
-    description="Python API for controlling Broadlink IR controllers",
+    install_requires=["cryptography>=3.2"],
+    description="Python API for controlling Broadlink devices",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",

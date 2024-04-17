@@ -1,3 +1,4 @@
+"""The networking part of the python-broadlink library."""
 import datetime as dt
 import time
 
@@ -14,7 +15,7 @@ class Datetime:
         data[0x04:0x06] = datetime.year.to_bytes(2, "little")
         data[0x06] = datetime.minute
         data[0x07] = datetime.hour
-        data[0x08] = int(datetime.strftime('%y'))
+        data[0x08] = int(datetime.strftime("%y"))
         data[0x09] = datetime.isoweekday()
         data[0x0A] = datetime.day
         data[0x0B] = datetime.month
@@ -37,7 +38,7 @@ class Datetime:
 
         if datetime.isoweekday() != isoweekday:
             raise ValueError("isoweekday does not match")
-        if int(datetime.strftime('%y')) != subyear:
+        if int(datetime.strftime("%y")) != subyear:
             raise ValueError("subyear does not match")
 
         return datetime
