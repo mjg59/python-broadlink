@@ -262,6 +262,8 @@ class hvac(Device):
 
     Supported models:
     - Tornado SMART X SQ series.
+    - Aux ASW-H12U3/JIR1DI-US
+    - Aux ASW-H36U2/LFR1DI-US
     """
 
     TYPE = "HVAC"
@@ -346,7 +348,6 @@ class hvac(Device):
         """Send a command to the unit."""
         command = bytes([((command << 4) | 1), 1])
         packet = self._encode(command + data)
-        logging.debug("Payload:\n%s", packet.hex(" "))
         response = self.send_packet(0x6A, packet)
         e.check_error(response[0x22:0x24])
         return self._decode(response)[0x02:]
@@ -374,14 +375,6 @@ class hvac(Device):
         if len(resp) != 0x0F:
             raise ValueError(f"unexpected resp size: {len(resp)}")
 
-        logging.debug("Received resp:\n%s", resp.hex(" "))
-        logging.debug(
-            "0b[R] mask: %x, 0c[R] mask: %x, cmnd_16: %x",
-            resp[0x03] & 0x0F,
-            resp[0x04] & 0x0F,
-            resp[0x04],
-        )
-
         state = {}
         state["power"] = resp[0x08] & 1 << 5
         state["target_temp"] = 8 + (resp[0x00] >> 3) + (resp[0x04] >> 7) * 0.5
@@ -395,8 +388,6 @@ class hvac(Device):
         state["clean"] = bool(resp[0x08] & 1 << 2)
         state["display"] = bool(resp[0x0A] & 1 << 4)
         state["mildew"] = bool(resp[0x0A] & 1 << 3)
-
-        logging.debug("State: %s", state)
 
         return state
 
@@ -412,8 +403,6 @@ class hvac(Device):
         if len(resp) != 0x18:
             raise ValueError(f"unexpected resp size: {len(resp)}")
 
-        logging.debug("Received resp:\n%s", resp.hex(" "))
-
         ac_info = {}
         ac_info["power"] = resp[0x1] & 1
 
@@ -421,7 +410,6 @@ class hvac(Device):
         if any(ambient_temp):
             ac_info["ambient_temp"] = ambient_temp[0] + ambient_temp[1] / 10.0
 
-        logging.debug("AC info: %s", ac_info)
         return ac_info
 
     def set_state(
@@ -470,7 +458,4 @@ class hvac(Device):
         data[0x0A] = display << 4 | mildew << 3
         data[0x0C] = UNK2
 
-        logging.debug("Constructed payload data:\n%s", data.hex(" "))
-
-        response_payload = self._send(0, data)
-        logging.debug("Response payload:\n%s", response_payload.hex(" "))
+        self._send(0, data)
