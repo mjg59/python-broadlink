@@ -3,7 +3,7 @@ import socket
 import threading
 import random
 import time
-import typing as t
+from typing import Generator, Optional, Tuple, Union
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -17,15 +17,15 @@ from .const import (
 )
 from .protocol import Datetime
 
-HelloResponse = t.Tuple[int, t.Tuple[str, int], str, str, bool]
+HelloResponse = Tuple[int, Tuple[str, int], str, str, bool]
 
 
 def scan(
     timeout: int = DEFAULT_TIMEOUT,
-    local_ip_address: str = None,
+    local_ip_address: Optional[str] = None,
     discover_ip_address: str = DEFAULT_BCAST_ADDR,
     discover_ip_port: int = DEFAULT_PORT,
-) -> t.Generator[HelloResponse, None, None]:
+) -> Generator[HelloResponse, None, None]:
     """Broadcast a hello message and yield responses."""
     conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -76,7 +76,7 @@ def scan(
         conn.close()
 
 
-def ping(address: str, port: int = DEFAULT_PORT) -> None:
+def ping(ip_address: str, port: int = DEFAULT_PORT) -> None:
     """Send a ping packet to an address.
 
     This packet feeds the watchdog timer of firmwares >= v53.
@@ -87,7 +87,7 @@ def ping(address: str, port: int = DEFAULT_PORT) -> None:
         conn.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         packet = bytearray(0x30)
         packet[0x26] = 1
-        conn.sendto(packet, (address, port))
+        conn.sendto(packet, (ip_address, port))
 
 
 class Device:
@@ -100,8 +100,8 @@ class Device:
 
     def __init__(
         self,
-        host: t.Tuple[str, int],
-        mac: t.Union[bytes, str],
+        host: Tuple[str, int],
+        mac: Union[bytes, str],
         devtype: int,
         timeout: int = DEFAULT_TIMEOUT,
         name: str = "",

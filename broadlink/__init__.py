@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """The python-broadlink library."""
 import socket
-import typing as t
+from typing import Generator, List, Optional, Tuple, Union
 
 from . import exceptions as e
 from .const import DEFAULT_BCAST_ADDR, DEFAULT_PORT, DEFAULT_TIMEOUT
 from .alarm import S1C
-from .climate import hysen
-from .cover import dooya
+from .climate import hvac, hysen
+from .cover import dooya, dooya2, wser
 from .device import Device, ping, scan
 from .hub import s3
 from .light import lb1, lb2
 from .remote import rm, rm4, rm4mini, rm4pro, rmmini, rmminib, rmpro
-from .sensor import a1
-from .switch import bg1, mp1, sp1, sp2, sp2s, sp3, sp3s, sp4, sp4b
+from .sensor import a1, a2
+from .switch import bg1, ehc31, mp1, mp1s, sp1, sp2, sp2s, sp3, sp3s, sp4, sp4b
 
 SUPPORTED_TYPES = {
     sp1: {
@@ -148,13 +148,18 @@ SUPPORTED_TYPES = {
         0x653C: ("RM4 pro", "Broadlink"),
     },
     a1: {
-        0x2714: ("e-Sensor", "Broadlink"),
+        0x2714: ("A1", "Broadlink"),
+    },
+    a2: {
+        0x4F60: ("A2", "Broadlink"),
     },
     mp1: {
         0x4EB5: ("MP1-1K4S", "Broadlink"),
-        0x4EF7: ("MP1-1K4S", "Broadlink (OEM)"),
         0x4F1B: ("MP1-1K3S2U", "Broadlink (OEM)"),
         0x4F65: ("MP1-1K3S2U", "Broadlink"),
+    },
+    mp1s: {
+        0x4EF7: ("MP1-1K4S", "Broadlink (OEM)"),
     },
     lb1: {
         0x5043: ("SB800TD", "Broadlink (OEM)"),
@@ -177,9 +182,12 @@ SUPPORTED_TYPES = {
     S1C: {
         0x2722: ("S2KIT", "Broadlink"),
     },
-    s3:  {
+    s3: {
         0xA59C: ("S3", "Broadlink"),
         0xA64D: ("S3", "Broadlink"),
+    },
+    hvac: {
+        0x4E2A: ("HVAC", "Licensed manufacturer"),
     },
     hysen: {
         0x4EAD: ("HY02/HY03", "Hysen"),
@@ -187,16 +195,25 @@ SUPPORTED_TYPES = {
     dooya: {
         0x4E4D: ("DT360E-45/20", "Dooya"),
     },
+    dooya2: {
+        0x4F6E: ("DT360E-45/20", "Dooya"),
+    },
+    wser: {
+        0x4F6C: ("WSER", "Wistar"),
+    },
     bg1: {
         0x51E3: ("BG800/BG900", "BG Electrical"),
+    },
+    ehc31: {
+        0x6480: ("EHC31", "BG Electrical"),
     },
 }
 
 
 def gendevice(
     dev_type: int,
-    host: t.Tuple[str, int],
-    mac: t.Union[bytes, str],
+    host: Tuple[str, int],
+    mac: Union[bytes, str],
     name: str = "",
     is_locked: bool = False,
 ) -> Device:
@@ -222,7 +239,7 @@ def gendevice(
 
 
 def hello(
-    host: str,
+    ip_address: str,
     port: int = DEFAULT_PORT,
     timeout: int = DEFAULT_TIMEOUT,
 ) -> Device:
@@ -232,7 +249,11 @@ def hello(
     """
     try:
         return next(
-            xdiscover(timeout=timeout, discover_ip_address=host, discover_ip_port=port)
+            xdiscover(
+                timeout=timeout,
+                discover_ip_address=ip_address,
+                discover_ip_port=port,
+            )
         )
     except StopIteration as err:
         raise e.NetworkTimeoutError(
@@ -244,33 +265,42 @@ def hello(
 
 def discover(
     timeout: int = DEFAULT_TIMEOUT,
-    local_ip_address: str = None,
+    local_ip_address: Optional[str] = None,
     discover_ip_address: str = DEFAULT_BCAST_ADDR,
     discover_ip_port: int = DEFAULT_PORT,
-) -> t.List[Device]:
+) -> List[Device]:
     """Discover devices connected to the local network."""
-    responses = scan(timeout, local_ip_address, discover_ip_address, discover_ip_port)
+    responses = scan(
+        timeout, local_ip_address, discover_ip_address, discover_ip_port
+    )
     return [gendevice(*resp) for resp in responses]
 
 
 def xdiscover(
     timeout: int = DEFAULT_TIMEOUT,
-    local_ip_address: str = None,
+    local_ip_address: Optional[str] = None,
     discover_ip_address: str = DEFAULT_BCAST_ADDR,
     discover_ip_port: int = DEFAULT_PORT,
-) -> t.Generator[Device, None, None]:
+) -> Generator[Device, None, None]:
     """Discover devices connected to the local network.
 
     This function returns a generator that yields devices instantly.
     """
-    responses = scan(timeout, local_ip_address, discover_ip_address, discover_ip_port)
+    responses = scan(
+        timeout, local_ip_address, discover_ip_address, discover_ip_port
+    )
     for resp in responses:
         yield gendevice(*resp)
 
 
 # Setup a new Broadlink device via AP Mode. Review the README to see how to enter AP Mode.
 # Only tested with Broadlink RM3 Mini (Blackbean)
-def setup(ssid: str, password: str, security_mode: int) -> None:
+def setup(
+    ssid: str,
+    password: str,
+    security_mode: int,
+    ip_address: str = DEFAULT_BCAST_ADDR,
+) -> None:
     """Set up a new Broadlink device via AP mode."""
     # Security mode options are (0 - none, 1 = WEP, 2 = WPA1, 3 = WPA2, 4 = WPA1/2)
     payload = bytearray(0x88)
@@ -299,5 +329,5 @@ def setup(ssid: str, password: str, security_mode: int) -> None:
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Internet  # UDP
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    sock.sendto(payload, (DEFAULT_BCAST_ADDR, DEFAULT_PORT))
+    sock.sendto(payload, (ip_address, DEFAULT_PORT))
     sock.close()

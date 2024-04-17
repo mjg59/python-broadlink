@@ -1,68 +1,32 @@
 #!/usr/bin/env python3
 import argparse
 import base64
-import codecs
 import time
+from typing import List
 
 import broadlink
 from broadlink.const import DEFAULT_PORT
 from broadlink.exceptions import ReadError, StorageError
+from broadlink.remote import data_to_pulses, pulses_to_data
 
-TICK = 32.84
 TIMEOUT = 30
-IR_TOKEN = 0x26
 
 
 def auto_int(x):
     return int(x, 0)
 
 
-def to_microseconds(bytes):
-    result = []
-    #  print bytes[0] # 0x26 = 38for IR
-    index = 4
-    while index < len(bytes):
-        chunk = bytes[index]
-        index += 1
-        if chunk == 0:
-            chunk = bytes[index]
-            chunk = 256 * chunk + bytes[index + 1]
-            index += 2
-        result.append(int(round(chunk * TICK)))
-        if chunk == 0x0d05:
-            break
-    return result
+def format_pulses(pulses: List[int]) -> str:
+    """Format pulses."""
+    return " ".join(
+        f"+{pulse}" if i % 2 == 0 else f"-{pulse}"
+        for i, pulse in enumerate(pulses)
+    )
 
 
-def durations_to_broadlink(durations):
-    result = bytearray()
-    result.append(IR_TOKEN)
-    result.append(0)
-    result.append(len(durations) % 256)
-    result.append(len(durations) / 256)
-    for dur in durations:
-        num = int(round(dur / TICK))
-        if num > 255:
-            result.append(0)
-            result.append(num / 256)
-        result.append(num % 256)
-    return result
-
-
-def format_durations(data):
-    result = ''
-    for i in range(0, len(data)):
-        if len(result) > 0:
-            result += ' '
-        result += ('+' if i % 2 == 0 else '-') + str(data[i])
-    return result
-
-
-def parse_durations(str):
-    result = []
-    for s in str.split():
-        result.append(abs(int(s)))
-    return result
+def parse_pulses(data: List[str]) -> List[int]:
+    """Parse pulses."""
+    return [abs(int(s)) for s in data]
 
 
 parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
@@ -83,7 +47,8 @@ parser.add_argument("--switch", action="store_true", help="switch state from on 
 parser.add_argument("--send", action="store_true", help="send command")
 parser.add_argument("--sensors", action="store_true", help="check all sensors")
 parser.add_argument("--learn", action="store_true", help="learn command")
-parser.add_argument("--rfscanlearn", action="store_true", help="rf scan learning")
+parser.add_argument("--rflearn", action="store_true", help="rf scan learning")
+parser.add_argument("--frequency", type=float, help="specify radiofrequency for learning")
 parser.add_argument("--learnfile", help="save learned command to a specified file")
 parser.add_argument("--durations", action="store_true",
                     help="use durations in micro seconds instead of the Broadlink format")
@@ -111,8 +76,8 @@ if args.joinwifi:
 
 if args.convert:
     data = bytearray.fromhex(''.join(args.data))
-    durations = to_microseconds(data)
-    print(format_durations(durations))
+    pulses = data_to_pulses(data)
+    print(format_pulses(pulses))
 if args.temperature:
     print(dev.check_temperature())
 if args.humidity:
@@ -124,10 +89,13 @@ if args.sensors:
     for key in data:
         print("{} {}".format(key, data[key]))
 if args.send:
-    data = durations_to_broadlink(parse_durations(' '.join(args.data))) \
-        if args.durations else bytearray.fromhex(''.join(args.data))
+    data = (
+        pulses_to_data(parse_pulses(args.data))
+        if args.durations
+        else bytes.fromhex(''.join(args.data))
+    )
     dev.send_data(data)
-if args.learn or (args.learnfile and not args.rfscanlearn):
+if args.learn or (args.learnfile and not args.rflearn):
     dev.enter_learning()
     print("Learning...")
     start = time.time()
@@ -143,17 +111,19 @@ if args.learn or (args.learnfile and not args.rfscanlearn):
         print("No data received...")
         exit(1)
 
-    learned = format_durations(to_microseconds(bytearray(data))) \
-        if args.durations \
-        else ''.join(format(x, '02x') for x in bytearray(data))
-    if args.learn:
-        print(learned)
-        decode_hex = codecs.getdecoder("hex_codec")
-        print("Base64: " + str(base64.b64encode(decode_hex(learned)[0])))
+    print("Packet found!")
+    raw_fmt = data.hex()
+    base64_fmt = base64.b64encode(data).decode('ascii')
+    pulse_fmt = format_pulses(data_to_pulses(data))
+
+    print("Raw:", raw_fmt)
+    print("Base64:", base64_fmt)
+    print("Pulses:", pulse_fmt)
+
     if args.learnfile:
         print("Saving to {}".format(args.learnfile))
         with open(args.learnfile, "w") as text_file:
-            text_file.write(learned)
+            text_file.write(pulse_fmt if args.durations else raw_fmt)
 if args.check:
     if dev.check_power():
         print('* ON *')
@@ -195,28 +165,33 @@ if args.switch:
     else:
         dev.set_power(True)
         print('* Switch to ON *')
-if args.rfscanlearn:
-    dev.sweep_frequency()
-    print("Learning RF Frequency, press and hold the button to learn...")
-
-    start = time.time()
-    while time.time() - start < TIMEOUT:
-        time.sleep(1)
-        if dev.check_frequency():
-            break
+if args.rflearn:
+    if args.frequency:
+        frequency = args.frequency
+        print("Press the button you want to learn, a short press...")
     else:
-        print("RF Frequency not found")
-        dev.cancel_sweep_frequency()
-        exit(1)
+        dev.sweep_frequency()
+        print("Detecting radiofrequency, press and hold the button to learn...")
 
-    print("Found RF Frequency - 1 of 2!")
-    print("You can now let go of the button")
+        start = time.time()
+        while time.time() - start < TIMEOUT:
+            time.sleep(1)
+            locked, frequency = dev.check_frequency()
+            if locked:
+                break
+        else:
+            print("Radiofrequency not found")
+            dev.cancel_sweep_frequency()
+            exit(1)
 
-    input("Press enter to continue...")
+        print("Radiofrequency detected: {}MHz".format(frequency))
+        print("You can now let go of the button")
 
-    print("To complete learning, single press the button you want to learn")
+        input("Press enter to continue...")
 
-    dev.find_rf_packet()
+        print("Press the button again, now a short press.")
+
+    dev.find_rf_packet(frequency)
 
     start = time.time()
     while time.time() - start < TIMEOUT:
@@ -231,15 +206,16 @@ if args.rfscanlearn:
         print("No data received...")
         exit(1)
 
-    print("Found RF Frequency - 2 of 2!")
-    learned = format_durations(to_microseconds(bytearray(data))) \
-        if args.durations \
-        else ''.join(format(x, '02x') for x in bytearray(data))
-    if args.learnfile is None:
-        print(learned)
-        decode_hex = codecs.getdecoder("hex_codec")
-        print("Base64: {}".format(str(base64.b64encode(decode_hex(learned)[0]))))
-    if args.learnfile is not None:
+    print("Packet found!")
+    raw_fmt = data.hex()
+    base64_fmt = base64.b64encode(data).decode('ascii')
+    pulse_fmt = format_pulses(data_to_pulses(data))
+
+    print("Raw:", raw_fmt)
+    print("Base64:", base64_fmt)
+    print("Pulses:", pulse_fmt)
+
+    if args.learnfile:
         print("Saving to {}".format(args.learnfile))
         with open(args.learnfile, "w") as text_file:
-            text_file.write(learned)
+            text_file.write(pulse_fmt if args.durations else raw_fmt)
