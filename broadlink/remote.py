@@ -6,7 +6,7 @@ from . import exceptions as e
 from .device import Device
 
 
-def pulses_to_data(pulses: t.List[int], tick: int = 32.84) -> None:
+def pulses_to_data(pulses: t.List[int], tick: float = 32.84) -> bytes:
     """Convert a microsecond duration sequence into a Broadlink IR packet."""
     result = bytearray(4)
     result[0x00] = 0x26
@@ -25,7 +25,7 @@ def pulses_to_data(pulses: t.List[int], tick: int = 32.84) -> None:
     return result
 
 
-def data_to_pulses(data: bytes, tick: int = 32.84) -> t.List[int]:
+def data_to_pulses(data: bytes, tick: float = 32.84) -> t.List[int]:
     """Parse a Broadlink packet into a microsecond duration sequence."""
     result = []
     index = 4
@@ -38,8 +38,8 @@ def data_to_pulses(data: bytes, tick: int = 32.84) -> t.List[int]:
         if chunk == 0:
             try:
                 chunk = 256 * data[index] + data[index + 1]
-            except IndexError:
-                raise ValueError("Malformed data.")
+            except IndexError as err:
+                raise ValueError("Malformed data.") from err
             index += 2
 
         result.append(int(chunk * tick))
@@ -95,7 +95,7 @@ class rmpro(rmmini):
         frequency = struct.unpack("<I", resp[1:5])[0] / 1000.0
         return is_found, frequency
 
-    def find_rf_packet(self, frequency: float = None) -> None:
+    def find_rf_packet(self, frequency: float | None = None) -> None:
         """Enter radiofrequency learning mode."""
         payload = bytearray()
         if frequency:
@@ -129,7 +129,7 @@ class rmminib(rmmini):
         e.check_error(resp[0x22:0x24])
         payload = self.decrypt(resp[0x38:])
         p_len = struct.unpack("<H", payload[:0x2])[0]
-        return payload[0x6 : p_len + 2]
+        return payload[0x6:p_len+2]
 
 
 class rm4mini(rmminib):

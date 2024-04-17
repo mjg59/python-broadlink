@@ -32,20 +32,20 @@ class lb1(Device):
 
     def set_state(
         self,
-        pwr: bool = None,
-        red: int = None,
-        blue: int = None,
-        green: int = None,
-        brightness: int = None,
-        colortemp: int = None,
-        hue: int = None,
-        saturation: int = None,
-        transitionduration: int = None,
-        maxworktime: int = None,
-        bulb_colormode: int = None,
-        bulb_scenes: str = None,
-        bulb_scene: str = None,
-        bulb_sceneidx: int = None,
+        pwr: bool | None = None,
+        red: int | None = None,
+        blue: int | None = None,
+        green: int | None = None,
+        brightness: int | None = None,
+        colortemp: int | None = None,
+        hue: int | None = None,
+        saturation: int | None = None,
+        transitionduration: int | None = None,
+        maxworktime: int | None = None,
+        bulb_colormode: int | None = None,
+        bulb_scenes: str | None = None,
+        bulb_scene: str | None = None,
+        bulb_sceneidx: int | None = None,
     ) -> dict:
         """Set the power state of the device."""
         state = {}
@@ -101,7 +101,7 @@ class lb1(Device):
         """Decode a JSON packet."""
         payload = self.decrypt(response[0x38:])
         js_len = struct.unpack_from("<I", payload, 0xA)[0]
-        state = json.loads(payload[0xE : 0xE + js_len])
+        state = json.loads(payload[0xE:0xE+js_len])
         return state
 
 
@@ -130,19 +130,19 @@ class lb2(Device):
 
     def set_state(
         self,
-        pwr: bool = None,
-        red: int = None,
-        blue: int = None,
-        green: int = None,
-        brightness: int = None,
-        colortemp: int = None,
-        hue: int = None,
-        saturation: int = None,
-        transitionduration: int = None,
-        maxworktime: int = None,
-        bulb_colormode: int = None,
-        bulb_scenes: str = None,
-        bulb_scene: str = None,
+        pwr: bool | None = None,
+        red: int | None = None,
+        blue: int | None = None,
+        green: int | None = None,
+        brightness: int | None = None,
+        colortemp: int | None = None,
+        hue: int | None = None,
+        saturation: int | None = None,
+        transitionduration: int | None = None,
+        maxworktime: int | None = None,
+        bulb_colormode: int | None = None,
+        bulb_scenes: str | None = None,
+        bulb_scene: str | None = None,
     ) -> dict:
         """Set the power state of the device."""
         state = {}
@@ -183,7 +183,9 @@ class lb2(Device):
         # flag: 1 for reading, 2 for writing.
         packet = bytearray(12)
         data = json.dumps(state, separators=(",", ":")).encode()
-        struct.pack_into("<HHHBBI", packet, 0, 0xA5A5, 0x5A5A, 0, flag, 0x0B, len(data))
+        struct.pack_into(
+            "<HHHBBI", packet, 0, 0xA5A5, 0x5A5A, 0, flag, 0x0B, len(data)
+        )
         packet.extend(data)
         checksum = sum(packet, 0xBEAF) & 0xFFFF
         packet[0x04:0x06] = checksum.to_bytes(2, "little")
@@ -193,5 +195,5 @@ class lb2(Device):
         """Decode a JSON packet."""
         payload = self.decrypt(response[0x38:])
         js_len = struct.unpack_from("<I", payload, 0x08)[0]
-        state = json.loads(payload[0x0C : 0x0C + js_len])
+        state = json.loads(payload[0x0C:0x0C+js_len])
         return state

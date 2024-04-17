@@ -127,12 +127,12 @@ class sp4(Device):
 
     def set_state(
         self,
-        pwr: bool = None,
-        ntlight: bool = None,
-        indicator: bool = None,
-        ntlbrightness: int = None,
-        maxworktime: int = None,
-        childlock: bool = None,
+        pwr: bool | None = None,
+        ntlight: bool | None = None,
+        indicator: bool | None = None,
+        ntlbrightness: int | None = None,
+        maxworktime: int | None = None,
+        childlock: bool | None = None,
     ) -> dict:
         """Set state of device."""
         state = {}
@@ -186,7 +186,7 @@ class sp4(Device):
         e.check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
         js_len = struct.unpack_from("<I", payload, 0x08)[0]
-        state = json.loads(payload[0x0C : 0x0C + js_len])
+        state = json.loads(payload[0x0C:0x0C+js_len])
         return state
 
 
@@ -234,7 +234,7 @@ class sp4b(sp4):
         e.check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
         js_len = struct.unpack_from("<I", payload, 0xA)[0]
-        state = json.loads(payload[0x0E : 0x0E + js_len])
+        state = json.loads(payload[0x0E:0x0E+js_len])
         return state
 
 
@@ -255,13 +255,13 @@ class bg1(Device):
 
     def set_state(
         self,
-        pwr: bool = None,
-        pwr1: bool = None,
-        pwr2: bool = None,
-        maxworktime: int = None,
-        maxworktime1: int = None,
-        maxworktime2: int = None,
-        idcbrightness: int = None,
+        pwr: bool | None = None,
+        pwr1: bool | None = None,
+        pwr2: bool | None = None,
+        maxworktime: int | None = None,
+        maxworktime1: int | None = None,
+        maxworktime2: int | None = None,
+        idcbrightness: int | None = None,
     ) -> dict:
         """Set the power state of the device."""
         state = {}
@@ -291,7 +291,16 @@ class bg1(Device):
         data = json.dumps(state).encode()
         length = 12 + len(data)
         struct.pack_into(
-            "<HHHHBBI", packet, 0, length, 0xA5A5, 0x5A5A, 0x0000, flag, 0x0B, len(data)
+            "<HHHHBBI",
+            packet,
+            0,
+            length,
+            0xA5A5,
+            0x5A5A,
+            0x0000,
+            flag,
+            0x0B,
+            len(data),
         )
         packet.extend(data)
         checksum = sum(packet[0x2:], 0xBEAF) & 0xFFFF
@@ -302,7 +311,7 @@ class bg1(Device):
         """Decode a message."""
         payload = self.decrypt(response[0x38:])
         js_len = struct.unpack_from("<I", payload, 0x0A)[0]
-        state = json.loads(payload[0x0E : 0x0E + js_len])
+        state = json.loads(payload[0x0E:0x0E+js_len])
         return state
 
 
@@ -313,19 +322,19 @@ class ehc31(bg1):
 
     def set_state(
         self,
-        pwr: bool = None,
-        pwr1: bool = None,
-        pwr2: bool = None,
-        pwr3: bool = None,
-        maxworktime1: int = None,
-        maxworktime2: int = None,
-        maxworktime3: int = None,
-        idcbrightness: int = None,
-        childlock: bool = None,
-        childlock1: bool = None,
-        childlock2: bool = None,
-        childlock3: bool = None,
-        childlock4: bool = None,
+        pwr: bool | None = None,
+        pwr1: bool | None = None,
+        pwr2: bool | None = None,
+        pwr3: bool | None = None,
+        maxworktime1: int | None = None,
+        maxworktime2: int | None = None,
+        maxworktime3: int | None = None,
+        idcbrightness: int | None = None,
+        childlock: bool | None = None,
+        childlock1: bool | None = None,
+        childlock2: bool | None = None,
+        childlock3: bool | None = None,
+        childlock4: bool | None = None,
     ) -> dict:
         """Set the power state of the device."""
         state = {}
@@ -449,7 +458,7 @@ class mp1s(mp1):
 
         def get_value(start, end, factors):
             value = sum(
-                int(payload_str[i - 2 : i]) * factor
+                int(payload_str[i-2:i]) * factor
                 for i, factor in zip(range(start, end, -2), factors)
             )
             return value

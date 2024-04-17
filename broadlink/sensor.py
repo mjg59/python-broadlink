@@ -1,4 +1,6 @@
 """Support for sensors."""
+from typing import Sequence
+
 from . import exceptions as e
 from .device import Device
 
@@ -45,7 +47,7 @@ class a2(Device):
 
     TYPE = "A2"
 
-    def _send(self, operation: int, data: bytes = b""):
+    def _send(self, operation: int, data: Sequence = b""):
         """Send a command to the device."""
         packet = bytearray(12)
         packet[0x02] = 0xA5
