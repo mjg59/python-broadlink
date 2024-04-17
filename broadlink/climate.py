@@ -34,16 +34,14 @@ class hysen(Device):
         payload = self.decrypt(response[0x38:])
 
         p_len = int.from_bytes(payload[:0x02], "little")
-        if p_len + 2 > len(payload):
-            raise ValueError(
-                "hysen_response_error", "first byte of response is not length"
-            )
-
         nom_crc = int.from_bytes(payload[p_len:p_len+2], "little")
         real_crc = CRC16.calculate(payload[0x02:p_len])
+
         if nom_crc != real_crc:
-            raise ValueError(
-                "hysen_response_error", "CRC check on response failed"
+            raise e.DataValidationError(
+                -4008,
+                "Received data packet check error",
+                f"Expected a checksum of {nom_crc} and received {real_crc}",
             )
 
         return payload[0x02:p_len]
@@ -213,7 +211,19 @@ class hysen(Device):
     def set_time(self, hour: int, minute: int, second: int, day: int) -> None:
         """Set the time."""
         self.send_request(
-            [0x01, 0x10, 0x00, 0x08, 0x00, 0x02, 0x04, hour, minute, second, day]
+            [
+                0x01,
+                0x10,
+                0x00,
+                0x08,
+                0x00,
+                0x02,
+                0x04,
+                hour,
+                minute,
+                second,
+                day
+            ]
         )
 
     # Set timer schedule
@@ -302,13 +312,6 @@ class hvac(Device):
         POS5 = 5
         OFF = 7
 
-    def _crc(self, data: bytes) -> int:
-        """Calculate CRC of a byte object."""
-        s = sum([v if i % 2 == 0 else v << 8 for i, v in enumerate(data)])
-        # trim the overflow and add it to smallest bit
-        s = (s & 0xFFFF) + (s >> 16)
-        return (0xFFFF - s) & 0xFFFF
-
     def _encode(self, data: bytes) -> bytes:
         """Encode data for transport."""
         packet = bytearray(10)
@@ -317,7 +320,8 @@ class hvac(Device):
             "<HHHHH", packet, 0, p_len, 0x00BB, 0x8006, 0, len(data)
         )
         packet += data
-        packet += self._crc(packet[2:]).to_bytes(2, "little")
+        crc = CRC16.calculate(packet[0x02:], polynomial=0x9BE4)
+        packet += crc.to_bytes(2, "little")
         return packet
 
     def _decode(self, response: bytes) -> bytes:
@@ -325,13 +329,14 @@ class hvac(Device):
         # payload[0x2:0x8] == bytes([0xbb, 0x00, 0x07, 0x00, 0x00, 0x00])
         payload = self.decrypt(response[0x38:])
         p_len = int.from_bytes(payload[:0x02], "little")
-        checksum = int.from_bytes(payload[p_len:p_len+2], "little")
+        nom_crc = int.from_bytes(payload[p_len:p_len+2], "little")
+        real_crc = CRC16.calculate(payload[0x02:p_len], polynomial=0x9BE4)
 
-        if checksum != self._crc(payload[0x02:p_len]):
-            logging.debug(
-                "Checksum incorrect (calculated %s actual %s).",
-                checksum.hex(),
-                payload[p_len:p_len+2].hex(),
+        if nom_crc != real_crc:
+            raise e.DataValidationError(
+                -4008,
+                "Received data packet check error",
+                f"Expected a checksum of {nom_crc} and received {real_crc}",
             )
 
         d_len = int.from_bytes(payload[0x08:0x0A], "little")
@@ -364,7 +369,7 @@ class hvac(Device):
                 clean (bool):
                 mildew (bool):
         """
-        resp = self._send(0x1)
+        resp = self._send(1)
 
         if len(resp) != 0x0F:
             raise ValueError(f"unexpected resp size: {len(resp)}")
@@ -461,7 +466,7 @@ class hvac(Device):
         data[0x03] = speed << 5
         data[0x04] = preset << 6
         data[0x05] = mode << 5 | (sleep << 2)
-        data[0x08] = power << 5 | clean << 2 | health and 0b11
+        data[0x08] = power << 5 | clean << 2 | (health and 0b11)
         data[0x0A] = display << 4 | mildew << 3
         data[0x0C] = UNK2
 
