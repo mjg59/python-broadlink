@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The python-broadlink library."""
 import socket
-import typing as t
+from typing import Generator, List, Optional, Tuple, Union
 
 from . import exceptions as e
 from .const import DEFAULT_BCAST_ADDR, DEFAULT_PORT, DEFAULT_TIMEOUT
@@ -212,8 +212,8 @@ SUPPORTED_TYPES = {
 
 def gendevice(
     dev_type: int,
-    host: t.Tuple[str, int],
-    mac: t.Union[bytes, str],
+    host: Tuple[str, int],
+    mac: Union[bytes, str],
     name: str = "",
     is_locked: bool = False,
 ) -> Device:
@@ -265,10 +265,10 @@ def hello(
 
 def discover(
     timeout: int = DEFAULT_TIMEOUT,
-    local_ip_address: str = None,
+    local_ip_address: Optional[str] = None,
     discover_ip_address: str = DEFAULT_BCAST_ADDR,
     discover_ip_port: int = DEFAULT_PORT,
-) -> t.List[Device]:
+) -> List[Device]:
     """Discover devices connected to the local network."""
     responses = scan(
         timeout, local_ip_address, discover_ip_address, discover_ip_port
@@ -278,10 +278,10 @@ def discover(
 
 def xdiscover(
     timeout: int = DEFAULT_TIMEOUT,
-    local_ip_address: str | None = None,
+    local_ip_address: Optional[str] = None,
     discover_ip_address: str = DEFAULT_BCAST_ADDR,
     discover_ip_port: int = DEFAULT_PORT,
-) -> t.Generator[Device, None, None]:
+) -> Generator[Device, None, None]:
     """Discover devices connected to the local network.
 
     This function returns a generator that yields devices instantly.
