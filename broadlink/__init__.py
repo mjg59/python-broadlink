@@ -55,6 +55,7 @@ SUPPORTED_TYPES = {
     },
     sp4: {
         0x7568: ("SP4L-CN", "Broadlink"),
+        0x756B: ("SP4M-JP", "Broadlink"),
         0x756C: ("SP4M", "Broadlink"),
         0x756F: ("MCB1", "Broadlink"),
         0x7579: ("SP4L-EU", "Broadlink"),
@@ -62,6 +63,7 @@ SUPPORTED_TYPES = {
         0x7583: ("SP mini 3", "Broadlink"),
         0x7587: ("SP4L-UK", "Broadlink"),
         0x7D11: ("SP mini 3", "Broadlink"),
+        0xA4F9: ("WS4", "Broadlink (OEM)"),
         0xA569: ("SP4L-UK", "Broadlink"),
         0xA56A: ("MCB1", "Broadlink"),
         0xA56B: ("SCB1E", "Broadlink"),
@@ -69,6 +71,7 @@ SUPPORTED_TYPES = {
         0xA576: ("SP4L-AU", "Broadlink"),
         0xA589: ("SP4L-UK", "Broadlink"),
         0xA5D3: ("SP4L-EU", "Broadlink"),
+        0xA6F4: ("SP4D-US", "Broadlink"),
     },
     sp4b: {
         0x5115: ("SCB1E", "Broadlink"),
@@ -156,6 +159,7 @@ SUPPORTED_TYPES = {
     lb1: {
         0x5043: ("SB800TD", "Broadlink (OEM)"),
         0x504E: ("LB1", "Broadlink"),
+        0x606D: ("SLA22RGB9W81/SLA27RGB9W81", "Luceco"),
         0x606E: ("SB500TD", "Broadlink (OEM)"),
         0x60C7: ("LB1", "Broadlink"),
         0x60C8: ("LB1", "Broadlink"),
@@ -168,13 +172,14 @@ SUPPORTED_TYPES = {
     lb2: {
         0xA4F4: ("LB27 R1", "Broadlink"),
         0xA5F7: ("LB27 R1", "Broadlink"),
+        0xA6EF: ("EFCF60WSMT", "Luceco"),
     },
     S1C: {
         0x2722: ("S2KIT", "Broadlink"),
     },
     s3:  {
-        0xA59C:("S3", "Broadlink"),
-        0xA64D:("S3", "Broadlink"),
+        0xA59C: ("S3", "Broadlink"),
+        0xA64D: ("S3", "Broadlink"),
     },
     hysen: {
         0x4EAD: ("HY02/HY03", "Hysen"),
