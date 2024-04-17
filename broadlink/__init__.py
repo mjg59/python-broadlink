@@ -6,7 +6,7 @@ import typing as t
 from . import exceptions as e
 from .const import DEFAULT_BCAST_ADDR, DEFAULT_PORT, DEFAULT_TIMEOUT
 from .alarm import S1C
-from .climate import hysen
+from .climate import hvac, hysen
 from .cover import dooya, dooya2, wser
 from .device import Device, ping, scan
 from .hub import s3
@@ -177,6 +177,9 @@ SUPPORTED_TYPES = {
         0xA59C: ("S3", "Broadlink"),
         0xA64D: ("S3", "Broadlink"),
     },
+    hvac: {
+        0x4E2A: ("HVAC", "Licensed manufacturer"),
+    },
     hysen: {
         0x4EAD: ("HY02/HY03", "Hysen"),
     },
@@ -258,7 +261,9 @@ def discover(
     discover_ip_port: int = DEFAULT_PORT,
 ) -> t.List[Device]:
     """Discover devices connected to the local network."""
-    responses = scan(timeout, local_ip_address, discover_ip_address, discover_ip_port)
+    responses = scan(
+        timeout, local_ip_address, discover_ip_address, discover_ip_port
+    )
     return [gendevice(*resp) for resp in responses]
 
 
@@ -272,7 +277,9 @@ def xdiscover(
 
     This function returns a generator that yields devices instantly.
     """
-    responses = scan(timeout, local_ip_address, discover_ip_address, discover_ip_port)
+    responses = scan(
+        timeout, local_ip_address, discover_ip_address, discover_ip_port
+    )
     for resp in responses:
         yield gendevice(*resp)
 
