@@ -170,6 +170,7 @@ SUPPORTED_TYPES = {
         0x60C8: ("LB1", "Broadlink"),
         0x6112: ("LB1", "Broadlink"),
         0x644B: ("LB1", "Broadlink"),
+        0x6498: ("LB1", "Broadlink"),
         0x644C: ("LB27 R1", "Broadlink"),
         0x644E: ("LB26 R1", "Broadlink"),
         0x6488: ("LB27 C1", "Broadlink"),
@@ -178,6 +179,7 @@ SUPPORTED_TYPES = {
         0xA4F4: ("LB27 R1", "Broadlink"),
         0xA5F7: ("LB27 R1", "Broadlink"),
         0xA6EF: ("EFCF60WSMT", "Luceco"),
+        0xA7B6: ("LB2", "Broadlink"),
     },
     S1C: {
         0x2722: ("S2KIT", "Broadlink"),
