@@ -90,6 +90,7 @@ SUPPORTED_TYPES = {
         0x27B7: ("RM mini 3", "Broadlink"),
         0x27C2: ("RM mini 3", "Broadlink"),
         0x27C7: ("RM mini 3", "Broadlink"),
+        0x27C8: ("RM mini 3", "Broadlink"), #cmcc version
         0x27CC: ("RM mini 3", "Broadlink"),
         0x27CD: ("RM mini 3", "Broadlink"),
         0x27D0: ("RM mini 3", "Broadlink"),
