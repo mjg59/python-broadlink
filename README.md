@@ -13,6 +13,7 @@ A Python module and CLI for controlling Broadlink devices locally. The following
 - **Curtain motors**: Dooya DT360E-45/20
 - **Thermostats**: Hysen HY02B05H
 - **Hubs**: S3
+- **Air purifiers**: LIFAair LM05
 
 ## Installation
 
@@ -214,6 +215,19 @@ devices[0].set_state(bulb_colormode=1)
 ### Fetching sensor data
 ```python3
 data = device.check_sensors()
+```
+
+## Air purifiers
+
+### Fetching purifier state
+```python3
+data = device.get_state()
+```
+
+### Controlling purifier fan
+```python3
+device.set_fan_mode(FanMode.TURBO)
+device.set_fan_speed(50)
 ```
 
 ## Hubs

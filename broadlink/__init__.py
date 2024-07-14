@@ -14,6 +14,7 @@ from .light import lb1, lb2
 from .remote import rm, rm4, rm4mini, rm4pro, rmmini, rmminib, rmpro
 from .sensor import a1, a2
 from .switch import bg1, ehc31, mp1, mp1s, sp1, sp2, sp2s, sp3, sp3s, sp4, sp4b
+from .purifier import lifaair
 
 SUPPORTED_TYPES = {
     sp1: {
@@ -207,6 +208,9 @@ SUPPORTED_TYPES = {
     ehc31: {
         0x6480: ("EHC31", "BG Electrical"),
     },
+    lifaair: {
+        0x4ec2: ("LM05", "LIFAair"),
+    }
 }
 
 

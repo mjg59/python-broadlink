@@ -1,0 +1,44 @@
+import time
+import broadlink
+from broadlink.purifier import lifaair, FanMode
+
+def print_state(state: dict):
+    temperature = state["temperature"]
+    humidity = state["humidity"]
+    print("-> Temperature=%s Humidity=%s CO2=%4dppm TVOC=%4dug/m3 PM2.5=%2dug/m3 FanSpeed=%d (%s)" % (
+        "%2.1fC" % temperature if temperature is not None else "-----",
+        "%2d%%" %humidity if humidity is not None else "---",
+        state["co2"],
+        state["tvoc"],
+        state["pm2_5"],
+        state["fan_speed"],
+        state["fan_mode"]))
+
+print("Searching for lifaair devices... ")
+dev: lifaair = next(dev for dev in broadlink.discover() if isinstance(dev, lifaair))
+print("Found %s" % dev)
+
+print("Authenticating... ", end="")
+dev.auth()
+print("OK (id=%d, key=%s)" % (dev.id, dev.aes.algorithm.key.hex()))
+
+print("Getting firmware version... ", end="")
+print(dev.get_fwversion())
+
+print("Getting state...")
+print_state(dev.get_state())
+
+for mode in FanMode:
+    print("Setting fan mode to %s" % mode)
+    print_state(dev.set_fan_mode(mode))
+    time.sleep(5)
+
+for speed in (0, 60, 121):
+    print("Setting fan speed to %d" % speed)
+    print_state(dev.set_fan_speed(speed))
+    time.sleep(5)
+
+print("Monitoring state...")
+while True:
+    print_state(dev.get_state())
+    time.sleep(1)
