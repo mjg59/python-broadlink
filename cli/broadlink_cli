@@ -46,6 +46,7 @@ parser.add_argument("--turnnloff", action="store_true", help="turn off nightligh
 parser.add_argument("--switch", action="store_true", help="switch state from on to off and off to on")
 parser.add_argument("--send", action="store_true", help="send command")
 parser.add_argument("--sensors", action="store_true", help="check all sensors")
+parser.add_argument("--sensorsJson", action="store_true", help="check all sensors and print in json format")
 parser.add_argument("--learn", action="store_true", help="learn command")
 parser.add_argument("--rflearn", action="store_true", help="rf scan learning")
 parser.add_argument("--frequency", type=float, help="specify radiofrequency for learning")
@@ -88,6 +89,16 @@ if args.sensors:
     data = dev.check_sensors()
     for key in data:
         print("{} {}".format(key, data[key]))
+if args.sensorsJson:
+    data = dev.check_sensors()
+    print("{")
+    ftt = True
+    for key in data:
+        if not ftt:
+            print(",")
+        print("    \"{}\" : {}".format(key, data[key]))
+        ftt = False
+    print("}")
 if args.send:
     data = (
         pulses_to_data(parse_pulses(args.data))
