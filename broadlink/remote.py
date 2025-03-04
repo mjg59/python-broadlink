@@ -1,8 +1,50 @@
 """Support for universal remotes."""
 import struct
+from typing import List, Optional, Tuple
 
 from . import exceptions as e
 from .device import Device
+
+
+def pulses_to_data(pulses: List[int], tick: float = 32.84) -> bytes:
+    """Convert a microsecond duration sequence into a Broadlink IR packet."""
+    result = bytearray(4)
+    result[0x00] = 0x26
+
+    for pulse in pulses:
+        div, mod = divmod(int(pulse // tick), 256)
+        if div:
+            result.append(0)
+            result.append(div)
+        result.append(mod)
+
+    data_len = len(result) - 4
+    result[0x02] = data_len & 0xFF
+    result[0x03] = data_len >> 8
+
+    return result
+
+
+def data_to_pulses(data: bytes, tick: float = 32.84) -> List[int]:
+    """Parse a Broadlink packet into a microsecond duration sequence."""
+    result = []
+    index = 4
+    end = min(256 * data[0x03] + data[0x02] + 4, len(data))
+
+    while index < end:
+        chunk = data[index]
+        index += 1
+
+        if chunk == 0:
+            try:
+                chunk = 256 * data[index] + data[index + 1]
+            except IndexError as err:
+                raise ValueError("Malformed data.") from err
+            index += 2
+
+        result.append(int(chunk * tick))
+
+    return result
 
 
 class rmmini(Device):
@@ -46,14 +88,19 @@ class rmpro(rmmini):
         """Sweep frequency."""
         self._send(0x19)
 
-    def check_frequency(self) -> bool:
+    def check_frequency(self) -> Tuple[bool, float]:
         """Return True if the frequency was identified successfully."""
         resp = self._send(0x1A)
-        return resp[0] == 1
+        is_found = bool(resp[0])
+        frequency = struct.unpack("<I", resp[1:5])[0] / 1000.0
+        return is_found, frequency
 
-    def find_rf_packet(self) -> None:
+    def find_rf_packet(self, frequency: Optional[float] = None) -> None:
         """Enter radiofrequency learning mode."""
-        self._send(0x1B)
+        payload = bytearray()
+        if frequency:
+            payload += struct.pack("<I", int(frequency * 1000))
+        self._send(0x1B, payload)
 
     def cancel_sweep_frequency(self) -> None:
         """Cancel sweep frequency."""
@@ -82,7 +129,7 @@ class rmminib(rmmini):
         e.check_error(resp[0x22:0x24])
         payload = self.decrypt(resp[0x38:])
         p_len = struct.unpack("<H", payload[:0x2])[0]
-        return payload[0x6 : p_len + 2]
+        return payload[0x6:p_len+2]
 
 
 class rm4mini(rmminib):

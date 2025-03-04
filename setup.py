@@ -5,7 +5,7 @@
 from setuptools import setup, find_packages
 
 
-version = '0.18.3'
+version = '0.19.0'
 
 setup(
     name="broadlink",

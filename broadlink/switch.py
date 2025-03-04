@@ -1,6 +1,7 @@
 """Support for switches."""
 import json
 import struct
+from typing import Optional
 
 from . import exceptions as e
 from .device import Device
@@ -127,12 +128,12 @@ class sp4(Device):
 
     def set_state(
         self,
-        pwr: bool = None,
-        ntlight: bool = None,
-        indicator: bool = None,
-        ntlbrightness: int = None,
-        maxworktime: int = None,
-        childlock: bool = None,
+        pwr: Optional[bool] = None,
+        ntlight: Optional[bool] = None,
+        indicator: Optional[bool] = None,
+        ntlbrightness: Optional[int] = None,
+        maxworktime: Optional[int] = None,
+        childlock: Optional[bool] = None,
     ) -> dict:
         """Set state of device."""
         state = {}
@@ -186,7 +187,7 @@ class sp4(Device):
         e.check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
         js_len = struct.unpack_from("<I", payload, 0x08)[0]
-        state = json.loads(payload[0x0C : 0x0C + js_len])
+        state = json.loads(payload[0x0C:0x0C+js_len])
         return state
 
 
@@ -234,7 +235,7 @@ class sp4b(sp4):
         e.check_error(response[0x22:0x24])
         payload = self.decrypt(response[0x38:])
         js_len = struct.unpack_from("<I", payload, 0xA)[0]
-        state = json.loads(payload[0x0E : 0x0E + js_len])
+        state = json.loads(payload[0x0E:0x0E+js_len])
         return state
 
 
@@ -255,13 +256,13 @@ class bg1(Device):
 
     def set_state(
         self,
-        pwr: bool = None,
-        pwr1: bool = None,
-        pwr2: bool = None,
-        maxworktime: int = None,
-        maxworktime1: int = None,
-        maxworktime2: int = None,
-        idcbrightness: int = None,
+        pwr: Optional[bool] = None,
+        pwr1: Optional[bool] = None,
+        pwr2: Optional[bool] = None,
+        maxworktime: Optional[int] = None,
+        maxworktime1: Optional[int] = None,
+        maxworktime2: Optional[int] = None,
+        idcbrightness: Optional[int] = None,
     ) -> dict:
         """Set the power state of the device."""
         state = {}
@@ -291,7 +292,16 @@ class bg1(Device):
         data = json.dumps(state).encode()
         length = 12 + len(data)
         struct.pack_into(
-            "<HHHHBBI", packet, 0, length, 0xA5A5, 0x5A5A, 0x0000, flag, 0x0B, len(data)
+            "<HHHHBBI",
+            packet,
+            0,
+            length,
+            0xA5A5,
+            0x5A5A,
+            0x0000,
+            flag,
+            0x0B,
+            len(data),
         )
         packet.extend(data)
         checksum = sum(packet[0x2:], 0xBEAF) & 0xFFFF
@@ -302,8 +312,64 @@ class bg1(Device):
         """Decode a message."""
         payload = self.decrypt(response[0x38:])
         js_len = struct.unpack_from("<I", payload, 0x0A)[0]
-        state = json.loads(payload[0x0E : 0x0E + js_len])
+        state = json.loads(payload[0x0E:0x0E+js_len])
         return state
+
+
+class ehc31(bg1):
+    """Controls a BG Electrical smart extension lead."""
+
+    TYPE = "EHC31"
+
+    def set_state(
+        self,
+        pwr: Optional[bool] = None,
+        pwr1: Optional[bool] = None,
+        pwr2: Optional[bool] = None,
+        pwr3: Optional[bool] = None,
+        maxworktime1: Optional[int] = None,
+        maxworktime2: Optional[int] = None,
+        maxworktime3: Optional[int] = None,
+        idcbrightness: Optional[int] = None,
+        childlock: Optional[bool] = None,
+        childlock1: Optional[bool] = None,
+        childlock2: Optional[bool] = None,
+        childlock3: Optional[bool] = None,
+        childlock4: Optional[bool] = None,
+    ) -> dict:
+        """Set the power state of the device."""
+        state = {}
+        if pwr is not None:
+            state["pwr"] = int(bool(pwr))
+        if pwr1 is not None:
+            state["pwr1"] = int(bool(pwr1))
+        if pwr2 is not None:
+            state["pwr2"] = int(bool(pwr2))
+        if pwr3 is not None:
+            state["pwr3"] = int(bool(pwr3))
+        if maxworktime1 is not None:
+            state["maxworktime1"] = maxworktime1
+        if maxworktime2 is not None:
+            state["maxworktime2"] = maxworktime2
+        if maxworktime3 is not None:
+            state["maxworktime3"] = maxworktime3
+        if idcbrightness is not None:
+            state["idcbrightness"] = idcbrightness
+        if childlock is not None:
+            state["childlock"] = int(bool(childlock))
+        if childlock1 is not None:
+            state["childlock1"] = int(bool(childlock1))
+        if childlock2 is not None:
+            state["childlock2"] = int(bool(childlock2))
+        if childlock3 is not None:
+            state["childlock3"] = int(bool(childlock3))
+        if childlock4 is not None:
+            state["childlock4"] = int(bool(childlock4))
+
+        packet = self._encode(2, state)
+        response = self.send_packet(0x6A, packet)
+        e.check_error(response[0x22:0x24])
+        return self._decode(response)
 
 
 class mp1(Device):
@@ -359,4 +425,48 @@ class mp1(Device):
             "s2": bool(data & 2),
             "s3": bool(data & 4),
             "s4": bool(data & 8),
+        }
+
+
+class mp1s(mp1):
+    """Controls a Broadlink MP1S."""
+
+    TYPE = "MP1S"
+
+    def get_state(self) -> dict:
+        """Return the power state of the device.
+
+        voltage in V.
+        current in A.
+        power in W.
+        power consumption in kW·h.
+        """
+        packet = bytearray(16)
+        packet[0x00] = 0x0E
+        packet[0x02] = 0xA5
+        packet[0x03] = 0xA5
+        packet[0x04] = 0x5A
+        packet[0x05] = 0x5A
+        packet[0x06] = 0xB2
+        packet[0x07] = 0xC0
+        packet[0x08] = 0x01
+        packet[0x0A] = 0x04
+
+        response = self.send_packet(0x6A, packet)
+        e.check_error(response[0x22:0x24])
+        payload = self.decrypt(response[0x38:])
+        payload_str = payload.hex()[4:-6]
+
+        def get_value(start, end, factors):
+            value = sum(
+                int(payload_str[i-2:i]) * factor
+                for i, factor in zip(range(start, end, -2), factors)
+            )
+            return value
+
+        return {
+            "volt": get_value(34, 30, [10, 0.1]),
+            "current": get_value(40, 34, [1, 0.01, 0.0001]),
+            "power": get_value(46, 40, [100, 1, 0.01]),
+            "totalconsum": get_value(54, 46, [10000, 100, 1, 0.01]),
         }
