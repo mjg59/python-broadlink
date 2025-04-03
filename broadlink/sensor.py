@@ -47,39 +47,16 @@ class a2(Device):
 
     TYPE = "A2"
 
-    def _send(self, operation: int, data: Sequence = b""):
+    def _send(self, data: bytes) -> bytes:
         """Send a command to the device."""
-        packet = bytearray(12)
-        packet[0x02] = 0xA5
-        packet[0x03] = 0xA5
-        packet[0x04] = 0x5A
-        packet[0x05] = 0x5A
-        packet[0x08] = operation
-        packet[0x09] = 0x0B
-
-        if data:
-            data_len = len(data)
-            packet[0x0A] = data_len & 0xFF
-            packet[0x0B] = data_len >> 8
-            packet += bytes(2)
-            packet.extend(data)
-
-        checksum = sum(packet, 0xBEAF) & 0xFFFF
-        packet[0x06] = checksum & 0xFF
-        packet[0x07] = checksum >> 8
-
-        packet_len = len(packet) - 2
-        packet[0x00] = packet_len & 0xFF
-        packet[0x01] = packet_len >> 8
-
-        resp = self.send_packet(0x6A, packet)
+        resp = self.send_packet(0x6A, data)
         e.check_error(resp[0x22:0x24])
         payload = self.decrypt(resp[0x38:])
         return payload
 
     def check_sensors_raw(self) -> dict:
         """Return the state of the sensors in raw format."""
-        data = self._send(1)
+        data = self._send(bytes.fromhex("0c00a5a55a5ab9c0010b000000000000"))
 
         return {
             "temperature": data[0x13] * 256 + data[0x14],
