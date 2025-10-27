@@ -171,3 +171,8 @@ class rm4(rm4pro):
     """For backwards compatibility."""
 
     TYPE = "RM4"
+
+class rm5plus(rmminib):
+    """Controls a Broadlink RM5 Plus."""
+    
+    TYPE = "RM5PLUS"
