@@ -11,7 +11,7 @@ from .cover import dooya, dooya2, wser
 from .device import Device, ping, scan
 from .hub import s3
 from .light import lb1, lb2
-from .remote import rm, rm4, rm4mini, rm4pro, rmmini, rmminib, rmpro
+from .remote import rm, rm4, rm4mini, rm4pro, rmmini, rmminib, rmpro, rm5plus
 from .sensor import a1, a2
 from .switch import bg1, ehc31, mp1, mp1s, sp1, sp2, sp2s, sp3, sp3s, sp4, sp4b
 
@@ -146,6 +146,9 @@ SUPPORTED_TYPES = {
         0x61A2: ("RM4 pro", "Broadlink"),
         0x649B: ("RM4 pro", "Broadlink"),
         0x653C: ("RM4 pro", "Broadlink"),
+    },
+    rm5plus: {
+        0x5224: ("RM5 plus", "Broadlink"),
     },
     a1: {
         0x2714: ("A1", "Broadlink"),
