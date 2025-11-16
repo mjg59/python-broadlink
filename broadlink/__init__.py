@@ -10,7 +10,7 @@ from .climate import hvac, hysen
 from .cover import dooya, dooya2, wser
 from .device import Device, ping, scan
 from .hub import s3
-from .light import lb1, lb2
+from .light import lb1, lb2, fl1
 from .remote import rm, rm4, rm4mini, rm4pro, rmmini, rmminib, rmpro
 from .sensor import a1, a2
 from .switch import bg1, ehc31, mp1, mp1s, sp1, sp2, sp2s, sp3, sp3s, sp4, sp4b
@@ -178,6 +178,9 @@ SUPPORTED_TYPES = {
         0xA4F4: ("LB27 R1", "Broadlink"),
         0xA5F7: ("LB27 R1", "Broadlink"),
         0xA6EF: ("EFCF60WSMT", "Luceco"),
+    },
+    fl1: {
+        0x647A: {"Castra", "Luceco"},
     },
     S1C: {
         0x2722: ("S2KIT", "Broadlink"),

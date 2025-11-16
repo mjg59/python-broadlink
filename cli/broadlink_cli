@@ -34,6 +34,14 @@ parser.add_argument("--device", help="device definition as 'type host mac'")
 parser.add_argument("--type", type=auto_int, default=0x2712, help="type of device")
 parser.add_argument("--host", help="host address")
 parser.add_argument("--mac", help="mac address (hex reverse), as used by python-broadlink library")
+parser.add_argument("--brightness", action="store", help="set lamp brightness")
+parser.add_argument("--flmode", action="store", help="set floodlight mode (0, 5, 6, 7)")
+parser.add_argument("--flon", action="store_true", help="turn floodlight on")
+parser.add_argument("--floff", action="store_true", help="turn floodlight off")
+parser.add_argument("--ontime", action="store", help="set floodlight on time (10 - 1800)")
+parser.add_argument("--sensitivity", action="store", help="set motion sensitivity (0 - 3)")
+parser.add_argument("--brightnesscontrol", action="store", help="set ambient light threshold (5 - 2000)")
+parser.add_argument("--getstate", action="store_true", help="get current state")
 parser.add_argument("--temperature", action="store_true", help="request temperature from device")
 parser.add_argument("--humidity", action="store_true", help="request humidity from device")
 parser.add_argument("--energy", action="store_true", help="request energy consumption from device")
@@ -73,6 +81,23 @@ if args.host or args.device:
 
 if args.joinwifi:
     broadlink.setup(args.joinwifi[0], args.joinwifi[1], 4)
+
+if args.flmode:
+    dev.set_state(mode_switch=args.flmode)
+if args.flon:
+    dev.set_state(lightpwr=1)
+if args.floff:
+    dev.set_state(lightpwr=0)
+if args.brightness:
+    dev.set_state(brightness=args.brightness)
+if args.ontime:
+    dev.set_state(delay_time=args.ontime)
+if args.sensitivity:
+    dev.set_state(sensitivity_en=args.sensitivity)
+if args.brightnesscontrol:
+    dev.set_state(brightness_control=args.brightnesscontrol)
+if args.getstate:
+    print(dev.get_state())
 
 if args.convert:
     data = bytearray.fromhex(''.join(args.data))
