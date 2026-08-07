@@ -6,7 +6,10 @@ from . import exceptions as e
 from .device import Device
 
 
-def pulses_to_data(pulses: List[int], tick: float = 32.84) -> bytes:
+TICK = 8192 / 269  # 30.4535 us -- Broadlink's tick, per protocol.md (fixes #839)
+
+
+def pulses_to_data(pulses: List[int], tick: float = TICK) -> bytes:
     """Convert a microsecond duration sequence into a Broadlink IR packet."""
     result = bytearray(4)
     result[0x00] = 0x26
@@ -25,7 +28,7 @@ def pulses_to_data(pulses: List[int], tick: float = 32.84) -> bytes:
     return result
 
 
-def data_to_pulses(data: bytes, tick: float = 32.84) -> List[int]:
+def data_to_pulses(data: bytes, tick: float = TICK) -> List[int]:
     """Parse a Broadlink packet into a microsecond duration sequence."""
     result = []
     index = 4
