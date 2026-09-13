@@ -305,21 +305,22 @@ def setup(
     # Security mode options are (0 - none, 1 = WEP, 2 = WPA1, 3 = WPA2, 4 = WPA1/2)
     payload = bytearray(0x88)
     payload[0x26] = 0x14  # This seems to always be set to 14
+
+    ssid_bytes = ssid.encode("utf-8")
+    password_bytes = password.encode("utf-8")
+
     # Add the SSID to the payload
     ssid_start = 68
-    ssid_length = 0
-    for letter in ssid:
-        payload[(ssid_start + ssid_length)] = ord(letter)
-        ssid_length += 1
+    for index, byte in enumerate(ssid_bytes):
+        payload[ssid_start + index] = byte
+
     # Add the WiFi password to the payload
     pass_start = 100
-    pass_length = 0
-    for letter in password:
-        payload[(pass_start + pass_length)] = ord(letter)
-        pass_length += 1
+    for index, byte in enumerate(password_bytes):
+        payload[pass_start + index] = byte
 
-    payload[0x84] = ssid_length  # Character length of SSID
-    payload[0x85] = pass_length  # Character length of password
+    payload[0x84] = len(ssid_bytes)      # Byte length of SSID
+    payload[0x85] = len(password_bytes)  # Byte length of password
     payload[0x86] = security_mode  # Type of encryption
 
     checksum = sum(payload, 0xBEAF) & 0xFFFF
