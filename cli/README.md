@@ -6,14 +6,19 @@ This is a command line interface for the python-broadlink API.
 
 Requirements
 ------------
-You need to install the module first:
+Installation
+------------
+Install the module, which also provides the `broadlink_cli` and `broadlink_discovery` commands.
+
+With pip:
 ```
 pip3 install broadlink
 ```
 
-Installation
------------
-Download "broadlink_cli" and "broadlink_discovery".
+With uv, as isolated command line tools:
+```
+uv tool install broadlink
+```
 
 
 Programs

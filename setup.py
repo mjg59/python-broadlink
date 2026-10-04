@@ -4,8 +4,7 @@
 
 from setuptools import setup, find_packages
 
-
-version = '0.19.0'
+version = "0.19.0"
 
 setup(
     name="broadlink",
@@ -14,7 +13,12 @@ setup(
     author_email="mjg59@srcf.ucam.org",
     url="http://github.com/mjg59/python-broadlink",
     packages=find_packages(),
-    scripts=[],
+    entry_points={
+        "console_scripts": [
+            "broadlink_cli=broadlink.cli.broadlink_cli:main",
+            "broadlink_discovery=broadlink.cli.broadlink_discovery:main",
+        ],
+    },
     install_requires=["cryptography>=3.2"],
     description="Python API for controlling Broadlink devices",
     classifiers=[
